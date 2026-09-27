@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatMonth, getMonthName, isValidMonth, parseMonth, shiftMonth } from '../month';
+import { formatMonth, getMonthName, isPastMonth, isValidMonth, parseMonth, shiftMonth } from '../month';
 
 describe('month utilities', () => {
   it('accepts well-formed months and rejects malformed ones', () => {
@@ -58,5 +58,17 @@ describe('month utilities', () => {
     // Then each locale reads naturally
     expect(getMonthName('2026-06', 'pt-BR')).toBe('junho de 2026');
     expect(getMonthName('2026-06', 'en-US')).toBe('June 2026');
+  });
+
+  it('tells a past month from the current and future ones', () => {
+    // Given "now" is September 2026
+    const now = new Date(2026, 8, 27);
+
+    // When asking which months are past
+    // Then only months before the current calendar month are
+    expect(isPastMonth('2026-08', now)).toBe(true);
+    expect(isPastMonth('2025-12', now)).toBe(true);
+    expect(isPastMonth('2026-09', now)).toBe(false);
+    expect(isPastMonth('2026-10', now)).toBe(false);
   });
 });

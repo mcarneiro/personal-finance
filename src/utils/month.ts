@@ -11,6 +11,15 @@ export function isValidMonth(value: string | undefined): value is Month {
   return typeof value === 'string' && MONTH_PATTERN.test(value);
 }
 
+/**
+ * True when `month` lies before the current calendar month. Past months are
+ * history: the plan screen headlines their final Plan Result rather than a live
+ * projection (spec: past months show the Plan Result as the headline).
+ */
+export function isPastMonth(month: Month, now: Date = new Date()): boolean {
+  return month < formatMonth(now);
+}
+
 /** Format a local Date as `YYYY-MM` using the local calendar month. */
 export function formatMonth(date: Date): Month {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}`;
