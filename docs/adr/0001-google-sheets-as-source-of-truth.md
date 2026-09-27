@@ -1,0 +1,3 @@
+# Google Sheets as the persistent source of truth
+
+The personal finance app deliberately reuses Stayoo's foundation: Google Sheets via OAuth is the persistent store, with the same stack (React 19, Vite, Redux Toolkit, Tailwind, react-i18next) and the same patterns (`GoogleSheetsService`, debounced sync middleware, onboarding flow). We rejected local-only storage (no cross-device sync, no backup) and local-first with optional sync (dual-path sync complexity is not worth it for a small app) because the Sheets pattern is already proven in production, the data stays human-inspectable, and it can be set up in a day instead of a quarter.

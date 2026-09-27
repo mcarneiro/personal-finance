@@ -1,0 +1,48 @@
+# Planoo Development Guide
+
+## Product
+
+Planoo is a household card-spending planner. It plans card spending in fixed charges and spending buckets, tracks weekly card check-ins and per-bucket remaining estimates, projects the month result live, and tracks income and bills. Data lives in Google Sheets.
+
+## Domain
+
+- `CONTEXT.md` is the domain glossary — the source of truth for what words mean. Keep it in sync when terms change.
+- `docs/adr/` records the hard decisions. Notably: card spending is tracked as per-card running totals, never as purchases (ADR-0002).
+
+## Architecture
+
+- Google Sheets is the persistent source of truth. Port `GoogleSheetsService.ts` from `../airbnb-organizer` (Stayoo) — same OAuth flow, same debounced sync middleware pattern (`useDataSync.ts` + `syncListener.ts`).
+- Redux Toolkit slices own feature state (`incomeSlice`, `billsSlice`, `planSlice`, `cardsSlice`).
+- All derived numbers (Plan Total, Total Spent, Projected Result, Plan Result, Account Net) are computed in pure, fully tested utilities — never stored in state or the sheet.
+- Use `react-i18next` for all user-facing text (pt-BR primary, en-US) and Tailwind CSS for styling. Preserve the mobile-first UI.
+- Types live in `src/types/index.ts`. Do not use `any`. There are no purchase entities in this app — do not add them.
+
+## Development Workflow
+
+- Start with a failing Vitest test for a feature or bug fix. Use Given/When/Then comments in tests.
+- Add a reproduction test for every bug fix. Prioritize tests for the control-loop calculations (Projected Result, Plan Result, Account Net).
+- Run `npm run lint`, `npx tsc --noEmit`, and relevant `npm test` tests after changes.
+- Keep `README.md` and `prd.md` accurate when product behavior changes.
+
+## Security
+
+- Never log, commit, or expose OAuth tokens, client secrets, spreadsheet IDs, or `.env` values.
+- Keep Google OAuth scopes and Sheets access limited to what the feature requires.
+
+## Git
+
+- Use clear conventional commit messages such as `feat:`, `fix:`, and `refactor:`.
+
+## Agent skills
+
+### Issue tracker
+
+Issues are tracked as local markdown files under `.scratch/<feature>/`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default label vocabulary — the five canonical triage roles used as-is. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context layout — `CONTEXT.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
