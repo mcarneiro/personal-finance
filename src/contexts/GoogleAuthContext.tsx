@@ -1,8 +1,9 @@
 /* eslint-disable react-refresh/only-export-components -- the provider and its hook are one module by design */
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import { useGoogleLogin } from '@react-oauth/google';
 import { useDispatch } from 'react-redux';
 import { setAuthInitialized } from '../store/appSlice';
+import { GOOGLE_CONFIG } from '../config/google';
 
 interface GoogleAuthContextType {
   isSignedIn: boolean;
@@ -175,10 +176,10 @@ export function GoogleAuthProvider({ children }: { children: ReactNode }) {
     }
   }, [isSignedIn, userEmail, accessToken, tokenExpiresAt]);
 
-  const login = useGoogleLogin({
-    onSuccess: async (tokenResponse) => {
+  const handleLoginSuccess = useCallback(
+    async (tokenResponse: { access_token?: string; expires_in?: number }) => {
       try {
-        setAccessToken(tokenResponse.access_token);
+        setAccessToken(tokenResponse.access_token ?? null);
 
         // Calculate token expiration time (Google provides expires_in in seconds)
         const expiresIn = tokenResponse.expires_in || 3600; // Default to 1 hour
@@ -201,16 +202,25 @@ export function GoogleAuthProvider({ children }: { children: ReactNode }) {
         setIsSignedIn(false);
       }
     },
-    onError: (error) => {
-      console.error('Login Failed:', error);
-      setError('Failed to sign in with Google. Please try again.');
-      setIsSignedIn(false);
-    },
-    scope: 'https://www.googleapis.com/auth/spreadsheets',
-  });
+    []
+  );
+
+  const handleLoginError = useCallback(() => {
+    setError('Failed to sign in with Google. Please try again.');
+    setIsSignedIn(false);
+  }, []);
+
+  // The login client is created lazily by <GoogleLoginBridge> only when a client
+  // ID exists. Calling useGoogleLogin with an empty client ID throws inside the
+  // GSI script once it loads, which would blank the whole app.
+  const loginRef = useRef<() => void>(() => {});
+  const handleLoginReady = useCallback((login: () => void) => {
+    loginRef.current = login;
+  }, []);
+  const isConfigured = !!GOOGLE_CONFIG.CLIENT_ID;
 
   const signIn = () => {
-    login();
+    loginRef.current();
   };
 
   const signOut = (reason?: 'expired') => {
@@ -278,9 +288,43 @@ export function GoogleAuthProvider({ children }: { children: ReactNode }) {
         clearSessionExpired,
       }}
     >
+      {isConfigured && (
+        <GoogleLoginBridge
+          onReady={handleLoginReady}
+          onSuccess={handleLoginSuccess}
+          onError={handleLoginError}
+        />
+      )}
       {children}
     </GoogleAuthContext.Provider>
   );
+}
+
+interface GoogleLoginBridgeProps {
+  onReady: (login: () => void) => void;
+  onSuccess: (tokenResponse: { access_token?: string; expires_in?: number }) => void;
+  onError: () => void;
+}
+
+/**
+ * Owns the `useGoogleLogin` hook. Rendered only when an OAuth client ID is
+ * configured, so an unconfigured build can still show onboarding.
+ */
+function GoogleLoginBridge({ onReady, onSuccess, onError }: GoogleLoginBridgeProps) {
+  const login = useGoogleLogin({
+    onSuccess,
+    onError: () => {
+      console.error('Login Failed');
+      onError();
+    },
+    scope: 'https://www.googleapis.com/auth/spreadsheets',
+  });
+
+  useEffect(() => {
+    onReady(login);
+  }, [login, onReady]);
+
+  return null;
 }
 
 export function useGoogleAuth() {
