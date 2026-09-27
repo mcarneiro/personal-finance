@@ -283,6 +283,20 @@ describe('Spending Plan composition', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('hides the copy button once the month already has a plan, so it can never duplicate', () => {
+    // Given June already has a plan and May has one too
+    renderPlan(`/plan/${JUNE}`, [
+      planItem({ month: MAY, kind: 'fixed', name: 'Internet', amount: 110 }),
+      planItem({ month: JUNE, kind: 'fixed', name: 'Gym', amount: 200 }),
+    ]);
+
+    // When June renders
+    // Then there is no copy affordance that could duplicate its composition
+    expect(
+      screen.queryByRole('button', { name: 'Copiar plano do mês anterior' })
+    ).not.toBeInTheDocument();
+  });
+
   it("shows each month's own composition when navigating months", async () => {
     // Given June has a plan and July is still empty
     renderPlan(`/plan/${JUNE}`, [

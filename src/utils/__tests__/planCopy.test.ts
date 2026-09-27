@@ -54,13 +54,16 @@ describe('copyPlanItems', () => {
   });
 
   it('gives every copy a fresh id so it cannot collide with its source', () => {
+    // Given last month's items carry their own ids
     const source = [
       planItem({ id: 'a', name: 'Internet' }),
       planItem({ id: 'b', name: 'Gym' }),
     ];
 
+    // When I copy them
     const copies = copyPlanItems(source, JUNE);
 
+    // Then every copy is keyed by a new, distinct id
     const ids = copies.map((copy) => copy.id);
     expect(ids).not.toContain('a');
     expect(ids).not.toContain('b');
@@ -68,6 +71,9 @@ describe('copyPlanItems', () => {
   });
 
   it('copies nothing when last month had no plan', () => {
+    // Given last month had no plan
+    // When I copy it
+    // Then the target month stays empty
     expect(copyPlanItems([], JUNE)).toEqual([]);
   });
 });

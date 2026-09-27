@@ -15,6 +15,28 @@ import PlanItemForm from './PlanItemForm';
 const SECTION_KINDS = ['fixed', 'variable'] as const;
 
 /**
+ * Per-kind labels for the two sections. Kept as one map instead of repeated
+ * ternaries so adding a kind is a single edit.
+ */
+const SECTION_COPY: Record<
+  PlanItemKind,
+  { title: string; nameLabel: string; amountLabel: string; submitLabel: string }
+> = {
+  fixed: {
+    title: 'plan.fixedCharges',
+    nameLabel: 'plan.fixedNameLabel',
+    amountLabel: 'plan.fixedAmountLabel',
+    submitLabel: 'plan.addFixedCharge',
+  },
+  variable: {
+    title: 'plan.buckets',
+    nameLabel: 'plan.bucketNameLabel',
+    amountLabel: 'plan.bucketAmountLabel',
+    submitLabel: 'plan.addBucket',
+  },
+};
+
+/**
  * The Spending Plan screen for one month: the month's fixed charges and spending
  * buckets, addable/editable/removable, with the plan total and the one-tap
  * copy-last-month seed. The plan total comes from the control-loop utilities
@@ -45,7 +67,9 @@ export default function PlanScreen() {
             {formatCurrency(planTotal(month, items), i18n.language)}
           </span>
         </div>
-        {lastMonthItems.length > 0 && (
+        {/* Seed only an empty month: on a month that already has items a copy
+            would silently duplicate the whole plan. */}
+        {lastMonthItems.length > 0 && monthItems.length === 0 && (
           <button
             type="button"
             onClick={() => dispatch(addPlanItems(copyPlanItems(lastMonthItems, month)))}
@@ -62,13 +86,11 @@ export default function PlanScreen() {
 
       {SECTION_KINDS.map((kind: PlanItemKind) => {
         const sectionItems = monthItems.filter((item) => item.kind === kind);
-        const isFixed = kind === 'fixed';
+        const copy = SECTION_COPY[kind];
 
         return (
           <section key={kind} className="mt-4 rounded-lg border border-gray-200 bg-white p-4">
-            <h2 className="text-sm font-semibold text-gray-900">
-              {isFixed ? t('plan.fixedCharges') : t('plan.buckets')}
-            </h2>
+            <h2 className="text-sm font-semibold text-gray-900">{t(copy.title)}</h2>
 
             {sectionItems.length > 0 && (
               <ul className="mt-2 divide-y divide-gray-100">
@@ -125,9 +147,9 @@ export default function PlanScreen() {
             <div className={sectionItems.length > 0 ? 'mt-4 border-t border-gray-100 pt-4' : 'mt-3'}>
               <PlanItemForm
                 formId={`add-${kind}`}
-                nameLabel={isFixed ? t('plan.fixedNameLabel') : t('plan.bucketNameLabel')}
-                amountLabel={isFixed ? t('plan.fixedAmountLabel') : t('plan.bucketAmountLabel')}
-                submitLabel={isFixed ? t('plan.addFixedCharge') : t('plan.addBucket')}
+                nameLabel={t(copy.nameLabel)}
+                amountLabel={t(copy.amountLabel)}
+                submitLabel={t(copy.submitLabel)}
                 onSubmit={(name, amount) =>
                   dispatch(
                     addPlanItem({
