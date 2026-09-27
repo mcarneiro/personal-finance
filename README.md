@@ -21,4 +21,4 @@ npm run test:watch # watch mode
 
 ### Environment
 
-Google Sheets integration (added in a later ticket) reads `VITE_GOOGLE_CLIENT_ID` from `.env`. Never commit `.env` or any OAuth secret.
+Google Sheets integration reads `VITE_GOOGLE_CLIENT_ID` from `.env`. Copy `.env.example` to `.env` and paste your OAuth client ID; the first launch walks you through signing in, pasting a Sheet URL, and creating any missing tabs. Never commit `.env` or any OAuth secret.

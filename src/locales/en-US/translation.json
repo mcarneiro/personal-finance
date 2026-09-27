@@ -4,11 +4,43 @@
     "previousMonth": "Previous month",
     "nextMonth": "Next month"
   },
+  "session": {
+    "title": "Session expired",
+    "message": "Your session has expired. Please sign in again to continue.",
+    "dismiss": "Dismiss notification"
+  },
   "navigation": {
     "plan": "Plan",
     "bills": "Bills",
     "income": "Income",
     "settings": "Settings"
+  },
+  "onboarding": {
+    "title": "Welcome to Planoo",
+    "subtitle": "I plan my household's card spending. I built Planoo to plan card spending, track bills and income, all synced to Google Sheets. Connect your sheet to get started.",
+    "configRequired": "Configuration Required",
+    "configMessage": "The Google OAuth Client ID is not configured. Please create a .env file with your Client ID. See .env.example for instructions.",
+    "step1": "Step 1: Sign in with Google",
+    "signInToContinue": "Sign in to Continue",
+    "needAccess": "We need access to your Google Sheets to store your data.",
+    "sessionExpired": "Your session has expired. Please sign in again to access your data.",
+    "whatAccess": "What we'll access:",
+    "accessItem1": "Read and write to your Google Sheets",
+    "accessItem2": "No access to other Google services",
+    "accessItem3": "Your data stays in your own Google Sheet",
+    "signInButton": "Sign in with Google",
+    "signingIn": "Signing in...",
+    "signedInAs": "✓ Signed in as {{email}}",
+    "loadingData": "Loading your data...",
+    "step2": "Step 2: Connect Your Google Sheet",
+    "enterSheetUrl": "Paste your Google Sheet URL. It can be an empty or existing sheet — we create any missing tabs.",
+    "sheetUrlLabel": "Google Sheet URL",
+    "noSheet": "Don't have a sheet?",
+    "createSheet": "Create one here",
+    "completeSetup": "Complete Setup",
+    "settingUp": "Setting up...",
+    "invalidSheetUrl": "Please enter a valid Google Sheet URL.",
+    "setupFailed": "Failed to set up the Google Sheet."
   },
   "plan": {
     "title": "Spending Plan",
@@ -26,6 +58,18 @@
     "title": "Settings",
     "language": "Language",
     "languagePtBR": "Português (Brasil)",
-    "languageEnUS": "English (US)"
+    "languageEnUS": "English (US)",
+    "signedInAs": "Signed in as {{email}}",
+    "connectedSheet": "Connected sheet",
+    "connectedSheetHelper": "Connected sheet: {{sheetId}}",
+    "noSheet": "No sheet connected yet.",
+    "sheetUrlLabel": "Google Sheet URL",
+    "sheetIdHelper": "Stored locally for connection purposes only",
+    "connectSheet": "Connect sheet",
+    "changeSheet": "Change sheet",
+    "settingUp": "Setting up...",
+    "sheetSaved": "Sheet connected.",
+    "invalidSheetUrl": "Please enter a valid Google Sheet URL.",
+    "sheetConnectFailed": "Failed to connect the sheet."
   }
 }

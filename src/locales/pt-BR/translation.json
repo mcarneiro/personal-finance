@@ -4,11 +4,43 @@
     "previousMonth": "Mês anterior",
     "nextMonth": "Próximo mês"
   },
+  "session": {
+    "title": "Sessão expirada",
+    "message": "Sua sessão expirou. Entre novamente para continuar.",
+    "dismiss": "Dispensar aviso"
+  },
   "navigation": {
     "plan": "Plano",
     "bills": "Contas",
     "income": "Renda",
     "settings": "Ajustes"
+  },
+  "onboarding": {
+    "title": "Bem-vindo ao Planoo",
+    "subtitle": "Planejo os gastos do cartão da minha casa. Criei o Planoo para planejar, acompanhar as contas e a renda, tudo sincronizado com o Google Sheets. Conecte sua planilha para começar.",
+    "configRequired": "Configuração necessária",
+    "configMessage": "O ID do cliente OAuth do Google não está configurado. Crie um arquivo .env com seu ID de cliente. Veja .env.example para instruções.",
+    "step1": "Passo 1: Entre com Google",
+    "signInToContinue": "Entre para continuar",
+    "needAccess": "Precisamos de acesso às suas Planilhas Google para armazenar seus dados.",
+    "sessionExpired": "Sua sessão expirou. Entre novamente para acessar seus dados.",
+    "whatAccess": "O que vamos acessar:",
+    "accessItem1": "Ler e escrever nas suas Planilhas Google",
+    "accessItem2": "Sem acesso a outros serviços do Google",
+    "accessItem3": "Seus dados permanecem na sua própria Planilha Google",
+    "signInButton": "Entrar com Google",
+    "signingIn": "Entrando...",
+    "signedInAs": "✓ Conectado como {{email}}",
+    "loadingData": "Carregando seus dados...",
+    "step2": "Passo 2: Conecte sua Planilha Google",
+    "enterSheetUrl": "Cole a URL da sua Planilha Google. Pode ser uma planilha vazia ou existente — criamos as abas que faltarem.",
+    "sheetUrlLabel": "URL da Planilha Google",
+    "noSheet": "Não tem uma planilha?",
+    "createSheet": "Crie uma aqui",
+    "completeSetup": "Concluir configuração",
+    "settingUp": "Configurando...",
+    "invalidSheetUrl": "Informe uma URL de Planilha Google válida.",
+    "setupFailed": "Não foi possível configurar a Planilha Google."
   },
   "plan": {
     "title": "Plano de Gastos",
@@ -26,6 +58,18 @@
     "title": "Ajustes",
     "language": "Idioma",
     "languagePtBR": "Português (Brasil)",
-    "languageEnUS": "English (US)"
+    "languageEnUS": "English (US)",
+    "signedInAs": "Conectado como {{email}}",
+    "connectedSheet": "Planilha conectada",
+    "connectedSheetHelper": "Planilha conectada: {{sheetId}}",
+    "noSheet": "Nenhuma planilha conectada ainda.",
+    "sheetUrlLabel": "URL da Planilha Google",
+    "sheetIdHelper": "Armazenada localmente apenas para a conexão",
+    "connectSheet": "Conectar planilha",
+    "changeSheet": "Trocar planilha",
+    "settingUp": "Configurando...",
+    "sheetSaved": "Planilha conectada.",
+    "invalidSheetUrl": "Informe uma URL de Planilha Google válida.",
+    "sheetConnectFailed": "Não foi possível conectar a planilha."
   }
 }

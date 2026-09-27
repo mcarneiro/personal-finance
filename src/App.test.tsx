@@ -6,7 +6,39 @@ import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
 import i18n from './config/i18n';
-import appReducer, { setDataLoading } from './store/appSlice';
+import { useGoogleAuth } from './contexts/GoogleAuthContext';
+import appReducer from './store/appSlice';
+import settingsReducer from './store/settingsSlice';
+
+// Auth is an external boundary; screens are tested with a signed-in household planner.
+vi.mock('./contexts/GoogleAuthContext', () => ({
+  useGoogleAuth: vi.fn(),
+}));
+
+// Navigation tests are about routing, not the sheet load; the load path has its
+// own test in App.sync.test.tsx.
+vi.mock('./hooks/useDataSync', () => ({
+  useDataSync: () => ({ loadData: vi.fn() }),
+}));
+
+const mockedUseGoogleAuth = vi.mocked(useGoogleAuth);
+
+function authState(overrides: Partial<ReturnType<typeof useGoogleAuth>> = {}) {
+  return {
+    isSignedIn: true,
+    userEmail: 'planner@example.com',
+    accessToken: 'test-token',
+    error: null,
+    signIn: vi.fn(),
+    signOut: vi.fn(),
+    fullLogout: vi.fn(),
+    persistAuth: false,
+    setPersistAuth: vi.fn(),
+    sessionExpired: false,
+    clearSessionExpired: vi.fn(),
+    ...overrides,
+  };
+}
 
 async function setLanguage(language: string) {
   await act(async () => {
@@ -14,8 +46,18 @@ async function setLanguage(language: string) {
   });
 }
 
-function renderApp(initialPath: string) {
-  const store = configureStore({ reducer: { app: appReducer } });
+function appStore({ dataLoading = false, dataLoaded = true } = {}) {
+  return configureStore({
+    reducer: { app: appReducer, settings: settingsReducer },
+    preloadedState: {
+      app: { authInitialized: true, dataLoading, dataLoaded },
+      settings: { sheetId: 'test-sheet' },
+    },
+  });
+}
+
+function renderApp(initialPath: string, store = appStore()) {
+  mockedUseGoogleAuth.mockReturnValue(authState());
 
   return render(
     <Provider store={store}>
@@ -105,27 +147,36 @@ describe('month navigation', () => {
   });
 });
 
-describe('loading state', () => {
+describe('startup gate', () => {
   beforeEach(async () => {
     await setLanguage('pt-BR');
   });
 
   it('shows the loading screen until the initial data load settles', () => {
     // Given the app is still loading the sheet data
-    const store = configureStore({ reducer: { app: appReducer } });
-    store.dispatch(setDataLoading(true));
+    renderApp('/plan/2026-06', appStore({ dataLoading: true, dataLoaded: false }));
 
-    // When the app renders
+    // Then the loading screen shows instead of the plan
+    expect(screen.getByText('Carregando...')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Plano de Gastos' })).not.toBeInTheDocument();
+  });
+
+  it('sends a signed-out user to onboarding', () => {
+    // Given the user is not signed in
+    mockedUseGoogleAuth.mockReturnValue(
+      authState({ isSignedIn: false, userEmail: null, accessToken: null })
+    );
+
+    // When the app opens on the plan
     render(
-      <Provider store={store}>
+      <Provider store={appStore()}>
         <MemoryRouter initialEntries={['/plan/2026-06']}>
           <App />
         </MemoryRouter>
       </Provider>,
     );
 
-    // Then the loading screen shows instead of the plan
-    expect(screen.getByText('Carregando...')).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Plano de Gastos' })).not.toBeInTheDocument();
+    // Then onboarding is shown
+    expect(screen.getByRole('heading', { name: 'Bem-vindo ao Planoo' })).toBeInTheDocument();
   });
 });

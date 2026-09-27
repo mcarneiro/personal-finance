@@ -14,5 +14,9 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: './src/test/setup.ts',
     css: true,
+    // A configured client ID makes onboarding's sign-in button reachable in tests.
+    env: {
+      VITE_GOOGLE_CLIENT_ID: 'test-client-id.apps.googleusercontent.com',
+    },
   },
 })
