@@ -9,6 +9,7 @@ import i18n from './config/i18n';
 import { useGoogleAuth } from './contexts/GoogleAuthContext';
 import appReducer from './store/appSlice';
 import cardsReducer from './store/cardsSlice';
+import planReducer from './store/planSlice';
 import settingsReducer from './store/settingsSlice';
 
 // Auth is an external boundary; screens are tested with a signed-in household planner.
@@ -49,7 +50,7 @@ async function setLanguage(language: string) {
 
 function appStore({ dataLoading = false, dataLoaded = true } = {}) {
   return configureStore({
-    reducer: { app: appReducer, cards: cardsReducer, settings: settingsReducer },
+    reducer: { app: appReducer, cards: cardsReducer, plan: planReducer, settings: settingsReducer },
     preloadedState: {
       app: { authInitialized: true, dataLoading, dataLoaded },
       settings: { sheetId: 'test-sheet' },

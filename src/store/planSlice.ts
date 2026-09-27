@@ -27,6 +27,10 @@ const planSlice = createSlice({
     addPlanItem: (state, action: PayloadAction<PlanItem>) => {
       state.items.push(action.payload);
     },
+    /** Bulk add for copy-last-month, so a whole seeded plan syncs as one action. */
+    addPlanItems: (state, action: PayloadAction<PlanItem[]>) => {
+      state.items.push(...action.payload);
+    },
     updatePlanItem: (state, action: PayloadAction<PlanItem>) => {
       const index = state.items.findIndex((item) => item.id === action.payload.id);
       if (index !== -1) {
@@ -60,6 +64,7 @@ const planSlice = createSlice({
 export const {
   setPlanItems,
   addPlanItem,
+  addPlanItems,
   updatePlanItem,
   deletePlanItem,
   setCardSpending,

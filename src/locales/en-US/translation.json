@@ -44,7 +44,25 @@
   },
   "plan": {
     "title": "Spending Plan",
-    "empty": "This month's plan items will appear here."
+    "empty": "This month's plan items will appear here.",
+    "total": "Plan total",
+    "fixedCharges": "Fixed charges",
+    "buckets": "Spending buckets",
+    "fixedNameLabel": "Charge name",
+    "fixedAmountLabel": "Charge amount",
+    "addFixedCharge": "Add fixed charge",
+    "bucketNameLabel": "Bucket name",
+    "bucketAmountLabel": "Bucket cap",
+    "addBucket": "Add spending bucket",
+    "itemNameLabel": "Item name",
+    "itemAmountLabel": "Item amount",
+    "save": "Save",
+    "cancel": "Cancel",
+    "editAction": "Edit",
+    "removeAction": "Remove",
+    "edit": "Edit {{name}}",
+    "remove": "Remove {{name}}",
+    "copyLastMonth": "Copy last month's plan"
   },
   "bills": {
     "title": "Bills",

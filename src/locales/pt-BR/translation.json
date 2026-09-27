@@ -44,7 +44,25 @@
   },
   "plan": {
     "title": "Plano de Gastos",
-    "empty": "Os itens do plano deste mês aparecerão aqui."
+    "empty": "Os itens do plano deste mês aparecerão aqui.",
+    "total": "Total do plano",
+    "fixedCharges": "Cobranças fixas",
+    "buckets": "Tetos de gastos",
+    "fixedNameLabel": "Nome da cobrança",
+    "fixedAmountLabel": "Valor da cobrança",
+    "addFixedCharge": "Adicionar cobrança fixa",
+    "bucketNameLabel": "Nome do teto",
+    "bucketAmountLabel": "Limite do teto",
+    "addBucket": "Adicionar teto de gastos",
+    "itemNameLabel": "Nome do item",
+    "itemAmountLabel": "Valor do item",
+    "save": "Salvar",
+    "cancel": "Cancelar",
+    "editAction": "Editar",
+    "removeAction": "Remover",
+    "edit": "Editar {{name}}",
+    "remove": "Remover {{name}}",
+    "copyLastMonth": "Copiar plano do mês anterior"
   },
   "bills": {
     "title": "Contas",

@@ -4,6 +4,7 @@ import { addBill, deleteBill, toggleBillPaid, updateBill } from '../billsSlice';
 import { addIncomeEntry, deleteIncomeEntry, updateIncomeEntry } from '../incomeSlice';
 import {
   addPlanItem,
+  addPlanItems,
   deletePlanItem,
   setCardSpendingTotal,
   updatePlanItem,
@@ -40,7 +41,7 @@ startAppListening({
 });
 
 startAppListening({
-  matcher: isAnyOf(addPlanItem, updatePlanItem, deletePlanItem),
+  matcher: isAnyOf(addPlanItem, addPlanItems, updatePlanItem, deletePlanItem),
   effect: async (_action, listenerApi) => {
     await listenerApi.delay(DEBOUNCE_MS);
     listenerApi.cancelActiveListeners();
