@@ -14,6 +14,9 @@
 #   MAX_STALLS=1 .scratch/planoo-mvp/ralph.sh     # halt after N failed attempts per ticket
 #   RALPH_AUTO=0 .scratch/planoo-mvp/ralph.sh     # drop --auto (runs will need a tty for
 #                                                #   permission asks — not for unattended use)
+#   RALPH_MODEL=opencode-go/deepseek-v4-pro .scratch/planoo-mvp/ralph.sh
+#                                                # override the implementing model
+#                                                #   (format provider/model[#variant])
 #
 # Graceful halt:  touch .scratch/planoo-mvp/STOP   (checked before every ticket)
 # Logs:           .scratch/planoo-mvp/ralph-logs/<NN>-<slug>.log
@@ -34,6 +37,7 @@ ISSUES_DIR="$FEATURE_DIR/issues"
 LOG_DIR="$FEATURE_DIR/ralph-logs"
 STOP_FILE="$FEATURE_DIR/STOP"
 
+MODEL="${RALPH_MODEL:-opencode-go/deepseek-v4.1-flash}"
 MAX_STALLS="${MAX_STALLS:-2}"
 STOP_AFTER="${STOP_AFTER:-}"
 DRY_RUN="${DRY_RUN:-0}"
@@ -146,9 +150,9 @@ main() {
 
     iteration=$((iteration + 1))
     log="$LOG_DIR/${name%.md}.log"
-    printf '\n=== %s (iteration %d) — %s ===\n' "$name" "$iteration" "$(date -Is)"
+    printf '\n=== %s (iteration %d) — model %s — %s ===\n' "$name" "$iteration" "$MODEL" "$(date -Is)"
 
-    if ! opencode run --title "planoo-mvp ${name%.md}" "${AUTO[@]}" "$(prompt_for "$ticket")" 2>&1 | tee "$log"; then
+    if ! opencode run --title "planoo-mvp ${name%.md}" --model "$MODEL" "${AUTO[@]}" "$(prompt_for "$ticket")" 2>&1 | tee "$log"; then
       echo "opencode run exited nonzero for $name (log: $log)"
     fi
 
