@@ -21,7 +21,9 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# Environment variables
+# Tool-generated config (Serena's own gitignore excludes cache & local settings)
+.serena/*
+!.serena/project.yml
 .env
 .env.local
 .env.development.local

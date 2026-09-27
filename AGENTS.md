@@ -22,6 +22,7 @@ Planoo is a household card-spending planner. It plans card spending in fixed cha
 - Start with a failing Vitest test for a feature or bug fix. Use Given/When/Then comments in tests.
 - Add a reproduction test for every bug fix. Prioritize tests for the control-loop calculations (Projected Result, Plan Result, Account Net).
 - Run `npm run lint`, `npx tsc --noEmit`, and relevant `npm test` tests after changes.
+- Verify every implementation in the browser using the Chrome DevTools MCP (chrome-mcp) before calling it done — drive the real UI, not just unit tests. If chrome-mcp is not connected, stop and ask the user to connect it manually (they run WSL, so they must open it themselves); do not silently skip the check.
 - Keep `README.md` and `prd.md` accurate when product behavior changes.
 
 ## Security
