@@ -19,6 +19,10 @@ const incomeSlice = createSlice({
     addIncomeEntry: (state, action: PayloadAction<IncomeEntry>) => {
       state.items.push(action.payload);
     },
+    /** Bulk add for replicate-last-month, so a whole month's entries sync as one action. */
+    addIncomeEntries: (state, action: PayloadAction<IncomeEntry[]>) => {
+      state.items.push(...action.payload);
+    },
     updateIncomeEntry: (state, action: PayloadAction<IncomeEntry>) => {
       const index = state.items.findIndex((entry) => entry.id === action.payload.id);
       if (index !== -1) {
@@ -31,7 +35,7 @@ const incomeSlice = createSlice({
   },
 });
 
-export const { setIncomeEntries, addIncomeEntry, updateIncomeEntry, deleteIncomeEntry } =
+export const { setIncomeEntries, addIncomeEntry, addIncomeEntries, updateIncomeEntry, deleteIncomeEntry } =
   incomeSlice.actions;
 
 export default incomeSlice.reducer;

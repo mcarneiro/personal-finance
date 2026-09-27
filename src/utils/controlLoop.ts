@@ -1,7 +1,7 @@
 import type { Bill, CardSpending, IncomeEntry, Month, PlanItem } from '../types';
 
 /**
- * The five control-loop derived numbers, as pure functions over month-scoped
+ * The control-loop derived numbers, as pure functions over month-scoped
  * entities. They are never stored in state or in the sheet — every screen
  * reads them by calling these (see spec.md, Implementation Decisions):
  *
@@ -9,6 +9,7 @@ import type { Bill, CardSpending, IncomeEntry, Month, PlanItem } from '../types'
  *   Total Spent       = Σ card totals
  *   Projected Result  = Plan Total − Total Spent − Σ remaining estimates
  *   Plan Result       = Plan Total − Total Spent
+ *   Income Total      = Σ income
  *   Account Net       = Σ income − Σ bills
  *
  * Each function filters by `month`, so callers pass the full arrays from the
@@ -50,13 +51,17 @@ export function planResult(
   return planTotal(month, items) - totalSpent(month, cardSpending);
 }
 
-/** Σ income − Σ bills for the month. Bills count regardless of paid status. */
-export function accountNet(month: Month, income: IncomeEntry[], bills: Bill[]): number {
-  const incomeTotal = income
+/** Σ income for the month — the headline of the Income screen. */
+export function incomeTotal(month: Month, income: IncomeEntry[]): number {
+  return income
     .filter((entry) => entry.month === month)
     .reduce((total, entry) => total + entry.amount, 0);
+}
+
+/** Σ income − Σ bills for the month. Bills count regardless of paid status. */
+export function accountNet(month: Month, income: IncomeEntry[], bills: Bill[]): number {
   const billsTotal = bills
     .filter((bill) => bill.month === month)
     .reduce((total, bill) => total + bill.amount, 0);
-  return incomeTotal - billsTotal;
+  return incomeTotal(month, income) - billsTotal;
 }

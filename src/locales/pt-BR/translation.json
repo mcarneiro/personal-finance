@@ -79,7 +79,22 @@
   },
   "income": {
     "title": "Renda",
-    "empty": "As entradas de renda deste mês aparecerão aqui."
+    "empty": "As entradas de renda deste mês aparecerão aqui.",
+    "summary": "Resumo da renda",
+    "total": "Total da renda",
+    "amountLabel": "Valor da renda",
+    "sourceLabel": "Fonte (opcional)",
+    "itemAmountLabel": "Valor da entrada",
+    "itemSourceLabel": "Fonte",
+    "addEntry": "Adicionar renda",
+    "save": "Salvar",
+    "cancel": "Cancelar",
+    "editAction": "Editar",
+    "removeAction": "Remover",
+    "edit": "Editar {{name}}",
+    "remove": "Remover {{name}}",
+    "noSource": "Sem fonte",
+    "copyLastMonth": "Replicar renda do mês anterior"
   },
   "settings": {
     "title": "Ajustes",

@@ -79,7 +79,22 @@
   },
   "income": {
     "title": "Income",
-    "empty": "This month's income entries will appear here."
+    "empty": "This month's income entries will appear here.",
+    "summary": "Income summary",
+    "total": "Income total",
+    "amountLabel": "Income amount",
+    "sourceLabel": "Source (optional)",
+    "itemAmountLabel": "Entry amount",
+    "itemSourceLabel": "Source",
+    "addEntry": "Add income",
+    "save": "Save",
+    "cancel": "Cancel",
+    "editAction": "Edit",
+    "removeAction": "Remove",
+    "edit": "Edit {{name}}",
+    "remove": "Remove {{name}}",
+    "noSource": "No source",
+    "copyLastMonth": "Replicate last month's income"
   },
   "settings": {
     "title": "Settings",

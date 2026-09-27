@@ -1,7 +1,7 @@
 import { createListenerMiddleware, isAnyOf } from '@reduxjs/toolkit';
 import { addCard, deleteCard, updateCard } from '../cardsSlice';
 import { addBill, deleteBill, toggleBillPaid, updateBill } from '../billsSlice';
-import { addIncomeEntry, deleteIncomeEntry, updateIncomeEntry } from '../incomeSlice';
+import { addIncomeEntries, addIncomeEntry, deleteIncomeEntry, updateIncomeEntry } from '../incomeSlice';
 import {
   addPlanItem,
   addPlanItems,
@@ -92,7 +92,7 @@ startAppListening({
 });
 
 startAppListening({
-  matcher: isAnyOf(addIncomeEntry, updateIncomeEntry, deleteIncomeEntry),
+  matcher: isAnyOf(addIncomeEntry, addIncomeEntries, updateIncomeEntry, deleteIncomeEntry),
   effect: async (_action, listenerApi) => {
     await listenerApi.delay(DEBOUNCE_MS);
     listenerApi.cancelActiveListeners();
