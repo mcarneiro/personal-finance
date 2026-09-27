@@ -1,0 +1,31 @@
+{
+  "common": {
+    "loading": "Carregando...",
+    "previousMonth": "Mês anterior",
+    "nextMonth": "Próximo mês"
+  },
+  "navigation": {
+    "plan": "Plano",
+    "bills": "Contas",
+    "income": "Renda",
+    "settings": "Ajustes"
+  },
+  "plan": {
+    "title": "Plano de Gastos",
+    "empty": "Os itens do plano deste mês aparecerão aqui."
+  },
+  "bills": {
+    "title": "Contas",
+    "empty": "As contas deste mês aparecerão aqui."
+  },
+  "income": {
+    "title": "Renda",
+    "empty": "As entradas de renda deste mês aparecerão aqui."
+  },
+  "settings": {
+    "title": "Ajustes",
+    "language": "Idioma",
+    "languagePtBR": "Português (Brasil)",
+    "languageEnUS": "English (US)"
+  }
+}

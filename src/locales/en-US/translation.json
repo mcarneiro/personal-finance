@@ -1,0 +1,31 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "previousMonth": "Previous month",
+    "nextMonth": "Next month"
+  },
+  "navigation": {
+    "plan": "Plan",
+    "bills": "Bills",
+    "income": "Income",
+    "settings": "Settings"
+  },
+  "plan": {
+    "title": "Spending Plan",
+    "empty": "This month's plan items will appear here."
+  },
+  "bills": {
+    "title": "Bills",
+    "empty": "This month's bills will appear here."
+  },
+  "income": {
+    "title": "Income",
+    "empty": "This month's income entries will appear here."
+  },
+  "settings": {
+    "title": "Settings",
+    "language": "Language",
+    "languagePtBR": "Português (Brasil)",
+    "languageEnUS": "English (US)"
+  }
+}
