@@ -70,6 +70,18 @@
     "settingUp": "Setting up...",
     "sheetSaved": "Sheet connected.",
     "invalidSheetUrl": "Please enter a valid Google Sheet URL.",
-    "sheetConnectFailed": "Failed to connect the sheet."
+    "sheetConnectFailed": "Failed to connect the sheet.",
+    "cards": "Cards",
+    "cardsEmpty": "No cards registered yet.",
+    "cardNameLabel": "Card name",
+    "cardNamePlaceholder": "e.g. cc guta",
+    "addCard": "Add card",
+    "rename": "Rename",
+    "remove": "Remove",
+    "renameCard": "Rename {{name}}",
+    "removeCard": "Remove {{name}}",
+    "renameCardLabel": "New card name",
+    "saveRename": "Save",
+    "cancelRename": "Cancel"
   }
 }

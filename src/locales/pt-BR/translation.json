@@ -70,6 +70,18 @@
     "settingUp": "Configurando...",
     "sheetSaved": "Planilha conectada.",
     "invalidSheetUrl": "Informe uma URL de Planilha Google válida.",
-    "sheetConnectFailed": "Não foi possível conectar a planilha."
+    "sheetConnectFailed": "Não foi possível conectar a planilha.",
+    "cards": "Cartões",
+    "cardsEmpty": "Nenhum cartão cadastrado ainda.",
+    "cardNameLabel": "Nome do cartão",
+    "cardNamePlaceholder": "ex.: cc guta",
+    "addCard": "Adicionar cartão",
+    "rename": "Renomear",
+    "remove": "Remover",
+    "renameCard": "Renomear {{name}}",
+    "removeCard": "Remover {{name}}",
+    "renameCardLabel": "Novo nome do cartão",
+    "saveRename": "Salvar",
+    "cancelRename": "Cancelar"
   }
 }

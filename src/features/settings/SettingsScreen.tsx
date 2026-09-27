@@ -1,6 +1,7 @@
 import { FormEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import LanguageSwitcher from '../../components/LanguageSwitcher';
+import CardRegistry from './CardRegistry';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { setSheetId } from '../../store/settingsSlice';
 import { useGoogleAuth } from '../../contexts/GoogleAuthContext';
@@ -110,6 +111,8 @@ export default function SettingsScreen() {
           {isSaved && <p className="text-sm text-green-700">{t('settings.sheetSaved')}</p>}
         </form>
       </section>
+
+      <CardRegistry />
 
       <LanguageSwitcher />
     </div>

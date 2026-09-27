@@ -25,6 +25,11 @@ const cardsSlice = createSlice({
         state.items[index] = action.payload;
       }
     },
+    /**
+     * Removing a card only drops it from the registry. Card Spending rows for
+     * past months are deliberately left in place: they are the historical record
+     * of Total Spent, and removing the card must not corrupt them (ADR-0002).
+     */
     deleteCard: (state, action: PayloadAction<string>) => {
       state.items = state.items.filter((card) => card.id !== action.payload);
     },

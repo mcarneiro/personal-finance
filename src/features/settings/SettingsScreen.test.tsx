@@ -7,7 +7,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import '../../config/i18n';
 import { useGoogleAuth } from '../../contexts/GoogleAuthContext';
 import { googleSheetsService } from '../../services/GoogleSheetsService';
+import cardsReducer from '../../store/cardsSlice';
+import planReducer from '../../store/planSlice';
+import { syncListenerMiddleware } from '../../store/middleware/syncListener';
 import settingsReducer from '../../store/settingsSlice';
+import { Card, CardSpending } from '../../types';
 import SettingsScreen from './SettingsScreen';
 
 vi.mock('../../contexts/GoogleAuthContext', () => ({
@@ -18,17 +22,69 @@ vi.mock('../../services/GoogleSheetsService', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../services/GoogleSheetsService')>();
   return {
     ...actual,
-    googleSheetsService: { ...actual.googleSheetsService, initializeSheets: vi.fn() },
+    googleSheetsService: {
+      ...actual.googleSheetsService,
+      initializeSheets: vi.fn(),
+      writeCards: vi.fn(),
+      writeCardSpending: vi.fn(),
+    },
   };
 });
 
 const mockedUseGoogleAuth = vi.mocked(useGoogleAuth);
 const SHEET_URL = 'https://docs.google.com/spreadsheets/d/spreadsheet-xyz/edit';
 
+function signedInAuth() {
+  return {
+    isSignedIn: true,
+    userEmail: 'a@b.com',
+    accessToken: 'test-token',
+    error: null,
+    signIn: vi.fn(),
+    signOut: vi.fn(),
+    fullLogout: vi.fn(),
+    persistAuth: false,
+    setPersistAuth: vi.fn(),
+    sessionExpired: false,
+    clearSessionExpired: vi.fn(),
+  };
+}
+
 function renderSettings(existingSheetId: string | null = null) {
   const store = configureStore({
-    reducer: { settings: settingsReducer },
+    reducer: { cards: cardsReducer, settings: settingsReducer },
     preloadedState: { settings: { sheetId: existingSheetId } },
+  });
+
+  render(
+    <Provider store={store}>
+      <MemoryRouter>
+        <SettingsScreen />
+      </MemoryRouter>
+    </Provider>
+  );
+
+  return store;
+}
+
+/**
+ * Renders the registry with the real debounced sync middleware (Seam B): only
+ * the sheets service is mocked, so adding/renaming/removing a card is verified
+ * all the way to the write-back call.
+ */
+function renderRegistry({
+  cards = [] as Card[],
+  cardSpending = [] as CardSpending[],
+} = {}) {
+  const store = configureStore({
+    reducer: { cards: cardsReducer, plan: planReducer, settings: settingsReducer },
+    middleware: (getDefaultMiddleware) =>
+      getDefaultMiddleware().prepend(syncListenerMiddleware.middleware),
+    preloadedState: {
+      cards: { items: cards },
+      plan: { items: [], cardSpending },
+      settings: { sheetId: 'sheet-1' },
+    },
   });
 
   render(
@@ -45,19 +101,7 @@ function renderSettings(existingSheetId: string | null = null) {
 describe('Settings connected sheet', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockedUseGoogleAuth.mockReturnValue({
-      isSignedIn: true,
-      userEmail: 'a@b.com',
-      accessToken: 'test-token',
-      error: null,
-      signIn: vi.fn(),
-      signOut: vi.fn(),
-      fullLogout: vi.fn(),
-      persistAuth: false,
-      setPersistAuth: vi.fn(),
-      sessionExpired: false,
-      clearSessionExpired: vi.fn(),
-    });
+    mockedUseGoogleAuth.mockReturnValue(signedInAuth());
   });
 
   it('shows the connected sheet without exposing its full ID', () => {
@@ -100,5 +144,120 @@ describe('Settings connected sheet', () => {
       await screen.findByText('Informe uma URL de Planilha Google válida.')
     ).toBeInTheDocument();
     expect(googleSheetsService.initializeSheets).not.toHaveBeenCalled();
+  });
+});
+
+describe('Settings card registry', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockedUseGoogleAuth.mockReturnValue(signedInAuth());
+  });
+
+  it('lists the registered cards', () => {
+    // Given the household has registered two cards
+    // When settings renders
+    renderRegistry({
+      cards: [
+        { id: 'c1', name: 'cc guta' },
+        { id: 'c2', name: 'cc uv' },
+      ],
+    });
+
+    // Then both cards are listed
+    expect(screen.getByText('cc guta')).toBeInTheDocument();
+    expect(screen.getByText('cc uv')).toBeInTheDocument();
+  });
+
+  it('adds a card and writes the updated registry back to the sheet', async () => {
+    // Given no cards are registered
+    renderRegistry();
+    const user = userEvent.setup();
+
+    // When the user adds a card by name
+    await user.type(screen.getByLabelText('Nome do cartão'), 'cc ml');
+    await user.click(screen.getByRole('button', { name: 'Adicionar cartão' }));
+
+    // Then the card is listed under a fresh id
+    expect(screen.getByText('cc ml')).toBeInTheDocument();
+
+    // And the updated registry is persisted to the sheet's cards tab
+    await waitFor(
+      () =>
+        expect(googleSheetsService.writeCards).toHaveBeenCalledWith('sheet-1', [
+          expect.objectContaining({ id: expect.any(String), name: 'cc ml' }),
+        ]),
+      { timeout: 2500 }
+    );
+  });
+
+  it('does not add a card without a name', async () => {
+    // Given no cards are registered
+    renderRegistry();
+    const user = userEvent.setup();
+
+    // When the user submits the add form with an empty name
+    const addButton = screen.getByRole('button', { name: 'Adicionar cartão' });
+    expect(addButton).toBeDisabled();
+    await user.click(addButton);
+
+    // Then no card is registered
+    expect(screen.queryByRole('button', { name: /^Renomear/ })).not.toBeInTheDocument();
+  });
+
+  it('renames a card and writes the updated registry back to the sheet', async () => {
+    // Given one registered card
+    renderRegistry({ cards: [{ id: 'c1', name: 'cc guta' }] });
+    const user = userEvent.setup();
+
+    // When the user renames it
+    await user.click(screen.getByRole('button', { name: 'Renomear cc guta' }));
+    const input = screen.getByLabelText('Novo nome do cartão');
+    await user.clear(input);
+    await user.type(input, 'cc guta visa');
+    await user.click(screen.getByRole('button', { name: 'Salvar' }));
+
+    // Then the new name is shown
+    expect(screen.getByText('cc guta visa')).toBeInTheDocument();
+
+    // And the updated registry is persisted to the sheet's cards tab
+    await waitFor(
+      () =>
+        expect(googleSheetsService.writeCards).toHaveBeenCalledWith('sheet-1', [
+          expect.objectContaining({ id: 'c1', name: 'cc guta visa' }),
+        ]),
+      { timeout: 2500 }
+    );
+  });
+
+  it('removes a card without corrupting the card spending recorded for past months', async () => {
+    // Given a card with spending already recorded in June
+    const juneSpending: CardSpending[] = [
+      { id: '2026-06-c1', month: '2026-06', cardId: 'c1', total: 2899 },
+    ];
+    renderRegistry({
+      cards: [
+        { id: 'c1', name: 'cc guta' },
+        { id: 'c2', name: 'cc uv' },
+      ],
+      cardSpending: juneSpending,
+    });
+    const user = userEvent.setup();
+
+    // When the user removes the card
+    await user.click(screen.getByRole('button', { name: 'Remover cc guta' }));
+
+    // Then it is gone from the registry
+    expect(screen.queryByText('cc guta')).not.toBeInTheDocument();
+
+    // And only the cards tab is written back — never the card_spending tab, so
+    // the historical Total Spent survives untouched
+    await waitFor(
+      () =>
+        expect(googleSheetsService.writeCards).toHaveBeenCalledWith('sheet-1', [
+          expect.objectContaining({ id: 'c2' }),
+        ]),
+      { timeout: 2500 }
+    );
+    expect(googleSheetsService.writeCardSpending).not.toHaveBeenCalled();
   });
 });
