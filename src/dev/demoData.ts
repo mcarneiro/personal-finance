@@ -1,4 +1,4 @@
-import type { Bill, Card, CardSpending, IncomeEntry, Month, PlanItem } from '../types';
+import type { Bank, Bill, Card, CardSpending, IncomeEntry, Month, Payer, PlanItem } from '../types';
 
 /**
  * A realistic demo dataset for the real-data verification run (ticket 09) and
@@ -17,6 +17,20 @@ export const DEMO_CARDS: Card[] = [
   { id: 'card-guta', name: 'cc guta' },
   { id: 'card-uv', name: 'cc uv' },
   { id: 'card-ml', name: 'cc ml' },
+];
+
+/** The household's banks, as maintained in Settings. */
+export const DEMO_BANKS: Bank[] = [
+  { id: 'bank-itau', name: 'Itaú' },
+  { id: 'bank-nubank', name: 'Nubank' },
+  { id: 'bank-mercado-livre', name: 'Mercado Livre' },
+  { id: 'bank-inter', name: 'Inter' },
+];
+
+/** The household's payers, as maintained in Settings. */
+export const DEMO_PAYERS: Payer[] = [
+  { id: 'payer-marcelo', name: 'Marcelo' },
+  { id: 'payer-guta', name: 'Guta' },
 ];
 
 /** Build a month-scoped plan item; ids stay deterministic for seeding. */
@@ -41,15 +55,22 @@ function cardTotal(month: Month, cardId: string, total: number): CardSpending {
   return { id: `${month}-${cardId}`, month, cardId, total };
 }
 
-/** Build a bill pinned to a month. */
-function bill(month: Month, name: string, amount: number, isPaid = false): Bill {
+/** Build a bill pinned to a month, assigned to a payer and paid from a bank. */
+function bill(
+  month: Month,
+  name: string,
+  amount: number,
+  payerId: string,
+  bankId: string,
+  isPaid = false
+): Bill {
   const slug = name
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/(^-|-$)/g, '');
-  return { id: `bill-${month}-${slug}`, month, name, amount, isPaid };
+  return { id: `bill-${month}-${slug}`, month, name, amount, isPaid, payerId, bankId };
 }
 
 /** Build an income entry pinned to a month. */
@@ -137,9 +158,9 @@ const JUNE: DemoMonth = {
     cardTotal('2026-06', 'card-ml', 473),
   ],
   bills: [
-    bill('2026-06', 'Cartão guta', 2899, true),
-    bill('2026-06', 'Luz', 180, true),
-    bill('2026-06', 'Internet', 110, true),
+    bill('2026-06', 'Cartão guta', 2899, 'payer-guta', 'bank-itau', true),
+    bill('2026-06', 'Luz', 180, 'payer-marcelo', 'bank-nubank', true),
+    bill('2026-06', 'Internet', 110, 'payer-marcelo', 'bank-nubank', true),
   ],
   income: [income('2026-06', 12000, 'Salário')],
   expected: {
@@ -162,10 +183,10 @@ const JULY: DemoMonth = {
     cardTotal('2026-07', 'card-ml', 620),
   ],
   bills: [
-    bill('2026-07', 'Cartão guta', 3100, true),
-    bill('2026-07', 'Luz', 190),
-    bill('2026-07', 'Internet', 110, true),
-    bill('2026-07', 'Gym', 200),
+    bill('2026-07', 'Cartão guta', 3100, 'payer-guta', 'bank-itau', true),
+    bill('2026-07', 'Luz', 190, 'payer-marcelo', 'bank-nubank'),
+    bill('2026-07', 'Internet', 110, 'payer-marcelo', 'bank-nubank', true),
+    bill('2026-07', 'Gym', 200, 'payer-guta', 'bank-inter'),
   ],
   income: [income('2026-07', 12000, 'Salário'), income('2026-07', 800, 'Freela')],
   expected: {
@@ -189,9 +210,9 @@ const AUGUST: DemoMonth = {
     cardTotal('2026-08', 'card-ml', 537),
   ],
   bills: [
-    bill('2026-08', 'Cartão guta', 3200, true),
-    bill('2026-08', 'Luz', 175, true),
-    bill('2026-08', 'Internet', 110, true),
+    bill('2026-08', 'Cartão guta', 3200, 'payer-guta', 'bank-itau', true),
+    bill('2026-08', 'Luz', 175, 'payer-marcelo', 'bank-nubank', true),
+    bill('2026-08', 'Internet', 110, 'payer-marcelo', 'bank-nubank', true),
   ],
   income: [income('2026-08', 12000, 'Salário')],
   expected: {
@@ -224,9 +245,9 @@ const SEPTEMBER: DemoMonth = {
     cardTotal('2026-09', 'card-ml', 0),
   ],
   bills: [
-    bill('2026-09', 'Cartão guta', 3200),
-    bill('2026-09', 'Luz', 185, true),
-    bill('2026-09', 'Internet', 110),
+    bill('2026-09', 'Cartão guta', 3200, 'payer-guta', 'bank-itau'),
+    bill('2026-09', 'Luz', 185, 'payer-marcelo', 'bank-nubank', true),
+    bill('2026-09', 'Internet', 110, 'payer-marcelo', 'bank-nubank'),
   ],
   income: [income('2026-09', 12000, 'Salário')],
   expected: {

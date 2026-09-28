@@ -1,6 +1,8 @@
 import { configureStore } from '@reduxjs/toolkit';
 import appReducer from './appSlice';
 import cardsReducer from './cardsSlice';
+import banksReducer from './banksSlice';
+import payersReducer from './payersSlice';
 import planReducer from './planSlice';
 import billsReducer from './billsSlice';
 import incomeReducer from './incomeSlice';
@@ -11,6 +13,8 @@ export const store = configureStore({
   reducer: {
     app: appReducer,
     cards: cardsReducer,
+    banks: banksReducer,
+    payers: payersReducer,
     plan: planReducer,
     bills: billsReducer,
     income: incomeReducer,

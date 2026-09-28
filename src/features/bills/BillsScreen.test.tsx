@@ -7,11 +7,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import '../../config/i18n';
 import i18n from '../../config/i18n';
 import { googleSheetsService } from '../../services/GoogleSheetsService';
+import banksReducer from '../../store/banksSlice';
 import billsReducer from '../../store/billsSlice';
 import incomeReducer from '../../store/incomeSlice';
 import { syncListenerMiddleware } from '../../store/middleware/syncListener';
+import payersReducer from '../../store/payersSlice';
 import settingsReducer from '../../store/settingsSlice';
-import type { Bill, IncomeEntry } from '../../types';
+import type { Bank, Bill, IncomeEntry, Payer } from '../../types';
 import { getCurrentMonth, shiftMonth } from '../../utils/month';
 import BillsScreen from './BillsScreen';
 
@@ -36,10 +38,25 @@ const JULY = '2026-07';
 const CURRENT = getCurrentMonth();
 const NEXT = shiftMonth(CURRENT, 1);
 
+const PAYERS: Payer[] = [
+  { id: 'payer-marcelo', name: 'Marcelo' },
+  { id: 'payer-guta', name: 'Guta' },
+];
+const BANKS: Bank[] = [
+  { id: 'bank-itau', name: 'Itaú' },
+  { id: 'bank-nubank', name: 'Nubank' },
+];
+
 function bill(
   overrides: Partial<Bill> & Pick<Bill, 'month' | 'name' | 'amount'>
 ): Bill {
-  return { id: `${overrides.month}-${overrides.name}`, isPaid: false, ...overrides };
+  return {
+    id: `${overrides.month}-${overrides.name}`,
+    isPaid: false,
+    payerId: 'payer-marcelo',
+    bankId: 'bank-nubank',
+    ...overrides,
+  };
 }
 
 function incomeEntry(month: string, amount: number, source?: string): IncomeEntry {
@@ -54,12 +71,16 @@ function incomeEntry(month: string, amount: number, source?: string): IncomeEntr
 function renderBills(
   initialPath = `/bills/${JUNE}`,
   bills: Bill[] = [],
-  income: IncomeEntry[] = []
+  income: IncomeEntry[] = [],
+  payers: Payer[] = PAYERS,
+  banks: Bank[] = BANKS
 ) {
   const store = configureStore({
     reducer: {
       bills: billsReducer,
       income: incomeReducer,
+      payers: payersReducer,
+      banks: banksReducer,
       settings: settingsReducer,
     },
     middleware: (getDefaultMiddleware) =>
@@ -67,6 +88,8 @@ function renderBills(
     preloadedState: {
       bills: { items: bills },
       income: { items: income },
+      payers: { items: payers },
+      banks: { items: banks },
       settings: { sheetId: 'sheet-1' },
     },
   });
@@ -89,6 +112,23 @@ const summary = () => within(screen.getByRole('region', { name: 'Resumo do mês'
 /** The value cell of one summary line, addressed by its label. */
 const summaryRow = (label: string) =>
   within(screen.getByText(label).parentElement as HTMLElement);
+
+/** The by-payer spending summary region. */
+const byPayer = () => within(screen.getByRole('region', { name: 'Gastos por responsável' }));
+
+/** One payer's group inside the by-payer summary, addressed by its name. */
+const payerGroup = (name: string) =>
+  within(byPayer().getByText(name).closest('li') as HTMLElement);
+
+/** Select a payer and bank on the add form (both required to save). */
+async function choosePayerAndBank(
+  user: ReturnType<typeof userEvent.setup>,
+  payerId = 'payer-marcelo',
+  bankId = 'bank-nubank'
+) {
+  await user.selectOptions(screen.getByLabelText('Responsável'), payerId);
+  await user.selectOptions(screen.getByLabelText('Banco'), bankId);
+}
 
 /** Wait out the debounced sync and assert some bills write-back satisfies `matches`. */
 async function expectBillsWritten(matches: (written: Bill[]) => boolean) {
@@ -125,6 +165,28 @@ describe('Bills', () => {
     expect(screen.getByRole('checkbox', { name: 'Marcar como em aberto: Internet' })).toBeChecked();
   });
 
+  it('shows the payer and bank each bill was assigned', () => {
+    // Given June has a bill paid by Guta from Itaú
+    renderBills(`/bills/${JUNE}`, [
+      bill({ month: JUNE, name: 'Cartão guta', amount: 2899, payerId: 'payer-guta', bankId: 'bank-itau' }),
+    ]);
+
+    // When the screen renders
+    // Then the row reads who pays it and from which bank
+    expect(screen.getByText('Guta · Itaú')).toBeInTheDocument();
+  });
+
+  it('shows a fallback label for a bill whose payer or bank is unset', () => {
+    // Given a legacy June bill with no payer or bank recorded
+    renderBills(`/bills/${JUNE}`, [
+      bill({ month: JUNE, name: 'Luz', amount: 150, payerId: '', bankId: '' }),
+    ]);
+
+    // When the screen renders
+    // Then it is labelled rather than blank
+    expect(screen.getByText('Sem responsável · Sem banco')).toBeInTheDocument();
+  });
+
   it('shows the bills total, income total and account net for the month', () => {
     // Given June has 150 + 2.899 in bills and 12.000 of income
     renderBills(
@@ -143,6 +205,38 @@ describe('Bills', () => {
     expect(summaryRow('Saldo da conta').getByText(/8\.951,00/)).toBeInTheDocument();
   });
 
+  it('groups the month spending by payer and then by bank', () => {
+    // Given June's bills split across two payers and two banks
+    renderBills(`/bills/${JUNE}`, [
+      bill({ month: JUNE, name: 'Luz', amount: 150 }),
+      bill({ month: JUNE, name: 'Internet', amount: 110 }),
+      bill({ month: JUNE, name: 'Cartão guta', amount: 2899, payerId: 'payer-guta', bankId: 'bank-itau' }),
+      bill({ month: JUNE, name: 'Gym', amount: 200, payerId: 'payer-guta', bankId: 'bank-nubank' }),
+    ]);
+
+    // When I look at the by-payer summary
+    // Then Marcelo carries 260 on Nubank, and Guta carries 3.099 split across Itaú and Nubank
+    expect(payerGroup('Marcelo').getAllByText(/260,00/)).toHaveLength(2); // group total + bank line
+    expect(payerGroup('Marcelo').getByText('Nubank')).toBeInTheDocument();
+    expect(payerGroup('Guta').getByText(/3\.099,00/)).toBeInTheDocument();
+    expect(payerGroup('Guta').getByText(/2\.899,00/)).toBeInTheDocument();
+    expect(payerGroup('Guta').getByText(/200,00/)).toBeInTheDocument();
+  });
+
+  it('still counts a bill whose payer and bank were removed from the registries', () => {
+    // Given a June bill referencing a payer and bank no longer registered
+    renderBills(`/bills/${JUNE}`, [
+      bill({ month: JUNE, name: 'Luz', amount: 150, payerId: 'payer-gone', bankId: 'bank-gone' }),
+    ]);
+
+    // When I look at the by-payer summary
+    // Then the amount survives under removal fallbacks — removing a registry
+    // entry never loses money
+    expect(byPayer().getByText('Responsável removido')).toBeInTheDocument();
+    expect(byPayer().getByText('Banco removido')).toBeInTheDocument();
+    expect(payerGroup('Responsável removido').getAllByText(/150,00/)).toHaveLength(2);
+  });
+
   it('sums only the browsed month, ignoring other months', () => {
     // Given June holds 150 in bills and May holds another 900
     renderBills(`/bills/${JUNE}`, [
@@ -156,25 +250,33 @@ describe('Bills', () => {
     expect(summary().queryByText(/1\.050,00/)).not.toBeInTheDocument();
   });
 
-  it('adds a bill with a name and amount, persisting to the bills tab', async () => {
+  it('adds a bill with a name, amount, payer and bank, persisting to the bills tab', async () => {
     // Given June has no bills yet
     renderBills(`/bills/${JUNE}`);
     const user = userEvent.setup();
 
-    // When I add a bill
+    // When I add a bill choosing who pays it and from which bank
     await user.type(screen.getByLabelText('Nome da conta'), 'Luz');
     await user.type(screen.getByLabelText('Valor da conta'), '150');
+    await choosePayerAndBank(user, 'payer-marcelo', 'bank-nubank');
     await user.click(screen.getByRole('button', { name: 'Adicionar conta' }));
 
-    // Then it is listed, open by default, and counted in the total
+    // Then it is listed with its payer and bank, open by default, and counted
     expect(screen.getByText('Luz')).toBeInTheDocument();
+    expect(screen.getByText('Marcelo · Nubank')).toBeInTheDocument();
     expect(screen.getByText('Em aberto')).toBeInTheDocument();
     expect(summaryRow('Total das contas').getByText(/150,00/)).toBeInTheDocument();
 
-    // And the bills tab is written back with the new bill
+    // And the bills tab is written back with the new bill and its references
     await expectBillsWritten((written) =>
       written.some(
-        (entry) => entry.month === JUNE && entry.name === 'Luz' && entry.amount === 150 && !entry.isPaid
+        (entry) =>
+          entry.month === JUNE &&
+          entry.name === 'Luz' &&
+          entry.amount === 150 &&
+          entry.payerId === 'payer-marcelo' &&
+          entry.bankId === 'bank-nubank' &&
+          !entry.isPaid
       )
     );
   });
@@ -187,6 +289,7 @@ describe('Bills', () => {
     // When I record the card bill exactly as the statement reads
     await user.type(screen.getByLabelText('Nome da conta'), 'Cartão guta');
     await user.type(screen.getByLabelText('Valor da conta'), '2899');
+    await choosePayerAndBank(user, 'payer-guta', 'bank-itau');
     await user.click(screen.getByRole('button', { name: 'Adicionar conta' }));
 
     // Then it is an ordinary bill — name, statement amount, paid toggle — with
@@ -199,21 +302,36 @@ describe('Bills', () => {
     );
   });
 
-  it('does not add a bill without a name or a valid amount', async () => {
+  it('does not add a bill until a name, a valid amount, a payer and a bank are set', async () => {
     // Given June has no bills yet
     renderBills(`/bills/${JUNE}`);
     const user = userEvent.setup();
     const addButton = screen.getByRole('button', { name: 'Adicionar conta' });
 
-    // When the name or amount is missing, or the amount is unparseable
-    expect(addButton).toBeDisabled();
-    await user.type(screen.getByLabelText('Valor da conta'), '150');
+    // When any required field is missing, the form refuses to submit
     expect(addButton).toBeDisabled();
     await user.type(screen.getByLabelText('Nome da conta'), 'Luz');
+    await user.type(screen.getByLabelText('Valor da conta'), '150');
+    expect(addButton).toBeDisabled();
+    await user.selectOptions(screen.getByLabelText('Responsável'), 'payer-marcelo');
+    expect(addButton).toBeDisabled();
+    await user.selectOptions(screen.getByLabelText('Banco'), 'bank-nubank');
     expect(addButton).toBeEnabled();
     await user.clear(screen.getByLabelText('Valor da conta'));
     await user.type(screen.getByLabelText('Valor da conta'), 'abc');
     expect(addButton).toBeDisabled();
+  });
+
+  it('asks for registries in Settings when there are no payers or banks', () => {
+    // Given no payers and no banks are registered
+    renderBills(`/bills/${JUNE}`, [], [], [], []);
+
+    // When the screen renders
+    // Then the add form is replaced by guidance instead of an unusable form
+    expect(
+      screen.getByText('Cadastre ao menos um responsável e um banco em Ajustes para adicionar contas.')
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Adicionar conta' })).not.toBeInTheDocument();
   });
 
   it('toggles a bill paid and writes the bills tab back', async () => {
@@ -234,29 +352,39 @@ describe('Bills', () => {
     );
   });
 
-  it('edits a bill and writes the bills tab back', async () => {
-    // Given June has a bill of 150
+  it('edits a bill including its payer and bank, and writes the bills tab back', async () => {
+    // Given June has a bill of 150 paid by Marcelo from Nubank
     renderBills(`/bills/${JUNE}`, [bill({ month: JUNE, name: 'Luz', amount: 150 })]);
     const user = userEvent.setup();
 
-    // When I edit its name and amount
+    // When I edit its name, amount, payer and bank
     await user.click(screen.getByRole('button', { name: 'Editar Luz' }));
-    const nameInput = screen.getByLabelText('Nome');
+    const editForm = screen.getByRole('button', { name: 'Salvar' }).closest('form') as HTMLElement;
+    const nameInput = within(editForm).getByLabelText('Nome');
     await user.clear(nameInput);
     await user.type(nameInput, 'Energia elétrica');
-    const amountInput = screen.getByLabelText('Valor');
+    const amountInput = within(editForm).getByLabelText('Valor');
     await user.clear(amountInput);
     await user.type(amountInput, '175');
+    await user.selectOptions(within(editForm).getByLabelText('Responsável'), 'payer-guta');
+    await user.selectOptions(within(editForm).getByLabelText('Banco'), 'bank-itau');
     await user.click(screen.getByRole('button', { name: 'Salvar' }));
 
-    // Then the updated bill is shown
+    // Then the updated bill is shown with its new payer and bank
     expect(screen.getByText('Energia elétrica')).toBeInTheDocument();
     expect(screen.queryByText('Luz')).not.toBeInTheDocument();
+    expect(screen.getByText('Guta · Itaú')).toBeInTheDocument();
     expect(summaryRow('Total das contas').getByText(/175,00/)).toBeInTheDocument();
 
     // And the bills tab carries the edit
     await expectBillsWritten((written) =>
-      written.some((entry) => entry.name === 'Energia elétrica' && entry.amount === 175)
+      written.some(
+        (entry) =>
+          entry.name === 'Energia elétrica' &&
+          entry.amount === 175 &&
+          entry.payerId === 'payer-guta' &&
+          entry.bankId === 'bank-itau'
+      )
     );
   });
 
@@ -314,6 +442,7 @@ describe('Bills', () => {
     // Then the empty state and zero totals are shown
     expect(screen.getByText('As contas deste mês aparecerão aqui.')).toBeInTheDocument();
     expect(summary().getAllByText(/0,00/)).toHaveLength(3);
+    expect(byPayer().getByText('Adicione contas para ver o resumo por responsável.')).toBeInTheDocument();
   });
 });
 
@@ -342,6 +471,7 @@ describe('Month navigation', () => {
     // When I add a bill
     await user.type(screen.getByLabelText('Nome da conta'), 'Luz');
     await user.type(screen.getByLabelText('Valor da conta'), '150');
+    await choosePayerAndBank(user);
     await user.click(screen.getByRole('button', { name: 'Adicionar conta' }));
 
     // Then it lands in the month I am browsing

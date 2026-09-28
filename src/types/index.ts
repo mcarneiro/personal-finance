@@ -10,6 +10,18 @@ export interface Card {
   name: string;
 }
 
+/** A registered bank a Bill can be paid from. */
+export interface Bank {
+  id: string;
+  name: string;
+}
+
+/** A registered household member who pays a Bill. */
+export interface Payer {
+  id: string;
+  name: string;
+}
+
 /** A plan item is either a fixed charge (exact amount) or a spending bucket (cap). */
 export type PlanItemKind = 'fixed' | 'variable';
 
@@ -41,6 +53,13 @@ export interface Bill {
   name: string;
   amount: number;
   isPaid: boolean;
+  /**
+   * The registered payer and bank, referenced by id so renaming a registry
+   * entry flows through. `''` means unset — legacy rows written before these
+   * fields existed, or a registry entry that was later removed.
+   */
+  payerId: string;
+  bankId: string;
 }
 
 /** An amount of money expected to arrive during a month. */

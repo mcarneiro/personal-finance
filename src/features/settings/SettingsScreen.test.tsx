@@ -7,11 +7,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import '../../config/i18n';
 import { useGoogleAuth } from '../../contexts/GoogleAuthContext';
 import { googleSheetsService } from '../../services/GoogleSheetsService';
+import banksReducer from '../../store/banksSlice';
 import cardsReducer from '../../store/cardsSlice';
+import payersReducer from '../../store/payersSlice';
 import planReducer from '../../store/planSlice';
 import { syncListenerMiddleware } from '../../store/middleware/syncListener';
 import settingsReducer from '../../store/settingsSlice';
-import { Card, CardSpending } from '../../types';
+import { Bank, Card, CardSpending, Payer } from '../../types';
 import SettingsScreen from './SettingsScreen';
 
 vi.mock('../../contexts/GoogleAuthContext', () => ({
@@ -27,6 +29,8 @@ vi.mock('../../services/GoogleSheetsService', async (importOriginal) => {
       initializeSheets: vi.fn(),
       writeCards: vi.fn(),
       writeCardSpending: vi.fn(),
+      writeBanks: vi.fn(),
+      writePayers: vi.fn(),
     },
   };
 });
@@ -52,7 +56,12 @@ function signedInAuth() {
 
 function renderSettings(existingSheetId: string | null = null) {
   const store = configureStore({
-    reducer: { cards: cardsReducer, settings: settingsReducer },
+    reducer: {
+      cards: cardsReducer,
+      banks: banksReducer,
+      payers: payersReducer,
+      settings: settingsReducer,
+    },
     preloadedState: { settings: { sheetId: existingSheetId } },
   });
 
@@ -75,13 +84,23 @@ function renderSettings(existingSheetId: string | null = null) {
 function renderRegistry({
   cards = [] as Card[],
   cardSpending = [] as CardSpending[],
+  banks = [] as Bank[],
+  payers = [] as Payer[],
 } = {}) {
   const store = configureStore({
-    reducer: { cards: cardsReducer, plan: planReducer, settings: settingsReducer },
+    reducer: {
+      cards: cardsReducer,
+      banks: banksReducer,
+      payers: payersReducer,
+      plan: planReducer,
+      settings: settingsReducer,
+    },
     middleware: (getDefaultMiddleware) =>
       getDefaultMiddleware().prepend(syncListenerMiddleware.middleware),
     preloadedState: {
       cards: { items: cards },
+      banks: { items: banks },
+      payers: { items: payers },
       plan: { items: [], cardSpending },
       settings: { sheetId: 'sheet-1' },
     },
@@ -259,5 +278,120 @@ describe('Settings card registry', () => {
       { timeout: 2500 }
     );
     expect(googleSheetsService.writeCardSpending).not.toHaveBeenCalled();
+  });
+});
+
+describe('Settings bank and payer registries', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockedUseGoogleAuth.mockReturnValue(signedInAuth());
+  });
+
+  it('lists the registered banks and payers', () => {
+    // Given the household has registered banks and payers
+    // When settings renders
+    renderRegistry({
+      banks: [
+        { id: 'b1', name: 'Nubank' },
+        { id: 'b2', name: 'Itaú' },
+      ],
+      payers: [
+        { id: 'p1', name: 'Marcelo' },
+        { id: 'p2', name: 'Guta' },
+      ],
+    });
+
+    // Then both registries are listed
+    expect(screen.getByText('Nubank')).toBeInTheDocument();
+    expect(screen.getByText('Itaú')).toBeInTheDocument();
+    expect(screen.getByText('Marcelo')).toBeInTheDocument();
+    expect(screen.getByText('Guta')).toBeInTheDocument();
+  });
+
+  it('adds a bank and writes the banks tab back', async () => {
+    // Given no banks are registered
+    renderRegistry();
+    const user = userEvent.setup();
+
+    // When the user adds a bank by name
+    await user.type(screen.getByLabelText('Nome do banco'), 'Nubank');
+    await user.click(screen.getByRole('button', { name: 'Adicionar banco' }));
+
+    // Then the bank is listed and persisted to the banks tab
+    expect(screen.getByText('Nubank')).toBeInTheDocument();
+    await waitFor(
+      () =>
+        expect(googleSheetsService.writeBanks).toHaveBeenCalledWith('sheet-1', [
+          expect.objectContaining({ id: expect.any(String), name: 'Nubank' }),
+        ]),
+      { timeout: 2500 }
+    );
+  });
+
+  it('adds a payer and writes the payers tab back', async () => {
+    // Given no payers are registered
+    renderRegistry();
+    const user = userEvent.setup();
+
+    // When the user adds a payer by name
+    await user.type(screen.getByLabelText('Nome do responsável'), 'Marcelo');
+    await user.click(screen.getByRole('button', { name: 'Adicionar responsável' }));
+
+    // Then the payer is listed and persisted to the payers tab
+    expect(screen.getByText('Marcelo')).toBeInTheDocument();
+    await waitFor(
+      () =>
+        expect(googleSheetsService.writePayers).toHaveBeenCalledWith('sheet-1', [
+          expect.objectContaining({ id: expect.any(String), name: 'Marcelo' }),
+        ]),
+      { timeout: 2500 }
+    );
+  });
+
+  it('renames a bank and writes the banks tab back', async () => {
+    // Given one registered bank
+    renderRegistry({ banks: [{ id: 'b1', name: 'Itaú' }] });
+    const user = userEvent.setup();
+
+    // When the user renames it
+    await user.click(screen.getByRole('button', { name: 'Renomear Itaú' }));
+    const input = screen.getByLabelText('Novo nome do banco');
+    await user.clear(input);
+    await user.type(input, 'Itaú Pessoas');
+    await user.click(screen.getByRole('button', { name: 'Salvar' }));
+
+    // Then the new name is shown and persisted under the same id
+    expect(screen.getByText('Itaú Pessoas')).toBeInTheDocument();
+    await waitFor(
+      () =>
+        expect(googleSheetsService.writeBanks).toHaveBeenCalledWith('sheet-1', [
+          expect.objectContaining({ id: 'b1', name: 'Itaú Pessoas' }),
+        ]),
+      { timeout: 2500 }
+    );
+  });
+
+  it('removes a payer and writes the payers tab back', async () => {
+    // Given two registered payers
+    renderRegistry({
+      payers: [
+        { id: 'p1', name: 'Marcelo' },
+        { id: 'p2', name: 'Guta' },
+      ],
+    });
+    const user = userEvent.setup();
+
+    // When the user removes one
+    await user.click(screen.getByRole('button', { name: 'Remover Guta' }));
+
+    // Then it is gone from the registry and the payers tab reflects it
+    expect(screen.queryByText('Guta')).not.toBeInTheDocument();
+    await waitFor(
+      () =>
+        expect(googleSheetsService.writePayers).toHaveBeenCalledWith('sheet-1', [
+          expect.objectContaining({ id: 'p1' }),
+        ]),
+      { timeout: 2500 }
+    );
   });
 });

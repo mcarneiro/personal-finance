@@ -94,7 +94,18 @@
     "markPaid": "Marcar como paga: {{name}}",
     "markOpen": "Marcar como em aberto: {{name}}",
     "paid": "Pago",
-    "open": "Em aberto"
+    "open": "Em aberto",
+    "payerLabel": "Responsável",
+    "bankLabel": "Banco",
+    "selectPayer": "Selecione o responsável",
+    "selectBank": "Selecione o banco",
+    "needsRegistry": "Cadastre ao menos um responsável e um banco em Ajustes para adicionar contas.",
+    "byPayerSummary": "Gastos por responsável",
+    "byPayerEmpty": "Adicione contas para ver o resumo por responsável.",
+    "unassignedPayer": "Sem responsável",
+    "removedPayer": "Responsável removido",
+    "unassignedBank": "Sem banco",
+    "removedBank": "Banco removido"
   },
   "income": {
     "title": "Renda",
@@ -132,16 +143,36 @@
     "sheetSaved": "Planilha conectada.",
     "invalidSheetUrl": "Informe uma URL de Planilha Google válida.",
     "sheetConnectFailed": "Não foi possível conectar a planilha.",
-    "cards": "Cartões",
-    "cardsEmpty": "Nenhum cartão cadastrado ainda.",
-    "cardNameLabel": "Nome do cartão",
-    "cardNamePlaceholder": "ex.: cc guta",
-    "addCard": "Adicionar cartão",
+    "registries": {
+      "cards": {
+        "title": "Cartões",
+        "empty": "Nenhum cartão cadastrado ainda.",
+        "nameLabel": "Nome do cartão",
+        "namePlaceholder": "ex.: cc guta",
+        "add": "Adicionar cartão",
+        "renameFieldLabel": "Novo nome do cartão"
+      },
+      "banks": {
+        "title": "Bancos",
+        "empty": "Nenhum banco cadastrado ainda.",
+        "nameLabel": "Nome do banco",
+        "namePlaceholder": "ex.: Nubank",
+        "add": "Adicionar banco",
+        "renameFieldLabel": "Novo nome do banco"
+      },
+      "payers": {
+        "title": "Responsáveis",
+        "empty": "Nenhum responsável cadastrado ainda.",
+        "nameLabel": "Nome do responsável",
+        "namePlaceholder": "ex.: Marcelo",
+        "add": "Adicionar responsável",
+        "renameFieldLabel": "Novo nome do responsável"
+      }
+    },
     "rename": "Renomear",
     "remove": "Remover",
-    "renameCard": "Renomear {{name}}",
-    "removeCard": "Remover {{name}}",
-    "renameCardLabel": "Novo nome do cartão",
+    "renameNamed": "Renomear {{name}}",
+    "removeNamed": "Remover {{name}}",
     "saveRename": "Salvar",
     "cancelRename": "Cancelar"
   }

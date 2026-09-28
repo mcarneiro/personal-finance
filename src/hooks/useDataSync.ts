@@ -1,8 +1,10 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { useGoogleAuth } from '../contexts/GoogleAuthContext';
 import { googleSheetsService } from '../services/GoogleSheetsService';
 import { setCards } from '../store/cardsSlice';
+import { setBanks } from '../store/banksSlice';
+import { setPayers } from '../store/payersSlice';
 import { setPlanItems, setCardSpending } from '../store/planSlice';
 import { setBills } from '../store/billsSlice';
 import { setIncomeEntries } from '../store/incomeSlice';
@@ -17,6 +19,9 @@ export function useDataSync() {
   const dispatch = useAppDispatch();
   const { isSignedIn, accessToken, signOut } = useGoogleAuth();
   const sheetId = useAppSelector((state) => state.settings.sheetId);
+  // Tabs and headers are ensured once per session: the metadata/header reads are
+  // cheap but not free, and the schema only ever moves forward.
+  const schemaEnsured = useRef(false);
 
   const handleApiError = useCallback(
     (error: Error & { code?: string }) => {
@@ -43,8 +48,17 @@ export function useDataSync() {
     dispatch(setDataLoading(true));
 
     try {
-      const [cards, planItems, cardSpending, bills, income] = await Promise.all([
+      // Create missing tabs and backfill drifted headers before the reads, so a
+      // sheet connected before a column or tab existed is migrated in place.
+      if (!schemaEnsured.current) {
+        await googleSheetsService.initializeSheets(sheetId);
+        schemaEnsured.current = true;
+      }
+
+      const [cards, banks, payers, planItems, cardSpending, bills, income] = await Promise.all([
         googleSheetsService.readCards(sheetId),
+        googleSheetsService.readBanks(sheetId),
+        googleSheetsService.readPayers(sheetId),
         googleSheetsService.readPlanItems(sheetId),
         googleSheetsService.readCardSpending(sheetId),
         googleSheetsService.readBills(sheetId),
@@ -52,6 +66,8 @@ export function useDataSync() {
       ]);
 
       dispatch(setCards(cards));
+      dispatch(setBanks(banks));
+      dispatch(setPayers(payers));
       dispatch(setPlanItems(planItems));
       dispatch(setCardSpending(cardSpending));
       dispatch(setBills(bills));
@@ -61,8 +77,9 @@ export function useDataSync() {
       dispatch(setDataLoaded(true));
     } catch (error) {
       handleApiError(error as Error & { code?: string });
-      // Clear the loading flag too, otherwise the startup gate would strand the
-      // user on the loading screen after a failed load.
+      // A failed schema walk may have left the flag unset; it will retry on the
+      // next load. Clear the loading flag too, otherwise the startup gate would
+      // strand the user on the loading screen after a failed load.
       dispatch(setDataLoading(false));
       dispatch(setDataLoaded(false));
     }

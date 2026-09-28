@@ -22,14 +22,14 @@ A React app using Google Sheets as the database (same foundation as Stayoo) that
 - Spending Plan: fixed charges + spending buckets with caps
 - Weekly card check-ins: per-card running totals → Total Spent
 - Remaining Estimates per bucket → live Projected Result (the sobra)
-- Bills with paid control, income entries, and the account net
+- Bills with paid control, payer and bank, income entries, and the account net
 
 ## Goals
 
 ### Primary Goals
 1. Digitize the card-spending control loop — check-in, re-estimate, see the sobra
 2. Show the Projected Result live: over-plan warnings mid-month, final Plan Result month-by-month
-3. Track bills (including card bills) with paid status
+3. Track bills (including card bills) with paid status, payer and bank, and see spending by payer
 4. Track expected income and the account net
 
 ### Secondary Goals
@@ -50,7 +50,7 @@ A React app using Google Sheets as the database (same foundation as Stayoo) that
 
 #### 1. Onboarding & Configuration
 - **Google Sheet Setup**: one-time onboarding identical to Stayoo's (sheet URL, OAuth, auto-create missing tabs with headers)
-- **Settings**: manage the card registry only (add / rename / remove cards) plus the connected sheet. No other settings exist in V1.
+- **Settings**: manage the card, bank and payer registries (add / rename / remove) plus the connected sheet. No other settings exist in V1.
 
 #### 2. Google Sheets Integration
 - **Authentication**: Google OAuth (same client-ID flow and `.env` as Stayoo)
@@ -67,9 +67,10 @@ A React app using Google Sheets as the database (same foundation as Stayoo) that
 
 #### 5. Bills Management
 **Route:** `/bills/:month`
-- Bills are **fully manual**: add (name, amount), toggle paid, edit, delete — no replicate, no auto-generation (deliberate)
+- Bills are **fully manual**: add (name, amount, payer, bank), toggle paid, edit, delete — no replicate, no auto-generation (deliberate)
+- **Payer and bank are required**: every bill records who pays it and which registered bank it is paid from; unset or since-removed references still render and still count
 - **Card bill**: entered by hand as a regular bill when the statement arrives; its amount is the real statement value (covers the previous month's card spending). Installments, fees and refunds are absorbed by the statement value — never modeled
-- Shows: bills total, income total, **account net** = income − bills
+- Shows: bills total, income total, **account net** = income − bills, and a **by-payer spending summary** (per payer, broken down by bank)
 
 #### 6. Spending Plan (the core)
 **Route:** `/plan/:month`
@@ -99,6 +100,16 @@ export interface Card {
   name: string;                 // e.g. "cc guta"
 }
 
+export interface Bank {
+  id: string;
+  name: string;                 // e.g. "Nubank"
+}
+
+export interface Payer {
+  id: string;
+  name: string;                 // e.g. "Marcelo"
+}
+
 export interface PlanItem {
   id: string;
   month: string;                // YYYY-MM
@@ -121,6 +132,8 @@ export interface Bill {
   name: string;                 // "Luz", "Cartão guta"
   amount: number;
   isPaid: boolean;
+  payerId: string;              // references a registered Payer
+  bankId: string;               // references a registered Bank
 }
 
 export interface IncomeEntry {
@@ -138,13 +151,15 @@ export interface IncomeEntry {
 | Tab | Columns |
 | --- | --- |
 | `cards` | id, name |
+| `banks` | id, name |
+| `payers` | id, name |
 | `plan` | id, month, kind, name, amount, remaining_estimate |
 | `card_spending` | id, month, card_id, total |
-| `bills` | id, month, name, amount, is_paid |
+| `bills` | id, month, name, amount, is_paid, payer_id, bank_id |
 | `income` | id, month, amount, source |
 
 #### Sheet Initialization
-Onboarding validates the connected sheet and creates any missing tabs with the headers above (Stayoo behavior). No `settings` tab — the card registry lives in `cards`.
+Onboarding validates the connected sheet and creates any missing tabs with the headers above (Stayoo behavior). A tab created before a column existed has only its header row rewritten to the current contract; its data rows are never touched, so a newly added column reads back blank until the row is next written. No `settings` tab — the card, bank and payer registries live in `cards`, `banks` and `payers`.
 
 ## UI/UX Requirements
 
@@ -155,9 +170,9 @@ Onboarding validates the connected sheet and creates any missing tabs with the h
 
 ### Key Screens
 1. **Spending Plan** (`/plan/:month`) — plan items, check-in inputs, remaining estimates, Projected Result headline
-2. **Bills** (`/bills/:month`) — bill list with paid toggles, income total, account net
+2. **Bills** (`/bills/:month`) — bill list with paid toggles, income total, account net, and the by-payer spending summary
 3. **Income** (`/income/:month`) — entries, total, replicate button
-4. **Settings** — card registry + connected sheet
+4. **Settings** — card, bank and payer registries + connected sheet
 5. **Onboarding** — Stayoo flow
 
 ## Control Loop Specification

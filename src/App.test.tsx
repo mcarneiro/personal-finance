@@ -8,9 +8,11 @@ import App from './App';
 import i18n from './config/i18n';
 import { useGoogleAuth } from './contexts/GoogleAuthContext';
 import appReducer from './store/appSlice';
+import banksReducer from './store/banksSlice';
 import billsReducer from './store/billsSlice';
 import cardsReducer from './store/cardsSlice';
 import incomeReducer from './store/incomeSlice';
+import payersReducer from './store/payersSlice';
 import planReducer from './store/planSlice';
 import settingsReducer from './store/settingsSlice';
 
@@ -55,6 +57,8 @@ function appStore({ dataLoading = false, dataLoaded = true } = {}) {
     reducer: {
       app: appReducer,
       cards: cardsReducer,
+      banks: banksReducer,
+      payers: payersReducer,
       plan: planReducer,
       bills: billsReducer,
       income: incomeReducer,

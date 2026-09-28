@@ -1,5 +1,7 @@
 import { createListenerMiddleware, isAnyOf } from '@reduxjs/toolkit';
 import { addCard, deleteCard, updateCard } from '../cardsSlice';
+import { addBank, deleteBank, updateBank } from '../banksSlice';
+import { addPayer, deletePayer, updatePayer } from '../payersSlice';
 import { addBill, deleteBill, toggleBillPaid, updateBill } from '../billsSlice';
 import { addIncomeEntries, addIncomeEntry, deleteIncomeEntry, updateIncomeEntry } from '../incomeSlice';
 import {
@@ -36,6 +38,40 @@ startAppListening({
       await googleSheetsService.writeCards(settings.sheetId, cards.items);
     } catch (error) {
       console.error('Failed to sync cards:', error);
+    }
+  },
+});
+
+startAppListening({
+  matcher: isAnyOf(addBank, updateBank, deleteBank),
+  effect: async (_action, listenerApi) => {
+    await listenerApi.delay(DEBOUNCE_MS);
+    listenerApi.cancelActiveListeners(); // Cancel any pending saves
+
+    const { banks, settings } = listenerApi.getState();
+    if (!settings.sheetId) return;
+
+    try {
+      await googleSheetsService.writeBanks(settings.sheetId, banks.items);
+    } catch (error) {
+      console.error('Failed to sync banks:', error);
+    }
+  },
+});
+
+startAppListening({
+  matcher: isAnyOf(addPayer, updatePayer, deletePayer),
+  effect: async (_action, listenerApi) => {
+    await listenerApi.delay(DEBOUNCE_MS);
+    listenerApi.cancelActiveListeners(); // Cancel any pending saves
+
+    const { payers, settings } = listenerApi.getState();
+    if (!settings.sheetId) return;
+
+    try {
+      await googleSheetsService.writePayers(settings.sheetId, payers.items);
+    } catch (error) {
+      console.error('Failed to sync payers:', error);
     }
   },
 });

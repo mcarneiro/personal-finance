@@ -94,7 +94,18 @@
     "markPaid": "Mark as paid: {{name}}",
     "markOpen": "Mark as open: {{name}}",
     "paid": "Paid",
-    "open": "Open"
+    "open": "Open",
+    "payerLabel": "Payer",
+    "bankLabel": "Bank",
+    "selectPayer": "Select the payer",
+    "selectBank": "Select the bank",
+    "needsRegistry": "Register at least one payer and one bank in Settings to add bills.",
+    "byPayerSummary": "Spending by payer",
+    "byPayerEmpty": "Add bills to see the by-payer summary.",
+    "unassignedPayer": "No payer",
+    "removedPayer": "Payer removed",
+    "unassignedBank": "No bank",
+    "removedBank": "Bank removed"
   },
   "income": {
     "title": "Income",
@@ -132,16 +143,36 @@
     "sheetSaved": "Sheet connected.",
     "invalidSheetUrl": "Please enter a valid Google Sheet URL.",
     "sheetConnectFailed": "Failed to connect the sheet.",
-    "cards": "Cards",
-    "cardsEmpty": "No cards registered yet.",
-    "cardNameLabel": "Card name",
-    "cardNamePlaceholder": "e.g. cc guta",
-    "addCard": "Add card",
+    "registries": {
+      "cards": {
+        "title": "Cards",
+        "empty": "No cards registered yet.",
+        "nameLabel": "Card name",
+        "namePlaceholder": "e.g. cc guta",
+        "add": "Add card",
+        "renameFieldLabel": "New card name"
+      },
+      "banks": {
+        "title": "Banks",
+        "empty": "No banks registered yet.",
+        "nameLabel": "Bank name",
+        "namePlaceholder": "e.g. Nubank",
+        "add": "Add bank",
+        "renameFieldLabel": "New bank name"
+      },
+      "payers": {
+        "title": "Payers",
+        "empty": "No payers registered yet.",
+        "nameLabel": "Payer name",
+        "namePlaceholder": "e.g. Marcelo",
+        "add": "Add payer",
+        "renameFieldLabel": "New payer name"
+      }
+    },
     "rename": "Rename",
     "remove": "Remove",
-    "renameCard": "Rename {{name}}",
-    "removeCard": "Remove {{name}}",
-    "renameCardLabel": "New card name",
+    "renameNamed": "Rename {{name}}",
+    "removeNamed": "Remove {{name}}",
     "saveRename": "Save",
     "cancelRename": "Cancel"
   }

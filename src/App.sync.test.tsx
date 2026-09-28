@@ -8,9 +8,11 @@ import i18n from './config/i18n';
 import { useGoogleAuth } from './contexts/GoogleAuthContext';
 import { googleSheetsService } from './services/GoogleSheetsService';
 import appReducer from './store/appSlice';
+import banksReducer from './store/banksSlice';
 import billsReducer from './store/billsSlice';
 import cardsReducer from './store/cardsSlice';
 import incomeReducer from './store/incomeSlice';
+import payersReducer from './store/payersSlice';
 import planReducer from './store/planSlice';
 import settingsReducer from './store/settingsSlice';
 import { Card } from './types';
@@ -24,6 +26,8 @@ vi.mock('./services/GoogleSheetsService', () => ({
     setAccessToken: vi.fn(),
     initializeSheets: vi.fn(),
     readCards: vi.fn(),
+    readBanks: vi.fn(),
+    readPayers: vi.fn(),
     readPlanItems: vi.fn(),
     readCardSpending: vi.fn(),
     readBills: vi.fn(),
@@ -50,6 +54,8 @@ describe('startup data load', () => {
         resolveCards = resolve;
       })
     );
+    vi.mocked(googleSheetsService.readBanks).mockResolvedValue([]);
+    vi.mocked(googleSheetsService.readPayers).mockResolvedValue([]);
     vi.mocked(googleSheetsService.readPlanItems).mockResolvedValue([]);
     vi.mocked(googleSheetsService.readCardSpending).mockResolvedValue([]);
     vi.mocked(googleSheetsService.readBills).mockResolvedValue([]);
@@ -73,6 +79,8 @@ describe('startup data load', () => {
       reducer: {
         app: appReducer,
         cards: cardsReducer,
+        banks: banksReducer,
+        payers: payersReducer,
         plan: planReducer,
         bills: billsReducer,
         income: incomeReducer,
@@ -95,7 +103,9 @@ describe('startup data load', () => {
 
     // Then it holds a loading screen instead of flashing empty data
     expect(screen.getByText('Carregando...')).toBeInTheDocument();
-    expect(googleSheetsService.readCards).toHaveBeenCalledWith('test-sheet');
+    await waitFor(() =>
+      expect(googleSheetsService.readCards).toHaveBeenCalledWith('test-sheet')
+    );
 
     // When the sheet responds
     await act(async () => {

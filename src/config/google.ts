@@ -17,12 +17,21 @@ export const GOOGLE_CONFIG = {
 
 /**
  * Sheet tab definitions for Planoo. Column names are the sheet contract (see
- * `prd.md`) and must not drift: a tab is only created when it is missing, and
- * existing content is never touched.
+ * `prd.md`) and must not drift. A missing tab is created with its header row; an
+ * existing tab whose header row differs (e.g. one created before a new column
+ * was introduced) has its header row rewritten, but never its data.
  */
 export const SHEET_CONFIGS = {
   cards: {
     name: 'cards',
+    columns: ['id', 'name'],
+  },
+  banks: {
+    name: 'banks',
+    columns: ['id', 'name'],
+  },
+  payers: {
+    name: 'payers',
     columns: ['id', 'name'],
   },
   plan: {
@@ -35,7 +44,7 @@ export const SHEET_CONFIGS = {
   },
   bills: {
     name: 'bills',
-    columns: ['id', 'month', 'name', 'amount', 'is_paid'],
+    columns: ['id', 'month', 'name', 'amount', 'is_paid', 'payer_id', 'bank_id'],
   },
   income: {
     name: 'income',

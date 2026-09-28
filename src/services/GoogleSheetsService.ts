@@ -1,5 +1,5 @@
 import { SHEET_CONFIGS } from '../config/google';
-import { Bill, Card, CardSpending, IncomeEntry, PlanItem, PlanItemKind } from '../types';
+import { Bank, Bill, Card, CardSpending, IncomeEntry, Payer, PlanItem, PlanItemKind } from '../types';
 
 interface SheetResponse {
   sheets?: Array<{
@@ -68,18 +68,15 @@ export class GoogleSheetsService {
     return response.json();
   }
 
-  /** Check if a tab exists. */
-  private async sheetExists(spreadsheetId: string, sheetName: string): Promise<boolean> {
-    try {
-      const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}`;
-      const data: SheetResponse = await this.apiRequest(url);
+  /** The titles of every tab in the spreadsheet. */
+  private async listSheetTitles(spreadsheetId: string): Promise<Set<string>> {
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}`;
+    const data: SheetResponse = await this.apiRequest(url);
 
-      const sheets = data.sheets || [];
-      return sheets.some((sheet) => sheet.properties?.title === sheetName);
-    } catch (error) {
-      console.error(`Error checking if sheet exists:`, error);
-      return false;
-    }
+    const titles = (data.sheets || [])
+      .map((sheet) => sheet.properties?.title)
+      .filter((title): title is string => typeof title === 'string');
+    return new Set(titles);
   }
 
   /** Create a new tab. */
@@ -119,16 +116,40 @@ export class GoogleSheetsService {
   }
 
   /**
-   * Initialize all required tabs: only missing tabs are created, each with its
-   * header row. Existing tabs and their content are left untouched.
+   * Rewrite a tab's header row only when it does not already match the contract
+   * — how an existing sheet gains columns introduced after it was created. Data
+   * rows are never touched: cells for a new column read back blank until the
+   * row is next written.
+   */
+  private async ensureHeaders(
+    spreadsheetId: string,
+    sheetName: string,
+    columns: readonly string[]
+  ): Promise<void> {
+    const rows = await this.readRows(spreadsheetId, sheetName, 'A1:Z1');
+    const header = rows[0] ?? [];
+    const matches =
+      header.length === columns.length && columns.every((column, i) => String(header[i]) === column);
+
+    if (!matches) {
+      await this.writeHeaders(spreadsheetId, sheetName, columns);
+    }
+  }
+
+  /**
+   * Initialize all required tabs: missing tabs are created with their header
+   * row, and an existing tab whose header row drifted is re-headed (see
+   * `ensureHeaders`). Existing data rows are left untouched.
    */
   async initializeSheets(spreadsheetId: string): Promise<void> {
-    for (const config of Object.values(SHEET_CONFIGS)) {
-      const exists = await this.sheetExists(spreadsheetId, config.name);
+    const titles = await this.listSheetTitles(spreadsheetId);
 
-      if (!exists) {
+    for (const config of Object.values(SHEET_CONFIGS)) {
+      if (!titles.has(config.name)) {
         await this.createSheet(spreadsheetId, config.name);
         await this.writeHeaders(spreadsheetId, config.name, config.columns);
+      } else {
+        await this.ensureHeaders(spreadsheetId, config.name, config.columns);
       }
     }
   }
@@ -206,6 +227,40 @@ export class GoogleSheetsService {
     );
   }
 
+  async readBanks(spreadsheetId: string): Promise<Bank[]> {
+    const rows = await this.readRows(spreadsheetId, 'banks', 'A2:B');
+    return rows.filter((row) => !this.isBlankRow(row)).map((row, index) => {
+      const [id, name] = row;
+      return { id: this.parseString(id, `bank-${index}`), name: this.parseString(name) };
+    });
+  }
+
+  async writeBanks(spreadsheetId: string, banks: Bank[]): Promise<void> {
+    await this.writeRows(
+      spreadsheetId,
+      'banks',
+      'B',
+      banks.map((bank) => [bank.id, bank.name])
+    );
+  }
+
+  async readPayers(spreadsheetId: string): Promise<Payer[]> {
+    const rows = await this.readRows(spreadsheetId, 'payers', 'A2:B');
+    return rows.filter((row) => !this.isBlankRow(row)).map((row, index) => {
+      const [id, name] = row;
+      return { id: this.parseString(id, `payer-${index}`), name: this.parseString(name) };
+    });
+  }
+
+  async writePayers(spreadsheetId: string, payers: Payer[]): Promise<void> {
+    await this.writeRows(
+      spreadsheetId,
+      'payers',
+      'B',
+      payers.map((payer) => [payer.id, payer.name])
+    );
+  }
+
   async readPlanItems(spreadsheetId: string): Promise<PlanItem[]> {
     const rows = await this.readRows(spreadsheetId, 'plan', 'A2:F');
     return rows.filter((row) => !this.isBlankRow(row)).map((row, index) => {
@@ -260,15 +315,19 @@ export class GoogleSheetsService {
   }
 
   async readBills(spreadsheetId: string): Promise<Bill[]> {
-    const rows = await this.readRows(spreadsheetId, 'bills', 'A2:E');
+    const rows = await this.readRows(spreadsheetId, 'bills', 'A2:G');
     return rows.filter((row) => !this.isBlankRow(row)).map((row, index) => {
-      const [id, month, name, amount, isPaid] = row;
+      const [id, month, name, amount, isPaid, payerId, bankId] = row;
       return {
         id: this.parseString(id, `bill-${index}`),
         month: this.parseString(month),
         name: this.parseString(name),
         amount: this.parseNumber(amount),
         isPaid: this.parseBoolean(isPaid),
+        // Blank cells are the legacy default: bills written before these
+        // columns existed read back as unset.
+        payerId: this.parseString(payerId),
+        bankId: this.parseString(bankId),
       };
     });
   }
@@ -277,8 +336,16 @@ export class GoogleSheetsService {
     await this.writeRows(
       spreadsheetId,
       'bills',
-      'E',
-      bills.map((bill) => [bill.id, bill.month, bill.name, bill.amount, bill.isPaid ? 'TRUE' : 'FALSE'])
+      'G',
+      bills.map((bill) => [
+        bill.id,
+        bill.month,
+        bill.name,
+        bill.amount,
+        bill.isPaid ? 'TRUE' : 'FALSE',
+        bill.payerId,
+        bill.bankId,
+      ])
     );
   }
 

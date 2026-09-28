@@ -2,6 +2,8 @@ import { FormEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import LanguageSwitcher from '../../components/LanguageSwitcher';
 import CardRegistry from './CardRegistry';
+import BankRegistry from './BankRegistry';
+import PayerRegistry from './PayerRegistry';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { setSheetId } from '../../store/settingsSlice';
 import { useGoogleAuth } from '../../contexts/GoogleAuthContext';
@@ -113,6 +115,8 @@ export default function SettingsScreen() {
       </section>
 
       <CardRegistry />
+      <BankRegistry />
+      <PayerRegistry />
 
       <LanguageSwitcher />
     </div>

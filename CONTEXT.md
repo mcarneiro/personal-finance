@@ -49,5 +49,13 @@ An amount of money expected to arrive during a month, recorded with an optional 
 _Avoid_: Salary, revenue, income record
 
 **Bill**:
-A payment obligation tracked for a particular month, including its amount and whether it has been paid. It includes the card bill, a single value originating from the previous month's card spending. It does not belong to a spending bucket.
+A payment obligation tracked for a particular month, including its amount, who pays it (**Payer**), which **Bank** it is paid from, and whether it has been paid. It includes the card bill, a single value originating from the previous month's card spending. It does not belong to a spending bucket.
 _Avoid_: Spending bucket, fixed charge, expense
+
+**Payer**:
+A named household member responsible for paying a Bill. Payers form a registry the household maintains in Settings; a Bill references one by id, so renaming a payer flows through to its bills.
+_Avoid_: Owner, user, cardholder, responsible
+
+**Bank**:
+A named account a Bill is paid from. Banks form a registry the household maintains in Settings; a Bill references one by id, so renaming a bank flows through to its bills.
+_Avoid_: Account, card, credit card
