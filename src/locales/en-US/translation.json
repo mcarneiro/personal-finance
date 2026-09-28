@@ -75,7 +75,26 @@
   },
   "bills": {
     "title": "Bills",
-    "empty": "This month's bills will appear here."
+    "empty": "This month's bills will appear here.",
+    "summary": "Month summary",
+    "billsTotal": "Bills total",
+    "incomeTotal": "Income total",
+    "accountNet": "Account net",
+    "nameLabel": "Bill name",
+    "amountLabel": "Bill amount",
+    "itemNameLabel": "Name",
+    "itemAmountLabel": "Amount",
+    "addBill": "Add bill",
+    "save": "Save",
+    "cancel": "Cancel",
+    "editAction": "Edit",
+    "removeAction": "Remove",
+    "edit": "Edit {{name}}",
+    "remove": "Remove {{name}}",
+    "markPaid": "Mark as paid: {{name}}",
+    "markOpen": "Mark as open: {{name}}",
+    "paid": "Paid",
+    "open": "Open"
   },
   "income": {
     "title": "Income",

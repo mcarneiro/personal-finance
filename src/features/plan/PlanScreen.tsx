@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import MonthScaffold from '../../components/MonthScaffold';
+import NameAmountForm from '../../components/NameAmountForm';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { addPlanItem, addPlanItems, deletePlanItem, updatePlanItem } from '../../store/planSlice';
 import type { PlanItemKind } from '../../types';
@@ -12,7 +13,6 @@ import { isPastMonth, isValidMonth, shiftMonth } from '../../utils/month';
 import { copyPlanItems } from '../../utils/planCopy';
 import AmountInput from './AmountInput';
 import CardCheckIn from './CardCheckIn';
-import PlanItemForm from './PlanItemForm';
 
 const SECTION_KINDS = ['fixed', 'variable'] as const;
 
@@ -130,7 +130,7 @@ export default function PlanScreen() {
                 {sectionItems.map((item) => (
                   <li key={item.id} className="py-2">
                     {editingId === item.id ? (
-                      <PlanItemForm
+                      <NameAmountForm
                         formId={`edit-${item.id}`}
                         nameLabel={t('plan.itemNameLabel')}
                         amountLabel={t('plan.itemAmountLabel')}
@@ -142,7 +142,7 @@ export default function PlanScreen() {
                           dispatch(updatePlanItem({ ...item, name, amount }));
                           setEditingId(null);
                         }}
-                        onCancel={() => setEditingId(null)}
+                        onCancel={{ label: t('plan.cancel'), onClick: () => setEditingId(null) }}
                       />
                     ) : (
                       <div className="flex flex-col gap-1">
@@ -196,7 +196,7 @@ export default function PlanScreen() {
             )}
 
             <div className={sectionItems.length > 0 ? 'mt-4 border-t border-gray-100 pt-4' : 'mt-3'}>
-              <PlanItemForm
+              <NameAmountForm
                 formId={`add-${kind}`}
                 nameLabel={t(copy.nameLabel)}
                 amountLabel={t(copy.amountLabel)}

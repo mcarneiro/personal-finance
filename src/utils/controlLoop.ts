@@ -10,6 +10,7 @@ import type { Bill, CardSpending, IncomeEntry, Month, PlanItem } from '../types'
  *   Projected Result  = Plan Total − Total Spent − Σ remaining estimates
  *   Plan Result       = Plan Total − Total Spent
  *   Income Total      = Σ income
+ *   Bills Total       = Σ bills
  *   Account Net       = Σ income − Σ bills
  *
  * Each function filters by `month`, so callers pass the full arrays from the
@@ -58,10 +59,14 @@ export function incomeTotal(month: Month, income: IncomeEntry[]): number {
     .reduce((total, entry) => total + entry.amount, 0);
 }
 
-/** Σ income − Σ bills for the month. Bills count regardless of paid status. */
-export function accountNet(month: Month, income: IncomeEntry[], bills: Bill[]): number {
-  const billsTotal = bills
+/** Σ bills for the month. Bills count regardless of paid status. */
+export function billsTotal(month: Month, bills: Bill[]): number {
+  return bills
     .filter((bill) => bill.month === month)
     .reduce((total, bill) => total + bill.amount, 0);
-  return incomeTotal(month, income) - billsTotal;
+}
+
+/** Σ income − Σ bills for the month. */
+export function accountNet(month: Month, income: IncomeEntry[], bills: Bill[]): number {
+  return incomeTotal(month, income) - billsTotal(month, bills);
 }

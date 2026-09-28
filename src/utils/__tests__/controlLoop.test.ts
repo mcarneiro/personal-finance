@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Bill, CardSpending, IncomeEntry, Month, PlanItem } from '../../types';
 import {
   accountNet,
+  billsTotal,
   incomeTotal,
   planResult,
   planTotal,
@@ -185,6 +186,32 @@ describe('incomeTotal', () => {
     ],
   ])('Given %s the income total is %s', (_name, incomeEntries, expected) => {
     expect(incomeTotal(MONTH, incomeEntries)).toBe(expected);
+  });
+});
+
+describe('billsTotal', () => {
+  // Given a set of bills
+  // When computing the month's bills total
+  // Then only that month's bills are summed, paid or not
+  it.each([
+    ['no bills at all', [], 0],
+    ['bills only in other months', [bill(OTHER_MONTH, 'Luz', 150)], 0],
+    ['a single bill', [bill(MONTH, 'Luz', 150)], 150],
+    [
+      'open and paid bills, including the card bill statement value',
+      [
+        bill(MONTH, 'Luz', 150),
+        bill(MONTH, 'Cartão guta', 2899, true),
+      ],
+      3049,
+    ],
+    [
+      'data from other months is ignored',
+      [bill(OTHER_MONTH, 'Luz', 99999), bill(MONTH, 'Internet', 110)],
+      110,
+    ],
+  ])('Given %s the bills total is %s', (_name, bills, expected) => {
+    expect(billsTotal(MONTH, bills)).toBe(expected);
   });
 });
 

@@ -75,7 +75,26 @@
   },
   "bills": {
     "title": "Contas",
-    "empty": "As contas deste mês aparecerão aqui."
+    "empty": "As contas deste mês aparecerão aqui.",
+    "summary": "Resumo do mês",
+    "billsTotal": "Total das contas",
+    "incomeTotal": "Total da renda",
+    "accountNet": "Saldo da conta",
+    "nameLabel": "Nome da conta",
+    "amountLabel": "Valor da conta",
+    "itemNameLabel": "Nome",
+    "itemAmountLabel": "Valor",
+    "addBill": "Adicionar conta",
+    "save": "Salvar",
+    "cancel": "Cancelar",
+    "editAction": "Editar",
+    "removeAction": "Remover",
+    "edit": "Editar {{name}}",
+    "remove": "Remover {{name}}",
+    "markPaid": "Marcar como paga: {{name}}",
+    "markOpen": "Marcar como em aberto: {{name}}",
+    "paid": "Pago",
+    "open": "Em aberto"
   },
   "income": {
     "title": "Renda",

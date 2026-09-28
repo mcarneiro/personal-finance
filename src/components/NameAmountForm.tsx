@@ -1,8 +1,7 @@
 import { FormEvent, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { parseAmount } from '../../utils/currency';
+import { parseAmount } from '../utils/currency';
 
-interface PlanItemFormProps {
+interface NameAmountFormProps {
   /** Unique prefix so co-existing add/edit forms keep distinct labels and inputs. */
   formId: string;
   nameLabel: string;
@@ -12,17 +11,17 @@ interface PlanItemFormProps {
   initialAmount?: number;
   autoFocusName?: boolean;
   onSubmit: (name: string, amount: number) => void;
-  /** Render a Cancel action (editing an existing item). */
-  onCancel?: () => void;
+  /** Render a Cancel action (editing an existing item); label and handler are paired. */
+  onCancel?: { label: string; onClick: () => void };
 }
 
 /**
- * The shared name + amount form for a plan item, used both to add a fixed
- * charge or spending bucket and to edit one in place. Amounts are typed as
+ * The shared name + amount form, used both to add a plan item (fixed charge or
+ * spending bucket) or a bill and to edit one in place. Amounts are typed as
  * loose text (pt-BR comma or en-US dot) and only become submittable once they
  * parse — a bad amount can never be recorded.
  */
-export default function PlanItemForm({
+export default function NameAmountForm({
   formId,
   nameLabel,
   amountLabel,
@@ -32,8 +31,7 @@ export default function PlanItemForm({
   autoFocusName = false,
   onSubmit,
   onCancel,
-}: PlanItemFormProps) {
-  const { t } = useTranslation();
+}: NameAmountFormProps) {
   const [name, setName] = useState(initialName);
   const [amount, setAmount] = useState(initialAmount === undefined ? '' : String(initialAmount));
 
@@ -96,10 +94,10 @@ export default function PlanItemForm({
         {onCancel && (
           <button
             type="button"
-            onClick={onCancel}
+            onClick={onCancel.onClick}
             className="rounded-lg px-3 py-2 text-sm font-medium text-gray-600 transition-colors hover:text-gray-900"
           >
-            {t('plan.cancel')}
+            {onCancel.label}
           </button>
         )}
       </div>
