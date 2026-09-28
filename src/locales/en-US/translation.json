@@ -105,7 +105,8 @@
     "unassignedPayer": "No payer",
     "removedPayer": "Payer removed",
     "unassignedBank": "No bank",
-    "removedBank": "Bank removed"
+    "removedBank": "Bank removed",
+    "copyLastMonth": "Replicate last month's bills"
   },
   "income": {
     "title": "Income",

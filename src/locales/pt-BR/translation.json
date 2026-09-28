@@ -105,7 +105,8 @@
     "unassignedPayer": "Sem responsável",
     "removedPayer": "Responsável removido",
     "unassignedBank": "Sem banco",
-    "removedBank": "Banco removido"
+    "removedBank": "Banco removido",
+    "copyLastMonth": "Replicar contas do mês anterior"
   },
   "income": {
     "title": "Renda",

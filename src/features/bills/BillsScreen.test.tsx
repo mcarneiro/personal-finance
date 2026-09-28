@@ -446,6 +446,92 @@ describe('Bills', () => {
   });
 });
 
+describe('Replicate last month', () => {
+  it("copies last month's bills into an empty month, unpaid, and persists them", async () => {
+    // Given May has an open bill and a paid one, and June is still empty
+    renderBills(`/bills/${JUNE}`, [
+      bill({ month: MAY, name: 'Luz', amount: 150 }),
+      bill({
+        month: MAY,
+        name: 'Cartão guta',
+        amount: 2899,
+        isPaid: true,
+        payerId: 'payer-guta',
+        bankId: 'bank-itau',
+      }),
+    ]);
+    const user = userEvent.setup();
+
+    // When I tap replicate
+    await user.click(screen.getByRole('button', { name: 'Replicar contas do mês anterior' }));
+
+    // Then June shows copies of both and the total
+    expect(screen.getByText('Luz')).toBeInTheDocument();
+    expect(screen.getByText('Cartão guta')).toBeInTheDocument();
+    expect(screen.getByText('Guta · Itaú')).toBeInTheDocument();
+    expect(summaryRow('Total das contas').getByText(/3\.049,00/)).toBeInTheDocument();
+
+    // And last month's paid status never leaks: every copy arrives open
+    expect(screen.getAllByText('Em aberto')).toHaveLength(2);
+    expect(screen.queryByText('Pago')).not.toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: 'Marcar como paga: Cartão guta' })).not.toBeChecked();
+
+    // And the bills tab is written back with June's copies and their references
+    await expectBillsWritten((written) => {
+      const juneBills = written.filter((entry) => entry.month === JUNE);
+      return (
+        juneBills.map((entry) => entry.name).sort().join(',') === 'Cartão guta,Luz' &&
+        juneBills.every((entry) => !entry.isPaid) &&
+        juneBills.some((entry) => entry.payerId === 'payer-guta' && entry.bankId === 'bank-itau')
+      );
+    });
+  });
+
+  it('hides the replicate button when last month has no bills', () => {
+    // Given May had no bills at all
+    // When June renders
+    renderBills(`/bills/${JUNE}`);
+
+    // Then there is nothing to replicate
+    expect(
+      screen.queryByRole('button', { name: 'Replicar contas do mês anterior' })
+    ).not.toBeInTheDocument();
+  });
+
+  it('hides the replicate button once the month already has bills, so it can never duplicate', () => {
+    // Given June already has a bill and May has one too
+    renderBills(`/bills/${JUNE}`, [
+      bill({ month: MAY, name: 'Luz', amount: 150 }),
+      bill({ month: JUNE, name: 'Internet', amount: 110 }),
+    ]);
+
+    // When June renders
+    // Then there is no replicate affordance that could duplicate the list
+    expect(
+      screen.queryByRole('button', { name: 'Replicar contas do mês anterior' })
+    ).not.toBeInTheDocument();
+  });
+
+  it('replicates from the currently browsed month, not the calendar month', async () => {
+    // Given the current month has a bill and the next month is empty
+    renderBills(`/bills/${CURRENT}`, [bill({ month: CURRENT, name: 'Luz', amount: 150 })]);
+    const user = userEvent.setup();
+
+    // When I move to the next month and tap replicate
+    await user.click(screen.getByRole('button', { name: 'Próximo mês' }));
+    expect(screen.queryByText('Luz')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Replicar contas do mês anterior' }));
+
+    // Then the copy lands in the month I am browsing
+    expect(screen.getByText('Luz')).toBeInTheDocument();
+    await expectBillsWritten((written) =>
+      written.some(
+        (entry) => entry.month === NEXT && entry.name === 'Luz' && entry.amount === 150 && !entry.isPaid
+      )
+    );
+  });
+});
+
 describe('Month navigation', () => {
   it("shows each month's own bills when navigating months", async () => {
     // Given June has a bill and July is still empty

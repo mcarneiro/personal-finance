@@ -1,0 +1,5 @@
+# Bills can be replicated from the previous month
+
+Bills gain a replicate-last-month button, matching income's replicate and the plan's copy-last-month. On a month that has no bills yet, one tap seeds it from the previous month's obligations. Copies carry name, amount, payer and bank; they always arrive **unpaid** (a settled bill never leaks its status into the new month), get fresh ids, and — like the plan copy — are offered only when the previous month has bills *and* the browsed month is still empty, so it can never duplicate a list. The card bill is an ordinary bill here, so it is copied like any other and edited to its real statement value once the statement arrives.
+
+This reverses the V1 stance that bills are "fully manual — no replicate (deliberate)". The recurring obligations (utilities, rent, subscriptions, the card bill) are the common case, and retyping them every month is friction with no control benefit; the plan and income screens had already set the replicate precedent. Auto-generation remains out of scope: the app never invents or estimates an amount — the copy seeds composition only, and every amount stays hand-editable.

@@ -67,7 +67,7 @@ A React app using Google Sheets as the database (same foundation as Stayoo) that
 
 #### 5. Bills Management
 **Route:** `/bills/:month`
-- Bills are **fully manual**: add (name, amount, payer, bank), toggle paid, edit, delete — no replicate, no auto-generation (deliberate)
+- Bills: add (name, amount, payer, bank), toggle paid, edit, delete — no auto-generation (the card bill is entered by hand). A **replicate-last-month button** seeds an empty month from last month's bills; copies carry name, amount, payer and bank, but always arrive **unpaid** (ADR-0003)
 - **Payer and bank are required**: every bill records who pays it and which registered bank it is paid from; unset or since-removed references still render and still count
 - **Card bill**: entered by hand as a regular bill when the statement arrives; its amount is the real statement value (covers the previous month's card spending). Installments, fees and refunds are absorbed by the statement value — never modeled
 - Shows: bills total, income total, **account net** = income − bills, and a **by-payer spending summary** (per payer, broken down by bank)
@@ -170,7 +170,7 @@ Onboarding validates the connected sheet and creates any missing tabs with the h
 
 ### Key Screens
 1. **Spending Plan** (`/plan/:month`) — plan items, check-in inputs, remaining estimates, Projected Result headline
-2. **Bills** (`/bills/:month`) — bill list with paid toggles, income total, account net, and the by-payer spending summary
+2. **Bills** (`/bills/:month`) — bill list with paid toggles, income total, account net, the by-payer spending summary, and the replicate-last-month button
 3. **Income** (`/income/:month`) — entries, total, replicate button
 4. **Settings** — card, bank and payer registries + connected sheet
 5. **Onboarding** — Stayoo flow
@@ -210,7 +210,7 @@ Account Net       = Σ income − Σ bills                        (month)
 - Charts, YoY, analytics of any kind
 - Installment modeling (the card bill is the real statement value)
 - Account balances, savings or investment tracking
-- Bill auto-generation or replicate
+- Bill auto-generation (the card bill is entered by hand)
 - Check-in snapshot history (totals are overwritten)
 - Multi-currency, native mobile app, multiple users/roles
 
@@ -226,8 +226,7 @@ Account Net       = Σ income − Σ bills                        (month)
 
 ## Future Considerations
 
-1. Bill replicate button (deferred — fully manual is deliberate)
-2. Check-in snapshot history (the sheet keeps weekly rows; V1 overwrites)
-3. Negative-projection alerts
-4. Bucket reordering and plan templates
-5. CSV export for month results
+1. Check-in snapshot history (the sheet keeps weekly rows; V1 overwrites)
+2. Negative-projection alerts
+3. Bucket reordering and plan templates
+4. CSV export for month results

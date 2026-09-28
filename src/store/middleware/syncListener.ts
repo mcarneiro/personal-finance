@@ -2,7 +2,7 @@ import { createListenerMiddleware, isAnyOf } from '@reduxjs/toolkit';
 import { addCard, deleteCard, updateCard } from '../cardsSlice';
 import { addBank, deleteBank, updateBank } from '../banksSlice';
 import { addPayer, deletePayer, updatePayer } from '../payersSlice';
-import { addBill, deleteBill, toggleBillPaid, updateBill } from '../billsSlice';
+import { addBill, addBills, deleteBill, toggleBillPaid, updateBill } from '../billsSlice';
 import { addIncomeEntries, addIncomeEntry, deleteIncomeEntry, updateIncomeEntry } from '../incomeSlice';
 import {
   addPlanItem,
@@ -111,7 +111,7 @@ startAppListening({
 });
 
 startAppListening({
-  matcher: isAnyOf(addBill, updateBill, deleteBill, toggleBillPaid),
+  matcher: isAnyOf(addBill, addBills, updateBill, deleteBill, toggleBillPaid),
   effect: async (_action, listenerApi) => {
     await listenerApi.delay(DEBOUNCE_MS);
     listenerApi.cancelActiveListeners();

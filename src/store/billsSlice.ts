@@ -19,6 +19,10 @@ const billsSlice = createSlice({
     addBill: (state, action: PayloadAction<Bill>) => {
       state.items.push(action.payload);
     },
+    /** Bulk add for replicate-last-month, so a whole month's bills sync as one action. */
+    addBills: (state, action: PayloadAction<Bill[]>) => {
+      state.items.push(...action.payload);
+    },
     updateBill: (state, action: PayloadAction<Bill>) => {
       const index = state.items.findIndex((bill) => bill.id === action.payload.id);
       if (index !== -1) {
@@ -37,6 +41,7 @@ const billsSlice = createSlice({
   },
 });
 
-export const { setBills, addBill, updateBill, deleteBill, toggleBillPaid } = billsSlice.actions;
+export const { setBills, addBill, addBills, updateBill, deleteBill, toggleBillPaid } =
+  billsSlice.actions;
 
 export default billsSlice.reducer;

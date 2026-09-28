@@ -3,23 +3,25 @@ import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import MonthScaffold from '../../components/MonthScaffold';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
-import { addBill, deleteBill, toggleBillPaid, updateBill } from '../../store/billsSlice';
+import { addBill, addBills, deleteBill, toggleBillPaid, updateBill } from '../../store/billsSlice';
 import { accountNet, billsTotal, incomeTotal } from '../../utils/controlLoop';
 import { billsByPayerAndBank, type BankTotal, type PayerGroup } from '../../utils/billSummary';
+import { copyBills } from '../../utils/billCopy';
 import { formatCurrency } from '../../utils/currency';
 import { generateId } from '../../utils/id';
-import { isValidMonth } from '../../utils/month';
+import { isValidMonth, shiftMonth } from '../../utils/month';
 import BillForm from './BillForm';
 
 /**
- * The Bills screen for one month: payment obligations added fully by hand
- * (name, amount, payer, bank — the card bill is just another bill with its real
+ * The Bills screen for one month: payment obligations added by hand (name,
+ * amount, payer, bank — the card bill is just another bill with its real
  * statement value), each with a paid toggle, plus the month's bills total,
  * income total, the account net (income − bills), and the by-payer spending
- * summary. There is no replicate and no auto-generation. The derived numbers
- * come from the control-loop utilities and the bill-summary utility and are
- * never stored; every mutation syncs through the debounced middleware onto the
- * bills tab.
+ * summary. The replicate-last-month button copies last month's obligations so
+ * recurring bills need no retyping; the copies arrive open (never pre-paid) and
+ * can be edited freely. The derived numbers come from the control-loop
+ * utilities and the bill-summary utility and are never stored; every mutation
+ * syncs through the debounced middleware onto the bills tab.
  */
 export default function BillsScreen() {
   const { t, i18n } = useTranslation();
@@ -37,6 +39,7 @@ export default function BillsScreen() {
   }
 
   const monthBills = bills.filter((bill) => bill.month === month);
+  const lastMonthBills = bills.filter((bill) => bill.month === shiftMonth(month, -1));
   const net = accountNet(month, income, bills);
   const spending = billsByPayerAndBank(month, bills, banks, payers);
 
@@ -74,6 +77,17 @@ export default function BillsScreen() {
             {formatCurrency(net, i18n.language)}
           </span>
         </div>
+        {/* Replicate only into an empty month: on a month that already has
+            bills it would silently duplicate the whole list. */}
+        {lastMonthBills.length > 0 && monthBills.length === 0 && (
+          <button
+            type="button"
+            onClick={() => dispatch(addBills(copyBills(lastMonthBills, month)))}
+            className="mt-3 w-full rounded-lg border border-blue-600 py-2 text-sm font-semibold text-blue-600 transition-colors hover:bg-blue-50"
+          >
+            {t('bills.copyLastMonth')}
+          </button>
+        )}
       </section>
 
       {monthBills.length === 0 && (
