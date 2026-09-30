@@ -69,12 +69,12 @@ export default function IncomeScreen() {
         <section className="mt-4 rounded-lg bg-white p-4 shadow-sm">
           <ul className="divide-y divide-gray-100">
             {monthEntries.map((entry) => (
-              <li key={entry.id} className="py-2">
+              <li key={entry.id}>
                 <button
                   type="button"
                   onClick={() => navigate(`/income/edit/${entry.id}`)}
                   aria-label={t('income.edit', { name: entryLabel(entry) })}
-                  className="flex min-w-0 flex-1 items-center justify-between gap-2 text-left"
+                  className="flex w-full items-center justify-between gap-2 py-2 text-left"
                 >
                   <span className="min-w-0 flex-1 truncate text-sm text-gray-900">
                     {entry.source || t('income.noSource')}
