@@ -101,6 +101,7 @@ function renderBills(
           <Route path="/bills/:month" element={<BillsScreen />} />
           <Route path="/bills/edit/:id" element={<p>Editor da conta</p>} />
           <Route path="/bills/new/:month" element={<p>Nova conta</p>} />
+          <Route path="/settings" element={<p>Ajustes</p>} />
         </Routes>
       </MemoryRouter>
     </Provider>
@@ -266,16 +267,24 @@ describe('Bills', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('asks for registries in Settings when there are no payers or banks', () => {
+  it('highlights the registry guidance and shortcuts to Settings when there are no payers or banks', async () => {
     // Given no payers and no banks are registered
     renderBills(`/bills/${JUNE}`, [], [], [], []);
+    const user = userEvent.setup();
 
     // When the screen renders
-    // Then it points at Settings instead of an unusable add flow
+    // Then the guidance sits in a highlighted callout instead of an unusable add flow
     expect(
       screen.getByText('Cadastre ao menos um responsável e um banco em Ajustes para adicionar contas.')
     ).toBeInTheDocument();
+    expect(screen.getByRole('note')).toHaveClass('bg-amber-50');
     expect(screen.queryByRole('button', { name: 'Adicionar conta' })).not.toBeInTheDocument();
+
+    // When I tap the callout's shortcut
+    await user.click(screen.getByRole('button', { name: 'Ir para Ajustes' }));
+
+    // Then the Settings page opens
+    expect(screen.getByText('Ajustes')).toBeInTheDocument();
   });
 
   it('toggles a bill paid and writes the bills tab back', async () => {

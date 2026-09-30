@@ -103,6 +103,7 @@
     "selectPayer": "Selecione o responsável",
     "selectBank": "Selecione o banco",
     "needsRegistry": "Cadastre ao menos um responsável e um banco em Ajustes para adicionar contas.",
+    "needsRegistryCta": "Ir para Ajustes",
     "byPayerSummary": "Gastos por responsável",
     "byPayerEmpty": "Adicione contas para ver o resumo por responsável.",
     "unassignedPayer": "Sem responsável",

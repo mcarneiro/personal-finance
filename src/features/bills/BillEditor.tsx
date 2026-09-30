@@ -8,6 +8,7 @@ import { addBill, deleteBill, updateBill } from '../../store/billsSlice';
 import { generateId } from '../../utils/id';
 import { isValidMonth } from '../../utils/month';
 import BillForm from './BillForm';
+import NeedsRegistryNotice from './NeedsRegistryNotice';
 
 /**
  * The full-screen create/edit page for one bill — the same header-and-no-nav
@@ -76,7 +77,7 @@ export default function BillEditor() {
             }}
           />
         ) : (
-          <p className="text-sm text-gray-600">{t('bills.needsRegistry')}</p>
+          <NeedsRegistryNotice />
         )}
 
         {isEdit && bill && registryReady && (

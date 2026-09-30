@@ -84,6 +84,7 @@ function renderEditor(
           <Route path="/bills/edit/:id" element={<BillEditor />} />
           <Route path="/bills/:month" element={<p>Lista de contas</p>} />
           <Route path="/bills" element={<p>Contas</p>} />
+          <Route path="/settings" element={<p>Ajustes</p>} />
         </Routes>
       </MemoryRouter>
     </Provider>
@@ -247,17 +248,25 @@ describe('Bill editor', () => {
     expect(screen.getByText('Lista de contas')).toBeInTheDocument();
   });
 
-  it('asks for registries instead of an unusable form when payers or banks are missing', () => {
+  it('highlights the registry guidance and shortcuts to Settings instead of an unusable form', async () => {
     // Given no payers and no banks are registered
     renderEditor(`/bills/new/${JUNE}`, [], [], []);
+    const user = userEvent.setup();
 
     // When the editor renders
-    // Then it points at Settings and shows no form or remove action
+    // Then the guidance sits in a highlighted callout, with no form or remove action
     expect(
       screen.getByText('Cadastre ao menos um responsável e um banco em Ajustes para adicionar contas.')
     ).toBeInTheDocument();
+    expect(screen.getByRole('note')).toHaveClass('bg-amber-50');
     expect(screen.queryByLabelText('Nome da conta')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Remover' })).not.toBeInTheDocument();
+
+    // When I tap the callout's shortcut
+    await user.click(screen.getByRole('button', { name: 'Ir para Ajustes' }));
+
+    // Then the Settings page opens
+    expect(screen.getByText('Ajustes')).toBeInTheDocument();
   });
 
   it('sends an unknown edit id back to the bills root', () => {

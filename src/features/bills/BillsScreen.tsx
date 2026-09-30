@@ -8,6 +8,7 @@ import { billsByPayerAndBank, type BankTotal, type PayerGroup } from '../../util
 import { copyBills } from '../../utils/billCopy';
 import { formatCurrency } from '../../utils/currency';
 import { isValidMonth, shiftMonth } from '../../utils/month';
+import NeedsRegistryNotice from './NeedsRegistryNotice';
 
 /**
  * The Bills screen for one month: payment obligations added by hand (name,
@@ -149,9 +150,9 @@ export default function BillsScreen() {
       )}
 
       {!registryReady && (
-        <section className="mt-4 rounded-lg bg-white p-4 shadow-sm">
-          <p className="text-sm text-gray-600">{t('bills.needsRegistry')}</p>
-        </section>
+        <div className="mt-4">
+          <NeedsRegistryNotice />
+        </div>
       )}
 
       <section

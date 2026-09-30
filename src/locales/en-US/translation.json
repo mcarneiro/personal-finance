@@ -103,6 +103,7 @@
     "selectPayer": "Select the payer",
     "selectBank": "Select the bank",
     "needsRegistry": "Register at least one payer and one bank in Settings to add bills.",
+    "needsRegistryCta": "Go to Settings",
     "byPayerSummary": "Spending by payer",
     "byPayerEmpty": "Add bills to see the by-payer summary.",
     "unassignedPayer": "No payer",
