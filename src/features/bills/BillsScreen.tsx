@@ -132,15 +132,17 @@ export default function BillsScreen() {
                       {formatCurrency(bill.amount, i18n.language)}
                     </span>
                   </span>
-                  <span className="text-xs text-gray-500">
-                    {payerLabel(bill.payerId)} · {bankLabel(bill.bankId)}
-                  </span>
-                  <span
-                    className={`text-xs font-medium ${
-                      bill.isPaid ? 'text-green-600' : 'text-amber-600'
-                    }`}
-                  >
-                    {t(bill.isPaid ? 'bills.paid' : 'bills.open')}
+                  <span className="flex items-center justify-between gap-2">
+                    <span className="min-w-0 truncate text-xs text-gray-500">
+                      {payerLabel(bill.payerId)} · {bankLabel(bill.bankId)}
+                    </span>
+                    <span
+                      className={`shrink-0 text-xs font-medium ${
+                        bill.isPaid ? 'text-green-600' : 'text-amber-600'
+                      }`}
+                    >
+                      {t(bill.isPaid ? 'bills.paid' : 'bills.open')}
+                    </span>
                   </span>
                 </button>
               </li>
