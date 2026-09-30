@@ -2,11 +2,11 @@ import { useTranslation } from 'react-i18next';
 
 /**
  * The app's entry point. The household dashboard is still to be designed, so
- * this is a placeholder shell: it holds the home route and the home chrome
- * (brand plus the Settings shortcut in the top bar) until the real dashboard
- * lands here.
+ * this is a placeholder shell: it holds the home route while the real dashboard
+ * is built here. The page title and the Settings shortcut live in the Layout
+ * top bar.
  */
-export default function HomeScreen() {
+export default function DashboardScreen() {
   const { t } = useTranslation();
 
   return (

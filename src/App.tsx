@@ -3,7 +3,7 @@ import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-
 import { useTranslation } from 'react-i18next';
 import Layout from './components/Layout';
 import LoadingScreen from './components/LoadingScreen';
-import HomeScreen from './features/home/HomeScreen';
+import DashboardScreen from './features/dashboard/DashboardScreen';
 import PlanScreen from './features/plan/PlanScreen';
 import BillsScreen from './features/bills/BillsScreen';
 import IncomeScreen from './features/income/IncomeScreen';
@@ -88,7 +88,7 @@ function App() {
           path="/"
           element={
             <Layout>
-              <HomeScreen />
+              <DashboardScreen />
             </Layout>
           }
         />
