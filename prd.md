@@ -50,7 +50,7 @@ A React app using Google Sheets as the database (same foundation as Stayoo) that
 
 #### 1. Onboarding & Configuration
 - **Google Sheet Setup**: one-time onboarding identical to Stayoo's (sheet URL, OAuth, auto-create missing tabs with headers)
-- **Settings**: manage the card, bank and payer registries (add / rename / remove) plus the connected sheet. No other settings exist in V1.
+- **Settings**: manage the card, bank and payer registries (add / rename / remove) plus the connected sheet. Opened from the Dashboard top bar as a full-screen page. No other settings exist in V1.
 
 #### 2. Google Sheets Integration
 - **Authentication**: Google OAuth (same client-ID flow and `.env` as Stayoo)
@@ -173,7 +173,7 @@ Onboarding validates the connected sheet and creates any missing tabs with the h
 2. **Spending Plan** (`/plan/:month`) — plan items, check-in inputs, remaining estimates, Projected Result headline
 3. **Bills** (`/bills/:month`) — bill list with paid toggles, income total, account net, the by-payer spending summary, and the replicate-last-month button
 4. **Income** (`/income/:month`) — entries, total, replicate button
-5. **Settings** — card, bank and payer registries + connected sheet. Opened only from the Home top bar; it is a full-screen page with a back button and no bottom navigation.
+5. **Settings** — card, bank and payer registries + connected sheet. Opened only from the Dashboard top bar; it is a full-screen page with a back button and no bottom navigation.
 6. **Onboarding** — Stayoo flow
 
 The app shell is a mobile-first Layout: a contextual top bar, the scrollable content column, and a fixed bottom navigation with three tabs (Plan, Bills, Income).
