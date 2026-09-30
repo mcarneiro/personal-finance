@@ -5,7 +5,6 @@ import MonthScaffold from '../../components/MonthScaffold';
 import NameAmountForm from '../../components/NameAmountForm';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { addPlanItem, addPlanItems, deletePlanItem, updatePlanItem } from '../../store/planSlice';
-import type { PlanItemKind } from '../../types';
 import { planResult, planTotal, projectedResult } from '../../utils/controlLoop';
 import { formatCurrency } from '../../utils/currency';
 import { generateId } from '../../utils/id';
@@ -14,38 +13,14 @@ import { copyPlanItems } from '../../utils/planCopy';
 import AmountInput from './AmountInput';
 import CardCheckIn from './CardCheckIn';
 
-const SECTION_KINDS = ['fixed', 'variable'] as const;
-
-/**
- * Per-kind labels for the two sections. Kept as one map instead of repeated
- * ternaries so adding a kind is a single edit.
- */
-const SECTION_COPY: Record<
-  PlanItemKind,
-  { title: string; nameLabel: string; amountLabel: string; submitLabel: string }
-> = {
-  fixed: {
-    title: 'plan.fixedCharges',
-    nameLabel: 'plan.fixedNameLabel',
-    amountLabel: 'plan.fixedAmountLabel',
-    submitLabel: 'plan.addFixedCharge',
-  },
-  variable: {
-    title: 'plan.buckets',
-    nameLabel: 'plan.bucketNameLabel',
-    amountLabel: 'plan.bucketAmountLabel',
-    submitLabel: 'plan.addBucket',
-  },
-};
-
 /**
  * The Spending Plan screen for one month — the live control loop. It composes
- * the plan (fixed charges, buckets), takes one current-total check-in per card,
- * holds one editable Remaining Estimate per bucket, and headlines the month's
- * result: the live Projected Result for the current month, the final Plan
- * Result for past months. Every derived number comes from the control-loop
- * utilities and is never stored; every mutation syncs through the debounced
- * middleware onto the sheet.
+ * the month's spending buckets, takes one current-total check-in per card, holds
+ * one editable Remaining Estimate per bucket, and headlines the month's result:
+ * the live Projected Result for the current month, the final Plan Result for
+ * past months. Every derived number comes from the control-loop utilities and is
+ * never stored; every mutation syncs through the debounced middleware onto the
+ * sheet.
  */
 export default function PlanScreen() {
   const { t, i18n } = useTranslation();
@@ -113,111 +88,99 @@ export default function PlanScreen() {
 
       <CardCheckIn month={month} />
 
-      {monthItems.length === 0 && (
-        <p className="mt-4 text-sm text-gray-500">{t('plan.empty')}</p>
-      )}
+      <section className="mt-4 rounded-lg bg-white p-4 shadow-sm">
+        <h2 className="text-sm font-semibold text-gray-900">{t('plan.buckets')}</h2>
 
-      {SECTION_KINDS.map((kind: PlanItemKind) => {
-        const sectionItems = monthItems.filter((item) => item.kind === kind);
-        const copy = SECTION_COPY[kind];
-
-        return (
-          <section key={kind} className="mt-4 rounded-lg bg-white p-4 shadow-sm">
-            <h2 className="text-sm font-semibold text-gray-900">{t(copy.title)}</h2>
-
-            {sectionItems.length > 0 && (
-              <ul className="mt-2 divide-y divide-gray-100">
-                {sectionItems.map((item) => (
-                  <li key={item.id} className="py-2">
-                    {editingId === item.id ? (
-                      <NameAmountForm
-                        formId={`edit-${item.id}`}
-                        nameLabel={t('plan.itemNameLabel')}
-                        amountLabel={t('plan.itemAmountLabel')}
-                        submitLabel={t('plan.save')}
-                        initialName={item.name}
-                        initialAmount={item.amount}
-                        autoFocusName
-                        onSubmit={(name, amount) => {
-                          dispatch(updatePlanItem({ ...item, name, amount }));
-                          setEditingId(null);
-                        }}
-                        onCancel={{ label: t('plan.cancel'), onClick: () => setEditingId(null) }}
-                      />
-                    ) : (
-                      <div className="flex flex-col gap-1">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="min-w-0 flex-1 truncate text-sm text-gray-900">
-                            {item.name}
-                          </span>
-                          <span className="text-sm font-medium text-gray-900">
-                            {formatCurrency(item.amount, i18n.language)}
-                          </span>
-                          <div className="flex items-center gap-1">
-                            <button
-                              type="button"
-                              onClick={() => setEditingId(item.id)}
-                              aria-label={t('plan.edit', { name: item.name })}
-                              className="rounded-lg px-2 py-1 text-sm font-medium text-blue-600 transition-colors hover:text-blue-700"
-                            >
-                              {t('plan.editAction')}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => dispatch(deletePlanItem(item.id))}
-                              aria-label={t('plan.remove', { name: item.name })}
-                              className="rounded-lg px-2 py-1 text-sm font-medium text-red-600 transition-colors hover:text-red-700"
-                            >
-                              {t('plan.removeAction')}
-                            </button>
-                          </div>
-                        </div>
-
-                        {item.kind === 'variable' && (
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="text-xs text-gray-500">
-                              {t('plan.remainingEstimateLabel')}
-                            </span>
-                            <AmountInput
-                              id={`estimate-${item.id}`}
-                              label={t('plan.remainingEstimate', { name: item.name })}
-                              value={item.remainingEstimate}
-                              onCommit={(remainingEstimate) =>
-                                dispatch(updatePlanItem({ ...item, remainingEstimate }))
-                              }
-                            />
-                          </div>
-                        )}
+        {monthItems.length === 0 ? (
+          <p className="mt-1 text-sm text-gray-500">{t('plan.empty')}</p>
+        ) : (
+          <ul className="mt-2 divide-y divide-gray-100">
+            {monthItems.map((item) => (
+              <li key={item.id} className="py-2">
+                {editingId === item.id ? (
+                  <NameAmountForm
+                    formId={`edit-${item.id}`}
+                    nameLabel={t('plan.itemNameLabel')}
+                    amountLabel={t('plan.itemAmountLabel')}
+                    submitLabel={t('plan.save')}
+                    initialName={item.name}
+                    initialAmount={item.amount}
+                    autoFocusName
+                    onSubmit={(name, amount) => {
+                      dispatch(updatePlanItem({ ...item, name, amount }));
+                      setEditingId(null);
+                    }}
+                    onCancel={{ label: t('plan.cancel'), onClick: () => setEditingId(null) }}
+                  />
+                ) : (
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="min-w-0 flex-1 truncate text-sm text-gray-900">
+                        {item.name}
+                      </span>
+                      <span className="text-sm font-medium text-gray-900">
+                        {formatCurrency(item.amount, i18n.language)}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setEditingId(item.id)}
+                          aria-label={t('plan.edit', { name: item.name })}
+                          className="rounded-lg px-2 py-1 text-sm font-medium text-blue-600 transition-colors hover:text-blue-700"
+                        >
+                          {t('plan.editAction')}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => dispatch(deletePlanItem(item.id))}
+                          aria-label={t('plan.remove', { name: item.name })}
+                          className="rounded-lg px-2 py-1 text-sm font-medium text-red-600 transition-colors hover:text-red-700"
+                        >
+                          {t('plan.removeAction')}
+                        </button>
                       </div>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
+                    </div>
 
-            <div className={sectionItems.length > 0 ? 'mt-4 border-t border-gray-100 pt-4' : 'mt-3'}>
-              <NameAmountForm
-                formId={`add-${kind}`}
-                nameLabel={t(copy.nameLabel)}
-                amountLabel={t(copy.amountLabel)}
-                submitLabel={t(copy.submitLabel)}
-                onSubmit={(name, amount) =>
-                  dispatch(
-                    addPlanItem({
-                      id: generateId(),
-                      month,
-                      kind,
-                      name,
-                      amount,
-                      remainingEstimate: 0,
-                    })
-                  )
-                }
-              />
-            </div>
-          </section>
-        );
-      })}
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs text-gray-500">
+                        {t('plan.remainingEstimateLabel')}
+                      </span>
+                      <AmountInput
+                        id={`estimate-${item.id}`}
+                        label={t('plan.remainingEstimate', { name: item.name })}
+                        value={item.remainingEstimate}
+                        onCommit={(remainingEstimate) =>
+                          dispatch(updatePlanItem({ ...item, remainingEstimate }))
+                        }
+                      />
+                    </div>
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <div className={monthItems.length > 0 ? 'mt-4 border-t border-gray-100 pt-4' : 'mt-3'}>
+          <NameAmountForm
+            formId="add-bucket"
+            nameLabel={t('plan.bucketNameLabel')}
+            amountLabel={t('plan.bucketAmountLabel')}
+            submitLabel={t('plan.addBucket')}
+            onSubmit={(name, amount) =>
+              dispatch(
+                addPlanItem({
+                  id: generateId(),
+                  month,
+                  name,
+                  amount,
+                  remainingEstimate: 0,
+                })
+              )
+            }
+          />
+        </div>
+      </section>
     </MonthScaffold>
   );
 }

@@ -19,7 +19,7 @@ While the sheet works, it has limitations:
 ### Solution
 A React app using Google Sheets as the database (same foundation as Stayoo) that digitizes the control loop:
 
-- Spending Plan: fixed charges + spending buckets with caps
+- Spending Plan: spending buckets with caps
 - Weekly card check-ins: per-card running totals → Total Spent
 - Remaining Estimates per bucket → live Projected Result (the sobra)
 - Bills with paid control, payer and bank, income entries, and the account net
@@ -74,7 +74,7 @@ A React app using Google Sheets as the database (same foundation as Stayoo) that
 
 #### 6. Spending Plan (the core)
 **Route:** `/plan/:month`
-- **Plan composition**: fixed charges (name + exact amount, e.g. subscriptions) and spending buckets (name + cap). User-defined names
+- **Plan composition**: spending buckets (name + cap). User-defined names
 - **Copy-last-month button**: one tap seeds the new month's plan from last month's; then edit freely (does not copy remaining estimates or card totals — those start at zero)
 - **Card check-in**: one editable current total per card; Total Spent = sum. Totals are current-state — overwritten at each check-in, no snapshot history in V1
 - **Remaining Estimates**: one editable estimate per bucket ("still expected until month end")
@@ -113,10 +113,9 @@ export interface Payer {
 export interface PlanItem {
   id: string;
   month: string;                // YYYY-MM
-  kind: 'fixed' | 'variable';   // fixed charge or spending bucket
   name: string;                 // "Mercado/Farmácia", "Netflix"
-  amount: number;               // fixed: exact charge; variable: cap
-  remainingEstimate: number;    // variable buckets only; default 0
+  amount: number;               // bucket cap
+  remainingEstimate: number;    // default 0
 }
 
 export interface CardSpending {
@@ -153,7 +152,7 @@ export interface IncomeEntry {
 | `cards` | id, name |
 | `banks` | id, name |
 | `payers` | id, name |
-| `plan` | id, month, kind, name, amount, remaining_estimate |
+| `plan` | id, month, name, amount, remaining_estimate |
 | `card_spending` | id, month, card_id, total |
 | `bills` | id, month, name, amount, is_paid, payer_id, bank_id |
 | `income` | id, month, amount, source |
@@ -170,7 +169,7 @@ Onboarding validates the connected sheet and creates any missing tabs with the h
 
 ### Key Screens
 1. **Dashboard** (`/`) — the app entry point and a placeholder shell for the household dashboard (still to be designed). Its top bar shows the title "Dashboard" and the Settings shortcut; every other screen's top bar shows a back button and that screen's name.
-2. **Spending Plan** (`/plan/:month`) — plan items, check-in inputs, remaining estimates, Projected Result headline
+2. **Spending Plan** (`/plan/:month`) — spending buckets, check-in inputs, remaining estimates, Projected Result headline
 3. **Bills** (`/bills/:month`) — bill list with paid toggles, income total, account net, the by-payer spending summary, and the replicate-last-month button
 4. **Income** (`/income/:month`) — entries, total, replicate button
 5. **Settings** — card, bank and payer registries + connected sheet. Opened only from the Dashboard top bar; it is a full-screen page with a back button and no bottom navigation.
@@ -181,7 +180,7 @@ The app shell is a mobile-first Layout: a contextual top bar, the scrollable con
 ## Control Loop Specification
 
 ```
-Plan Total        = Σ fixed charges + Σ bucket caps          (month)
+Plan Total        = Σ bucket caps                            (month)
 Total Spent       = Σ card totals                             (month)
 Projected Result  = Plan Total − Total Spent − Σ remaining estimates
 Plan Result       = Plan Total − Total Spent                  (final; estimates zeroed)

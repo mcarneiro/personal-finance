@@ -22,19 +22,15 @@ export interface Payer {
   name: string;
 }
 
-/** A plan item is either a fixed charge (exact amount) or a spending bucket (cap). */
-export type PlanItemKind = 'fixed' | 'variable';
-
-/** A single item in a month's Spending Plan. */
+/** A single spending bucket in a month's Spending Plan. */
 export interface PlanItem {
   id: string;
   month: Month;
-  kind: PlanItemKind;
-  /** Fixed charge name or spending bucket name. */
+  /** Spending bucket name. */
   name: string;
-  /** Fixed charge: exact amount; spending bucket: cap. */
+  /** The bucket cap. */
   amount: number;
-  /** Spending buckets only; default 0. */
+  /** What is still expected to be spent in the bucket until month end; default 0. */
   remainingEstimate: number;
 }
 

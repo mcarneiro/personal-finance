@@ -1,5 +1,5 @@
 import { SHEET_CONFIGS } from '../config/google';
-import { Bank, Bill, Card, CardSpending, IncomeEntry, Payer, PlanItem, PlanItemKind } from '../types';
+import { Bank, Bill, Card, CardSpending, IncomeEntry, Payer, PlanItem } from '../types';
 
 interface SheetResponse {
   sheets?: Array<{
@@ -115,11 +115,26 @@ export class GoogleSheetsService {
     });
   }
 
+  /** Clear every cell in a range (used to drop rows and stale header cells). */
+  private async clearRange(
+    spreadsheetId: string,
+    sheetName: string,
+    range: string
+  ): Promise<void> {
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetName}!${range}:clear`;
+    await this.apiRequest(url, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    });
+  }
+
   /**
    * Rewrite a tab's header row only when it does not already match the contract
    * — how an existing sheet gains columns introduced after it was created. Data
    * rows are never touched: cells for a new column read back blank until the
-   * row is next written.
+   * row is next written. When the contract shrinks, the now-superfluous header
+   * cells are cleared too, otherwise a stale trailing header would keep the row
+   * "not matching" and be rewritten on every load.
    */
   private async ensureHeaders(
     spreadsheetId: string,
@@ -133,7 +148,50 @@ export class GoogleSheetsService {
 
     if (!matches) {
       await this.writeHeaders(spreadsheetId, sheetName, columns);
+      if (header.length > columns.length) {
+        const firstExtra = String.fromCharCode(65 + columns.length);
+        const lastExtra = String.fromCharCode(64 + header.length);
+        await this.clearRange(spreadsheetId, sheetName, `${firstExtra}1:${lastExtra}1`);
+      }
     }
+  }
+
+  /**
+   * Migrate the `plan` tab off the retired `kind` column. Planoo no longer
+   * distinguishes fixed charges from spending buckets — every plan item is a
+   * bucket — so the third column is dropped and each remaining row is rewritten
+   * in the new order (id, month, name, amount, remaining_estimate). Without this
+   * the header rewrite in `ensureHeaders` would leave data rows shifted one
+   * column left and corrupt every read.
+   *
+   * Detection is two-pronged: the original header still names the third column
+   * `kind`, or — if an earlier load already re-headed the tab but left the rows
+   * in the old order — the rows are wider than the new five-column contract.
+   * The second case only triggers when the header is also the wrong width, so an
+   * ordinary bucket legitimately named `fixed` or `variable` is never mistaken
+   * for legacy data.
+   */
+  private async migrateLegacyPlanSheet(spreadsheetId: string): Promise<void> {
+    const rows = await this.readRows(spreadsheetId, 'plan', 'A1:Z');
+    const header = (rows[0] ?? []).map((cell) => String(cell));
+    const dataRows = rows.slice(1).filter((row) => !this.isBlankRow(row));
+    const newColumns = SHEET_CONFIGS.plan.columns;
+
+    const headerHasKind = header[2] === 'kind';
+    const rowsLookLegacy =
+      header.length !== newColumns.length && dataRows.some((row) => row.length > newColumns.length);
+    if (!headerHasKind && !rowsLookLegacy) return;
+
+    const migrated = dataRows.map((row) => [
+      row[0] ?? '',
+      row[1] ?? '',
+      row[3] ?? '',
+      row[4] ?? '',
+      row[5] ?? '',
+    ]);
+
+    await this.writeRows(spreadsheetId, 'plan', 'F', migrated);
+    await this.writeHeaders(spreadsheetId, 'plan', newColumns);
   }
 
   /**
@@ -149,6 +207,9 @@ export class GoogleSheetsService {
         await this.createSheet(spreadsheetId, config.name);
         await this.writeHeaders(spreadsheetId, config.name, config.columns);
       } else {
+        if (config.name === 'plan') {
+          await this.migrateLegacyPlanSheet(spreadsheetId);
+        }
         await this.ensureHeaders(spreadsheetId, config.name, config.columns);
       }
     }
@@ -168,11 +229,7 @@ export class GoogleSheetsService {
     lastColumn: string,
     values: unknown[][]
   ): Promise<void> {
-    const clearUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetName}!A2:${lastColumn}:clear`;
-    await this.apiRequest(clearUrl, {
-      method: 'POST',
-      body: JSON.stringify({}),
-    });
+    await this.clearRange(spreadsheetId, sheetName, `A2:${lastColumn}`);
 
     if (values.length > 0) {
       // RAW keeps values exactly as sent. Planoo keys rows by a `YYYY-MM` month
@@ -262,13 +319,12 @@ export class GoogleSheetsService {
   }
 
   async readPlanItems(spreadsheetId: string): Promise<PlanItem[]> {
-    const rows = await this.readRows(spreadsheetId, 'plan', 'A2:F');
+    const rows = await this.readRows(spreadsheetId, 'plan', 'A2:E');
     return rows.filter((row) => !this.isBlankRow(row)).map((row, index) => {
-      const [id, month, kind, name, amount, remainingEstimate] = row;
+      const [id, month, name, amount, remainingEstimate] = row;
       return {
         id: this.parseString(id, `plan-${index}`),
         month: this.parseString(month),
-        kind: (this.parseString(kind) === 'fixed' ? 'fixed' : 'variable') as PlanItemKind,
         name: this.parseString(name),
         amount: this.parseNumber(amount),
         remainingEstimate: this.parseNumber(remainingEstimate),
@@ -280,11 +336,10 @@ export class GoogleSheetsService {
     await this.writeRows(
       spreadsheetId,
       'plan',
-      'F',
+      'E',
       items.map((item) => [
         item.id,
         item.month,
-        item.kind,
         item.name,
         item.amount,
         item.remainingEstimate,

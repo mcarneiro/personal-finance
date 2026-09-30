@@ -5,7 +5,7 @@ import type { Bill, CardSpending, IncomeEntry, Month, PlanItem } from '../types'
  * entities. They are never stored in state or in the sheet — every screen
  * reads them by calling these (see spec.md, Implementation Decisions):
  *
- *   Plan Total        = Σ fixed charges + Σ bucket caps
+ *   Plan Total        = Σ bucket caps
  *   Total Spent       = Σ card totals
  *   Projected Result  = Plan Total − Total Spent − Σ remaining estimates
  *   Plan Result       = Plan Total − Total Spent
@@ -17,7 +17,7 @@ import type { Bill, CardSpending, IncomeEntry, Month, PlanItem } from '../types'
  * store; no rendering or store coupling lives here.
  */
 
-/** Σ fixed charges + Σ bucket caps for the month. */
+/** Σ bucket caps for the month. */
 export function planTotal(month: Month, items: PlanItem[]): number {
   return items
     .filter((item) => item.month === month)
@@ -38,7 +38,7 @@ export function projectedResult(
   cardSpending: CardSpending[]
 ): number {
   const remainingEstimates = items
-    .filter((item) => item.month === month && item.kind === 'variable')
+    .filter((item) => item.month === month)
     .reduce((total, item) => total + item.remainingEstimate, 0);
   return planTotal(month, items) - totalSpent(month, cardSpending) - remainingEstimates;
 }

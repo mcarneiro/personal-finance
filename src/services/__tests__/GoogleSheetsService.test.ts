@@ -24,7 +24,7 @@ describe('GoogleSheetsService schema round-trip', () => {
       'fetch',
       vi.fn().mockResolvedValue(
         jsonResponse({
-          values: [['p1', '2026-06', 'variable', 'Mercado/Farmácia', 500, 250]],
+          values: [['p1', '2026-06', 'Mercado/Farmácia', 500, 250]],
         })
       )
     );
@@ -37,7 +37,6 @@ describe('GoogleSheetsService schema round-trip', () => {
       {
         id: 'p1',
         month: '2026-06',
-        kind: 'variable',
         name: 'Mercado/Farmácia',
         amount: 500,
         remainingEstimate: 250,
@@ -55,7 +54,6 @@ describe('GoogleSheetsService schema round-trip', () => {
       {
         id: 'p1',
         month: '2026-06',
-        kind: 'fixed',
         name: 'Netflix',
         amount: 42,
         remainingEstimate: 0,
@@ -261,7 +259,10 @@ describe('initializeSheets schema migration', () => {
 
     // Then the two new tabs are created
     const created = calls
-      .filter(([, options]) => (options as RequestInit)?.method === 'POST')
+      .filter(
+        ([url, options]) =>
+          (options as RequestInit)?.method === 'POST' && String(url).includes(':batchUpdate')
+      )
       .map(([, options]) =>
         JSON.parse(String((options as RequestInit).body)).requests[0].addSheet.properties.title
       );
@@ -286,5 +287,140 @@ describe('initializeSheets schema migration', () => {
         (options as RequestInit)?.method === 'PUT' && String(url).includes('cards!')
     );
     expect(cardsHeaderWritten).toBe(false);
+  });
+
+  it('drops the retired kind column from the plan tab, rewriting its rows in order', async () => {
+    // Given a plan tab created before fixed charges were removed: six columns
+    // with `kind` in the third position and real data rows behind it
+    const headers: Record<string, string[]> = {
+      cards: ['id', 'name'],
+      banks: ['id', 'name'],
+      payers: ['id', 'name'],
+      plan: ['id', 'month', 'kind', 'name', 'amount', 'remaining_estimate'],
+      card_spending: ['id', 'month', 'card_id', 'total'],
+      bills: ['id', 'month', 'name', 'amount', 'is_paid', 'payer_id', 'bank_id'],
+      income: ['id', 'month', 'amount', 'source'],
+    };
+    const planRows = [
+      ['id', 'month', 'kind', 'name', 'amount', 'remaining_estimate'],
+      ['p1', '2026-06', 'variable', 'Mercado/Farmácia', 500, 250],
+      ['p2', '2026-06', 'fixed', 'Netflix', 42, 0],
+    ];
+    const fetchMock = vi.fn().mockImplementation((url: string, options?: RequestInit) => {
+      const target = String(url);
+      if (target.includes(':batchUpdate')) return Promise.resolve(jsonResponse({}));
+      if (options?.method === 'PUT') return Promise.resolve(jsonResponse({}));
+      if (/\/spreadsheets\/sheet-1$/.test(target)) {
+        return Promise.resolve(
+          jsonResponse({
+            sheets: Object.keys(headers).map((title) => ({ properties: { title } })),
+          })
+        );
+      }
+      if (target.includes('!A1:Z1')) {
+        const name = decodeURIComponent(target.match(/\/values\/([^!]+)!/)?.[1] ?? '');
+        return Promise.resolve(jsonResponse({ values: [headers[name] ?? []] }));
+      }
+      if (target.includes('!A1:Z?')) {
+        return Promise.resolve(jsonResponse({ values: planRows }));
+      }
+      return Promise.resolve(jsonResponse({}));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const service = GoogleSheetsService.getInstance();
+    service.setAccessToken('test-token');
+
+    // When the sheet is initialized
+    await service.initializeSheets('sheet-1');
+
+    // Then each data row is rewritten without the kind cell, so name/amount/
+    // estimate stay in their new positions instead of shifting left
+    const rowPut = fetchMock.mock.calls.find(
+      ([url, options]) =>
+        String(url).includes('/values/plan!A2') &&
+        (options as RequestInit)?.method === 'PUT'
+    );
+    const body = JSON.parse(String((rowPut?.[1] as RequestInit).body));
+    expect(body.values).toEqual([
+      ['p1', '2026-06', 'Mercado/Farmácia', 500, 250],
+      ['p2', '2026-06', 'Netflix', 42, 0],
+    ]);
+
+    // And the header is rewritten to the new five-column contract
+    const headerWrites = fetchMock.mock.calls
+      .filter(
+        ([url, options]) =>
+          (options as RequestInit)?.method === 'PUT' && String(url).includes('/values/plan!A1')
+      )
+      .map(([, options]) => JSON.parse(String((options as RequestInit).body)).values[0]);
+    expect(headerWrites).toContainEqual(['id', 'month', 'name', 'amount', 'remaining_estimate']);
+  });
+
+  it('repairs a plan tab whose header was re-headed but whose rows are still legacy', async () => {
+    // Given an interrupted upgrade: the header already says the new contract
+    // (with a stale trailing cell left over from the old six-column header)
+    // while the data rows still carry the retired kind column
+    const headers: Record<string, string[]> = {
+      cards: ['id', 'name'],
+      banks: ['id', 'name'],
+      payers: ['id', 'name'],
+      plan: ['id', 'month', 'name', 'amount', 'remaining_estimate', 'remaining_estimate'],
+      card_spending: ['id', 'month', 'card_id', 'total'],
+      bills: ['id', 'month', 'name', 'amount', 'is_paid', 'payer_id', 'bank_id'],
+      income: ['id', 'month', 'amount', 'source'],
+    };
+    const planRows = [
+      ['id', 'month', 'name', 'amount', 'remaining_estimate', 'remaining_estimate'],
+      ['p1', '2026-06', 'variable', 'Mercado/Farmácia', 500, 250],
+      ['p2', '2026-06', 'fixed', 'Netflix', 42, 0],
+    ];
+    const fetchMock = vi.fn().mockImplementation((url: string, options?: RequestInit) => {
+      const target = String(url);
+      if (target.includes(':batchUpdate')) return Promise.resolve(jsonResponse({}));
+      if (options?.method === 'PUT') return Promise.resolve(jsonResponse({}));
+      if (/\/spreadsheets\/sheet-1$/.test(target)) {
+        return Promise.resolve(
+          jsonResponse({
+            sheets: Object.keys(headers).map((title) => ({ properties: { title } })),
+          })
+        );
+      }
+      if (target.includes('!A1:Z1')) {
+        const name = decodeURIComponent(target.match(/\/values\/([^!]+)!/)?.[1] ?? '');
+        return Promise.resolve(jsonResponse({ values: [headers[name] ?? []] }));
+      }
+      if (target.includes('!A1:Z?')) {
+        return Promise.resolve(jsonResponse({ values: planRows }));
+      }
+      return Promise.resolve(jsonResponse({}));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const service = GoogleSheetsService.getInstance();
+    service.setAccessToken('test-token');
+
+    // When the sheet is initialized
+    await service.initializeSheets('sheet-1');
+
+    // Then the legacy kind cell is dropped from every data row
+    const rowPut = fetchMock.mock.calls.find(
+      ([url, options]) =>
+        String(url).includes('/values/plan!A2') &&
+        (options as RequestInit)?.method === 'PUT'
+    );
+    const body = JSON.parse(String((rowPut?.[1] as RequestInit).body));
+    expect(body.values).toEqual([
+      ['p1', '2026-06', 'Mercado/Farmácia', 500, 250],
+      ['p2', '2026-06', 'Netflix', 42, 0],
+    ]);
+
+    // And the stale trailing header cell is cleared, so the tab stops
+    // reporting a mismatch on every load
+    const headerCellCleared = fetchMock.mock.calls.some(
+      ([url, options]) =>
+        (options as RequestInit)?.method === 'POST' &&
+        String(url).includes('plan!F1') &&
+        String(url).includes(':clear')
+    );
+    expect(headerCellCleared).toBe(true);
   });
 });

@@ -36,7 +36,6 @@ export const DEMO_PAYERS: Payer[] = [
 /** Build a month-scoped plan item; ids stay deterministic for seeding. */
 function planItem(
   month: Month,
-  kind: PlanItem['kind'],
   name: string,
   amount: number,
   remainingEstimate = 0
@@ -47,7 +46,7 @@ function planItem(
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/(^-|-$)/g, '');
-  return { id: `plan-${month}-${slug}`, month, kind, name, amount, remainingEstimate };
+  return { id: `plan-${month}-${slug}`, month, name, amount, remainingEstimate };
 }
 
 /** Build a card check-in row, keyed the same way the plan slice keys them. */
@@ -84,19 +83,21 @@ function income(month: Month, amount: number, source?: string): IncomeEntry {
 }
 
 /**
- * The June 2026 plan exactly as recorded in the historical sheet:
- * buckets 6.000 + 800 + 1.200 + 1.000 and fixed 110 + 90 + 200 + 1.350 = 10.750.
+ * The June 2026 plan exactly as recorded in the historical sheet: the four
+ * buckets (6.000 + 800 + 1.200 + 1.000) plus the subscriptions the sheet kept
+ * alongside them (110 + 90 + 200 + 1.350) now all read as spending buckets, so
+ * the plan still totals 10.750.
  */
 function junePlan(month: Month, restauranteRemaining: number): PlanItem[] {
   return [
-    planItem(month, 'variable', 'Mercado/Farmácia', 6000),
-    planItem(month, 'variable', 'Transporte', 800),
-    planItem(month, 'variable', 'Restaurante', 1200, restauranteRemaining),
-    planItem(month, 'variable', 'Compras', 1000),
-    planItem(month, 'fixed', 'Internet', 110),
-    planItem(month, 'fixed', 'Streaming', 90),
-    planItem(month, 'fixed', 'Gym', 200),
-    planItem(month, 'fixed', 'Seguro do carro', 1350),
+    planItem(month, 'Mercado/Farmácia', 6000),
+    planItem(month, 'Transporte', 800),
+    planItem(month, 'Restaurante', 1200, restauranteRemaining),
+    planItem(month, 'Compras', 1000),
+    planItem(month, 'Internet', 110),
+    planItem(month, 'Streaming', 90),
+    planItem(month, 'Gym', 200),
+    planItem(month, 'Seguro do carro', 1350),
   ];
 }
 

@@ -9,7 +9,6 @@ function planItem(overrides: Partial<PlanItem>): PlanItem {
   return {
     id: 'source',
     month: MAY,
-    kind: 'fixed',
     name: 'Internet',
     amount: 110,
     remainingEstimate: 0,
@@ -18,11 +17,11 @@ function planItem(overrides: Partial<PlanItem>): PlanItem {
 }
 
 describe('copyPlanItems', () => {
-  it('copies names, kinds and amounts into the target month', () => {
-    // Given last month's plan of a bucket and a fixed charge
+  it('copies names and caps into the target month', () => {
+    // Given last month's plan of two buckets
     const source = [
-      planItem({ id: 'a', kind: 'variable', name: 'Mercado/Farmácia', amount: 6000 }),
-      planItem({ id: 'b', kind: 'fixed', name: 'Internet', amount: 110 }),
+      planItem({ id: 'a', name: 'Mercado/Farmácia', amount: 6000 }),
+      planItem({ id: 'b', name: 'Internet', amount: 110 }),
     ];
 
     // When I copy it into the target month
@@ -30,20 +29,15 @@ describe('copyPlanItems', () => {
 
     // Then the composition carries over into the target month
     expect(copies).toEqual([
-      expect.objectContaining({
-        month: JUNE,
-        kind: 'variable',
-        name: 'Mercado/Farmácia',
-        amount: 6000,
-      }),
-      expect.objectContaining({ month: JUNE, kind: 'fixed', name: 'Internet', amount: 110 }),
+      expect.objectContaining({ month: JUNE, name: 'Mercado/Farmácia', amount: 6000 }),
+      expect.objectContaining({ month: JUNE, name: 'Internet', amount: 110 }),
     ]);
   });
 
   it('starts every remaining estimate at zero', () => {
     // Given last month's bucket still carried a remaining estimate
     const source = [
-      planItem({ id: 'a', kind: 'variable', name: 'Restaurante', amount: 1200, remainingEstimate: 250 }),
+      planItem({ id: 'a', name: 'Restaurante', amount: 1200, remainingEstimate: 250 }),
     ];
 
     // When I copy it

@@ -38,7 +38,7 @@ const NEXT = shiftMonth(CURRENT, 1);
 const PREVIOUS = shiftMonth(CURRENT, -1);
 
 function planItem(
-  overrides: Partial<PlanItem> & Pick<PlanItem, 'month' | 'kind' | 'name' | 'amount'>
+  overrides: Partial<PlanItem> & Pick<PlanItem, 'month' | 'name' | 'amount'>
 ): PlanItem {
   return { id: `${overrides.month}-${overrides.name}`, remainingEstimate: 0, ...overrides };
 }
@@ -56,16 +56,16 @@ function forMonth(items: PlanItem[], month: Month): PlanItem[] {
   return items.map((item) => ({ ...item, month, id: `${month}-${item.name}` }));
 }
 
-/** The real June 2026 historical plan: buckets 9.000 + fixed charges 1.750 = 10.750. */
+/** The real June 2026 historical plan: 10.750 across the month's buckets. */
 const junePlan: PlanItem[] = [
-  planItem({ month: JUNE, kind: 'variable', name: 'Mercado/Farmácia', amount: 6000 }),
-  planItem({ month: JUNE, kind: 'variable', name: 'Transporte', amount: 800 }),
-  planItem({ month: JUNE, kind: 'variable', name: 'Restaurante', amount: 1200, remainingEstimate: 250 }),
-  planItem({ month: JUNE, kind: 'variable', name: 'Compras', amount: 1000 }),
-  planItem({ month: JUNE, kind: 'fixed', name: 'Internet', amount: 110 }),
-  planItem({ month: JUNE, kind: 'fixed', name: 'Streaming', amount: 90 }),
-  planItem({ month: JUNE, kind: 'fixed', name: 'Gym', amount: 200 }),
-  planItem({ month: JUNE, kind: 'fixed', name: 'Seguro do carro', amount: 1350 }),
+  planItem({ month: JUNE, name: 'Mercado/Farmácia', amount: 6000 }),
+  planItem({ month: JUNE, name: 'Transporte', amount: 800 }),
+  planItem({ month: JUNE, name: 'Restaurante', amount: 1200, remainingEstimate: 250 }),
+  planItem({ month: JUNE, name: 'Compras', amount: 1000 }),
+  planItem({ month: JUNE, name: 'Internet', amount: 110 }),
+  planItem({ month: JUNE, name: 'Streaming', amount: 90 }),
+  planItem({ month: JUNE, name: 'Gym', amount: 200 }),
+  planItem({ month: JUNE, name: 'Seguro do carro', amount: 1350 }),
 ];
 
 interface RenderOptions {
@@ -121,13 +121,12 @@ beforeEach(async () => {
 });
 
 describe('Spending Plan composition', () => {
-  it("lists the month's fixed charges and spending buckets", () => {
-    // Given June's plan holds fixed charges and spending buckets
+  it("lists the month's spending buckets", () => {
+    // Given June's plan holds spending buckets
     // When the plan renders
     renderPlan(`/plan/${JUNE}`, junePlan);
 
-    // Then both kinds are listed under their own headings
-    expect(screen.getByText('Cobranças fixas')).toBeInTheDocument();
+    // Then they are listed under the buckets heading
     expect(screen.getByText('Tetos de gastos')).toBeInTheDocument();
     expect(screen.getByText('Internet')).toBeInTheDocument();
     expect(screen.getByText('Mercado/Farmácia')).toBeInTheDocument();
@@ -138,38 +137,9 @@ describe('Spending Plan composition', () => {
     renderPlan(`/plan/${JUNE}`, junePlan);
 
     // When I look at the total
-    // Then it is the sum of every fixed charge and bucket cap
+    // Then it is the sum of every bucket cap
     expect(screen.getByText('Total do plano')).toBeInTheDocument();
     expect(summary().getByText(/10\.750,00/)).toBeInTheDocument();
-  });
-
-  it('adds a fixed charge and writes the plan back to the sheet', async () => {
-    // Given June has no plan yet
-    renderPlan(`/plan/${JUNE}`);
-    const user = userEvent.setup();
-
-    // When I add a fixed charge
-    await user.type(screen.getByLabelText('Nome da cobrança'), 'Netflix');
-    await user.type(screen.getByLabelText('Valor da cobrança'), '44.90');
-    await user.click(screen.getByRole('button', { name: 'Adicionar cobrança fixa' }));
-
-    // Then it is listed
-    expect(screen.getByText('Netflix')).toBeInTheDocument();
-
-    // And the plan tab is written back with the new item
-    await waitFor(
-      () =>
-        expect(googleSheetsService.writePlanItems).toHaveBeenCalledWith('sheet-1', [
-          expect.objectContaining({
-            month: JUNE,
-            kind: 'fixed',
-            name: 'Netflix',
-            amount: 44.9,
-            remainingEstimate: 0,
-          }),
-        ]),
-      { timeout: 2500 }
-    );
   });
 
   it('adds a spending bucket and writes the plan back to the sheet', async () => {
@@ -191,7 +161,6 @@ describe('Spending Plan composition', () => {
         expect(googleSheetsService.writePlanItems).toHaveBeenCalledWith('sheet-1', [
           expect.objectContaining({
             month: JUNE,
-            kind: 'variable',
             name: 'Pets',
             amount: 300,
             remainingEstimate: 0,
@@ -205,27 +174,27 @@ describe('Spending Plan composition', () => {
     // Given June has no plan yet
     renderPlan(`/plan/${JUNE}`);
     const user = userEvent.setup();
-    const addButton = screen.getByRole('button', { name: 'Adicionar cobrança fixa' });
+    const addButton = screen.getByRole('button', { name: 'Adicionar teto de gastos' });
 
     // When the form is incomplete
     expect(addButton).toBeDisabled();
 
-    await user.type(screen.getByLabelText('Nome da cobrança'), 'Netflix');
+    await user.type(screen.getByLabelText('Nome do teto'), 'Pets');
     expect(addButton).toBeDisabled();
 
-    await user.type(screen.getByLabelText('Valor da cobrança'), 'abc');
+    await user.type(screen.getByLabelText('Limite do teto'), 'abc');
     expect(addButton).toBeDisabled();
 
     // And only becomes submittable once both fields are valid
-    await user.clear(screen.getByLabelText('Valor da cobrança'));
-    await user.type(screen.getByLabelText('Valor da cobrança'), '44');
+    await user.clear(screen.getByLabelText('Limite do teto'));
+    await user.type(screen.getByLabelText('Limite do teto'), '44');
     expect(addButton).toBeEnabled();
   });
 
   it('edits an item and writes the plan back to the sheet', async () => {
-    // Given June's plan has an Internet fixed charge
+    // Given June's plan has an Internet bucket
     renderPlan(`/plan/${JUNE}`, [
-      planItem({ month: JUNE, kind: 'fixed', name: 'Internet', amount: 110 }),
+      planItem({ month: JUNE, name: 'Internet', amount: 110 }),
     ]);
     const user = userEvent.setup();
 
@@ -254,10 +223,10 @@ describe('Spending Plan composition', () => {
   });
 
   it('removes an item and writes the plan back to the sheet', async () => {
-    // Given June's plan has an Internet and a Gym fixed charge
+    // Given June's plan has an Internet and a Gym bucket
     renderPlan(`/plan/${JUNE}`, [
-      planItem({ month: JUNE, kind: 'fixed', name: 'Internet', amount: 110 }),
-      planItem({ month: JUNE, kind: 'fixed', name: 'Gym', amount: 200 }),
+      planItem({ month: JUNE, name: 'Internet', amount: 110 }),
+      planItem({ month: JUNE, name: 'Gym', amount: 200 }),
     ]);
     const user = userEvent.setup();
 
@@ -283,19 +252,18 @@ describe('Spending Plan composition', () => {
     renderPlan(`/plan/${JUNE}`, [
       planItem({
         month: MAY,
-        kind: 'variable',
         name: 'Restaurante',
         amount: 1200,
         remainingEstimate: 250,
       }),
-      planItem({ month: MAY, kind: 'fixed', name: 'Internet', amount: 110 }),
+      planItem({ month: MAY, name: 'Internet', amount: 110 }),
     ]);
     const user = userEvent.setup();
 
     // When I tap copy last month
     await user.click(screen.getByRole('button', { name: 'Copiar plano do mês anterior' }));
 
-    // Then June shows May's buckets and fixed charges
+    // Then June shows May's buckets
     expect(screen.getByText('Restaurante')).toBeInTheDocument();
     expect(screen.getByText('Internet')).toBeInTheDocument();
 
@@ -325,8 +293,8 @@ describe('Spending Plan composition', () => {
   it('hides the copy button once the month already has a plan, so it can never duplicate', () => {
     // Given June already has a plan and May has one too
     renderPlan(`/plan/${JUNE}`, [
-      planItem({ month: MAY, kind: 'fixed', name: 'Internet', amount: 110 }),
-      planItem({ month: JUNE, kind: 'fixed', name: 'Gym', amount: 200 }),
+      planItem({ month: MAY, name: 'Internet', amount: 110 }),
+      planItem({ month: JUNE, name: 'Gym', amount: 200 }),
     ]);
 
     // When June renders
@@ -339,7 +307,7 @@ describe('Spending Plan composition', () => {
   it("shows each month's own composition when navigating months", async () => {
     // Given June has a plan and July is still empty
     renderPlan(`/plan/${JUNE}`, [
-      planItem({ month: JUNE, kind: 'fixed', name: 'Internet', amount: 110 }),
+      planItem({ month: JUNE, name: 'Internet', amount: 110 }),
     ]);
     const user = userEvent.setup();
     expect(screen.getByText('Internet')).toBeInTheDocument();
@@ -368,7 +336,7 @@ describe('Spending Plan composition', () => {
     renderPlan(`/plan/${JULY}`);
 
     // Then the empty state and a zero total are shown
-    expect(screen.getByText('Os itens do plano deste mês aparecerão aqui.')).toBeInTheDocument();
+    expect(screen.getByText('Os tetos de gastos deste mês aparecerão aqui.')).toBeInTheDocument();
     expect(summary().getByText(/0,00/)).toBeInTheDocument();
   });
 });
@@ -389,7 +357,7 @@ describe('Card check-in', () => {
 
   it('records a card total, shows Total Spent so far, and updates the projection live', async () => {
     // Given the current month's plan caps 10.750 and a registered card
-    renderPlan(`/plan/${CURRENT}`, [planItem({ month: CURRENT, kind: 'fixed', name: 'Seguro', amount: 10750 })], {
+    renderPlan(`/plan/${CURRENT}`, [planItem({ month: CURRENT, name: 'Seguro', amount: 10750 })], {
       cards: [card('c1', 'cc guta')],
     });
     const user = userEvent.setup();
@@ -468,23 +436,23 @@ describe('Card check-in', () => {
 });
 
 describe('Remaining estimates', () => {
-  it('offers a remaining-estimate input only for spending buckets', () => {
-    // Given a bucket and a fixed charge
+  it('offers a remaining-estimate input for every bucket', () => {
+    // Given two spending buckets
     renderPlan(`/plan/${NEXT}`, [
-      planItem({ month: NEXT, kind: 'variable', name: 'Mercado', amount: 6000 }),
-      planItem({ month: NEXT, kind: 'fixed', name: 'Internet', amount: 110 }),
+      planItem({ month: NEXT, name: 'Mercado', amount: 6000 }),
+      planItem({ month: NEXT, name: 'Internet', amount: 110 }),
     ]);
 
-    // Then only the bucket can be re-estimated
+    // Then each can be re-estimated
     expect(screen.getByLabelText('Restante estimado — Mercado')).toBeInTheDocument();
-    expect(screen.queryByLabelText('Restante estimado — Internet')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Restante estimado — Internet')).toBeInTheDocument();
   });
 
   it("edits a bucket's remaining estimate, updating the projection live and the plan tab", async () => {
     // Given a 1.500 plan with nothing spent and restaurante still to be estimated
     renderPlan(`/plan/${NEXT}`, [
-      planItem({ month: NEXT, kind: 'variable', name: 'Restaurante', amount: 1000 }),
-      planItem({ month: NEXT, kind: 'fixed', name: 'Internet', amount: 500 }),
+      planItem({ month: NEXT, name: 'Restaurante', amount: 1000 }),
+      planItem({ month: NEXT, name: 'Internet', amount: 500 }),
     ]);
     const user = userEvent.setup();
     expect(headline('Resultado projetado').getByText(/1\.500,00/)).toBeInTheDocument();
@@ -511,8 +479,8 @@ describe('Result headline', () => {
   it('shows the Projected Result for the current month, green when inside the plan', () => {
     // Given the current month is inside its plan
     renderPlan(`/plan/${CURRENT}`, [
-      planItem({ month: CURRENT, kind: 'variable', name: 'Mercado', amount: 6000 }),
-      planItem({ month: CURRENT, kind: 'fixed', name: 'Internet', amount: 500 }),
+      planItem({ month: CURRENT, name: 'Mercado', amount: 6000 }),
+      planItem({ month: CURRENT, name: 'Internet', amount: 500 }),
     ]);
 
     // When I look at the headline
@@ -524,7 +492,7 @@ describe('Result headline', () => {
 
   it('shows the Projected Result red when the month is over plan', () => {
     // Given the current month has already spent past its plan
-    renderPlan(`/plan/${CURRENT}`, [planItem({ month: CURRENT, kind: 'fixed', name: 'Seguro', amount: 1000 })], {
+    renderPlan(`/plan/${CURRENT}`, [planItem({ month: CURRENT, name: 'Seguro', amount: 1000 })], {
       cards: [card('c1', 'cc guta')],
       cardSpending: [cardSpendingRow(CURRENT, 'c1', 1300)],
     });
@@ -543,12 +511,11 @@ describe('Result headline', () => {
       [
         planItem({
           month: PREVIOUS,
-          kind: 'variable',
           name: 'Restaurante',
           amount: 1200,
           remainingEstimate: 250,
         }),
-        planItem({ month: PREVIOUS, kind: 'fixed', name: 'Internet', amount: 110 }),
+        planItem({ month: PREVIOUS, name: 'Internet', amount: 110 }),
       ],
       { cardSpending: [cardSpendingRow(PREVIOUS, 'c1', 500)] }
     );

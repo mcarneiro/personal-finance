@@ -7,12 +7,8 @@ Planoo plans and controls household card spending and tracks monthly payment obl
 ### Card spending control
 
 **Spending Plan**:
-A monthly plan of expected card purchases, assigning expected amounts to fixed charges and spending buckets. It is the control instrument for card spending, not a month-level income and outcome plan.
+A monthly plan of expected card purchases, assigning expected amounts to spending buckets. It is the control instrument for card spending, not a month-level income and outcome plan.
 _Avoid_: Budget, CC budget, expense ledger
-
-**Fixed Charge**:
-A card charge with a known exact amount that recurs every month, such as a subscription. It is part of the Spending Plan.
-_Avoid_: Fixed allocation, bill
 
 **Spending Bucket**:
 A named cap for variable card spending, such as market and pharmacy. Buckets are the control objects of the plan; cards are not.
@@ -50,7 +46,7 @@ _Avoid_: Salary, revenue, income record
 
 **Bill**:
 A payment obligation tracked for a particular month, including its amount, who pays it (**Payer**), which **Bank** it is paid from, and whether it has been paid. It includes the card bill, a single value originating from the previous month's card spending. It does not belong to a spending bucket.
-_Avoid_: Spending bucket, fixed charge, expense
+_Avoid_: Spending bucket, expense
 
 **Payer**:
 A named household member responsible for paying a Bill. Payers form a registry the household maintains in Settings; a Bill references one by id, so renaming a payer flows through to its bills.

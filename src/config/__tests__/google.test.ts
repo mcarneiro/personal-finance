@@ -12,7 +12,7 @@ describe('SHEET_CONFIGS', () => {
       payers: { name: 'payers', columns: ['id', 'name'] },
       plan: {
         name: 'plan',
-        columns: ['id', 'month', 'kind', 'name', 'amount', 'remaining_estimate'],
+        columns: ['id', 'month', 'name', 'amount', 'remaining_estimate'],
       },
       card_spending: {
         name: 'card_spending',

@@ -13,15 +13,14 @@ import {
 const MONTH: Month = '2026-06';
 const OTHER_MONTH: Month = '2026-05';
 
-/** Build a plan item pinned to a month, with the remaining estimate defaulting to zero. */
+/** Build a spending bucket pinned to a month, with the remaining estimate defaulting to zero. */
 function planItem(
   month: Month,
-  kind: PlanItem['kind'],
   name: string,
   amount: number,
   remainingEstimate = 0
 ): PlanItem {
-  return { id: `${month}-${name}`, month, kind, name, amount, remainingEstimate };
+  return { id: `${month}-${name}`, month, name, amount, remainingEstimate };
 }
 
 /** Build a card-spending row pinned to a month. */
@@ -40,28 +39,25 @@ function incomeEntry(month: Month, amount: number, source?: string): IncomeEntry
 }
 
 describe('planTotal', () => {
-  // Given a set of plan items
+  // Given a set of spending buckets
   // When computing Plan Total for a month
-  // Then only that month's fixed charges and bucket caps are summed
+  // Then only that month's bucket caps are summed
   it.each([
     ['no items at all', [], 0],
-    ['items only in other months', [planItem(OTHER_MONTH, 'fixed', 'Netflix', 44.9)], 0],
-    ['a single fixed charge', [planItem(MONTH, 'fixed', 'Internet', 110)], 110],
+    ['items only in other months', [planItem(OTHER_MONTH, 'Netflix', 44.9)], 0],
+    ['a single bucket', [planItem(MONTH, 'Internet', 110)], 110],
     [
-      'fixed charges and bucket caps',
-      [
-        planItem(MONTH, 'fixed', 'Internet', 110),
-        planItem(MONTH, 'variable', 'Mercado/Farmácia', 6000),
-      ],
+      'two bucket caps',
+      [planItem(MONTH, 'Internet', 110), planItem(MONTH, 'Mercado/Farmácia', 6000)],
       6110,
     ],
     [
       'items across several months',
       [
-        planItem(OTHER_MONTH, 'variable', 'Mercado/Farmácia', 5000),
-        planItem(MONTH, 'variable', 'Mercado/Farmácia', 6000),
-        planItem(OTHER_MONTH, 'fixed', 'Internet', 110),
-        planItem(MONTH, 'fixed', 'Internet', 110),
+        planItem(OTHER_MONTH, 'Mercado/Farmácia', 5000),
+        planItem(MONTH, 'Mercado/Farmácia', 6000),
+        planItem(OTHER_MONTH, 'Internet', 110),
+        planItem(MONTH, 'Internet', 110),
       ],
       6110,
     ],
@@ -106,25 +102,25 @@ describe('projectedResult', () => {
     ['an empty month', [], [], 0],
     [
       'zero estimates, inside the plan',
-      [planItem(MONTH, 'variable', 'Mercado/Farmácia', 6000)],
+      [planItem(MONTH, 'Mercado/Farmácia', 6000)],
       [cardTotal(MONTH, 'cc-guta', 2899)],
       3101,
     ],
     [
       'remaining estimates subtracted from the projection',
-      [planItem(MONTH, 'variable', 'Restaurante', 1200, 250)],
+      [planItem(MONTH, 'Restaurante', 1200, 250)],
       [cardTotal(MONTH, 'cc-uv', 1200)],
       -250,
     ],
     [
       'a negative (over-plan) result',
-      [planItem(MONTH, 'variable', 'Compras', 1000)],
+      [planItem(MONTH, 'Compras', 1000)],
       [cardTotal(MONTH, 'cc-uv', 1200)],
       -200,
     ],
     [
       'data from other months is ignored',
-      [planItem(OTHER_MONTH, 'variable', 'Compras', 1000, 999)],
+      [planItem(OTHER_MONTH, 'Compras', 1000, 999)],
       [cardTotal(OTHER_MONTH, 'cc-uv', 1200)],
       0,
     ],
@@ -141,19 +137,19 @@ describe('planResult', () => {
     ['an empty month', [], [], 0],
     [
       'a month inside the plan',
-      [planItem(MONTH, 'variable', 'Mercado/Farmácia', 6000)],
+      [planItem(MONTH, 'Mercado/Farmácia', 6000)],
       [cardTotal(MONTH, 'cc-guta', 2899)],
       3101,
     ],
     [
       'a month over the plan',
-      [planItem(MONTH, 'variable', 'Compras', 1000)],
+      [planItem(MONTH, 'Compras', 1000)],
       [cardTotal(MONTH, 'cc-uv', 1200)],
       -200,
     ],
     [
       'data from other months is ignored',
-      [planItem(OTHER_MONTH, 'variable', 'Compras', 1000)],
+      [planItem(OTHER_MONTH, 'Compras', 1000)],
       [cardTotal(OTHER_MONTH, 'cc-uv', 1200)],
       0,
     ],
@@ -249,21 +245,21 @@ describe('accountNet', () => {
 });
 
 describe('the June 2026 trace from the real historical sheet', () => {
-  // Given the real June 2026 numbers: plan 10.750 (buckets 9.000 + fixed 1.750);
+  // Given the real June 2026 numbers: plan 10.750 across the month's buckets;
   // check-in 25/06: cc guta 2.899 + cc uv 9.432 + cc ml 473 → Total Spent 12.804;
   // remaining estimate: restaurante 250
   // When computing the control-loop numbers for 2026-06
   // Then Plan Total is 10.750, Total Spent is 12.804, Plan Result is −2.054 and
   // Projected Result is −2.304 (pt-BR notation; −2.304 = −2304)
   const items: PlanItem[] = [
-    planItem(MONTH, 'variable', 'Mercado/Farmácia', 6000),
-    planItem(MONTH, 'variable', 'Transporte', 800),
-    planItem(MONTH, 'variable', 'Restaurante', 1200, 250),
-    planItem(MONTH, 'variable', 'Compras', 1000),
-    planItem(MONTH, 'fixed', 'Internet', 110),
-    planItem(MONTH, 'fixed', 'Streaming', 90),
-    planItem(MONTH, 'fixed', 'Gym', 200),
-    planItem(MONTH, 'fixed', 'Seguro do carro', 1350),
+    planItem(MONTH, 'Mercado/Farmácia', 6000),
+    planItem(MONTH, 'Transporte', 800),
+    planItem(MONTH, 'Restaurante', 1200, 250),
+    planItem(MONTH, 'Compras', 1000),
+    planItem(MONTH, 'Internet', 110),
+    planItem(MONTH, 'Streaming', 90),
+    planItem(MONTH, 'Gym', 200),
+    planItem(MONTH, 'Seguro do carro', 1350),
   ];
   const cardSpending: CardSpending[] = [
     cardTotal(MONTH, 'cc-guta', 2899),
@@ -285,8 +281,8 @@ describe('at month end', () => {
   // Then the projection is the final Plan Result
   it('the projection becomes the Plan Result', () => {
     const items = [
-      planItem(MONTH, 'variable', 'Mercado/Farmácia', 6000),
-      planItem(MONTH, 'variable', 'Restaurante', 1200, 0),
+      planItem(MONTH, 'Mercado/Farmácia', 6000),
+      planItem(MONTH, 'Restaurante', 1200, 0),
     ];
     const cardSpending = [cardTotal(MONTH, 'cc-guta', 2899)];
 
