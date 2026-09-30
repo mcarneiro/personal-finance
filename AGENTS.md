@@ -23,7 +23,7 @@ Planoo is a household card-spending planner. It plans card spending in spending 
 - Start with a failing Vitest test for a feature or bug fix. Use Given/When/Then comments in tests.
 - Add a reproduction test for every bug fix. Prioritize tests for the control-loop calculations (Projected Result, Plan Result, Account Net).
 - Run `npm run lint`, `npx tsc --noEmit`, and relevant `npm test` tests after changes.
-- Verify every implementation in the browser using the Chrome DevTools MCP (chrome-mcp) before calling it done — drive the real UI, not just unit tests. If chrome-mcp is not connected, stop and ask the user to connect it manually (they run WSL, so they must open it themselves); do not silently skip the check.
+- Verify every implementation in the browser using the Chrome DevTools MCP (chrome-mcp) before calling it done — drive the real UI, not just unit tests. If chrome-mcp is not connected, stop and ask the user to connect it manually (they run WSL, so they must open it themselves); do not silently skip the check. The first connection of a session reports `failed: Connection closed` and then self-heals — see `docs/agents/chrome-devtools-mcp.md`.
 
 ## Documentation
 
@@ -53,3 +53,7 @@ Default label vocabulary — the five canonical triage roles used as-is. See `do
 ### Domain docs
 
 Single-context layout — `CONTEXT.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+
+### Browser verification
+
+Every change is verified in a real browser through the Chrome DevTools MCP (chrome-mcp). The first connection of a session reports `failed: Connection closed` before it self-heals. Read the notes before driving the browser: `docs/agents/chrome-devtools-mcp.md`.
