@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 import MonthScaffold from '../../components/MonthScaffold';
@@ -5,6 +6,7 @@ import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { addBills, toggleBillPaid } from '../../store/billsSlice';
 import { accountNet, billsTotal, incomeTotal } from '../../utils/controlLoop';
 import { billsByPayerAndBank, type BankTotal, type PayerGroup } from '../../utils/billSummary';
+import { orderBills } from '../../utils/billOrder';
 import { copyBills } from '../../utils/billCopy';
 import { formatCurrency } from '../../utils/currency';
 import { isValidMonth, shiftMonth } from '../../utils/month';
@@ -14,12 +16,14 @@ import NeedsRegistryNotice from './NeedsRegistryNotice';
  * The Bills screen for one month: payment obligations added by hand (name,
  * amount, payer, bank — the card bill is just another bill with its real
  * statement value), each with a paid toggle, plus the month's bills total,
- * income total, the account net (income − bills), and the by-payer spending
- * summary. The replicate-last-month button copies last month's obligations so
- * recurring bills need no retyping; the copies arrive open (never pre-paid) and
- * can be edited freely. The derived numbers come from the control-loop
- * utilities and the bill-summary utility and are never stored; every mutation
- * syncs through the debounced middleware onto the bills tab.
+ * income total and the account net (income − bills). Below the totals sits the
+ * by-payer spending summary, collapsed until opened, then the month's bills
+ * ordered open-first and alphabetically. The replicate-last-month button copies
+ * last month's obligations so recurring bills need no retyping; the copies
+ * arrive open (never pre-paid) and can be edited freely. The derived numbers
+ * come from the control-loop utilities and the bill-summary utility and are
+ * never stored; every mutation syncs through the debounced middleware onto the
+ * bills tab.
  */
 export default function BillsScreen() {
   const { t, i18n } = useTranslation();
@@ -30,6 +34,9 @@ export default function BillsScreen() {
   const income = useAppSelector((state) => state.income.items);
   const banks = useAppSelector((state) => state.banks.items);
   const payers = useAppSelector((state) => state.payers.items);
+  // The by-payer summary starts folded so the month's bills — the thing being
+  // checked off — lead the page; the totals stay visible as the section header.
+  const [summaryOpen, setSummaryOpen] = useState(false);
 
   if (!isValidMonth(month)) {
     // MonthScaffold owns the redirect; nothing to list until it settles.
@@ -40,6 +47,7 @@ export default function BillsScreen() {
   const lastMonthBills = bills.filter((bill) => bill.month === shiftMonth(month, -1));
   const net = accountNet(month, income, bills);
   const spending = billsByPayerAndBank(month, bills, banks, payers);
+  const orderedBills = orderBills(monthBills, i18n.language);
 
   const payerNames = new Map(payers.map((payer) => [payer.id, payer.name]));
   const bankNames = new Map(banks.map((bank) => [bank.id, bank.name]));
@@ -88,14 +96,63 @@ export default function BillsScreen() {
         )}
       </section>
 
+      <section
+        aria-label={t('bills.byPayerSummary')}
+        className="mt-4 rounded-lg bg-white p-4 shadow-sm"
+      >
+        <h2>
+          <button
+            type="button"
+            onClick={() => setSummaryOpen((open) => !open)}
+            aria-expanded={summaryOpen}
+            aria-controls="by-payer-summary"
+            className="flex w-full items-center justify-between gap-2 text-left"
+          >
+            <span className="text-sm font-semibold text-gray-900">
+              {t('bills.byPayerSummary')}
+            </span>
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              className={`h-4 w-4 shrink-0 text-gray-500 transition-transform ${
+                summaryOpen ? 'rotate-180' : ''
+              }`}
+            >
+              <path
+                fillRule="evenodd"
+                d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.17l3.71-3.94a.75.75 0 1 1 1.08 1.04l-4.25 4.5a.75.75 0 0 1-1.08 0l-4.25-4.5a.75.75 0 0 1 .02-1.06Z"
+                clipRule="evenodd"
+              />
+            </svg>
+          </button>
+        </h2>
+
+        {summaryOpen && (
+          <div id="by-payer-summary">
+            {spending.length === 0 ? (
+              <p className="mt-1 text-sm text-gray-600">{t('bills.byPayerEmpty')}</p>
+            ) : (
+              <ul className="mt-2 divide-y divide-gray-100">
+                {spending.map((group) => (
+                  <li key={group.payerId || '__unassigned__'} className="py-2">
+                    <PayerGroupRow group={group} locale={i18n.language} payerLabel={payerLabel} bankLabel={bankLabel} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+      </section>
+
       {monthBills.length === 0 && (
         <p className="mt-4 text-sm text-gray-500">{t('bills.empty')}</p>
       )}
 
       {monthBills.length > 0 && (
-        <section className="mt-4 rounded-lg bg-white p-4 shadow-sm">
+        <section aria-label={t('bills.title')} className="mt-4 rounded-lg bg-white p-4 shadow-sm">
           <ul className="divide-y divide-gray-100">
-            {monthBills.map((bill) => (
+            {orderedBills.map((bill) => (
               <li key={bill.id} className="flex items-start gap-2 py-2">
                 {/* The paid toggle stays a sibling of the row button — a
                     checkbox nested in a button would be invalid and awkward
@@ -156,25 +213,6 @@ export default function BillsScreen() {
           <NeedsRegistryNotice />
         </div>
       )}
-
-      <section
-        aria-label={t('bills.byPayerSummary')}
-        className="mt-4 rounded-lg bg-white p-4 shadow-sm"
-      >
-        <h2 className="text-sm font-semibold text-gray-900">{t('bills.byPayerSummary')}</h2>
-
-        {spending.length === 0 ? (
-          <p className="mt-1 text-sm text-gray-600">{t('bills.byPayerEmpty')}</p>
-        ) : (
-          <ul className="mt-2 divide-y divide-gray-100">
-            {spending.map((group) => (
-              <li key={group.payerId || '__unassigned__'} className="py-2">
-                <PayerGroupRow group={group} locale={i18n.language} payerLabel={payerLabel} bankLabel={bankLabel} />
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
     </MonthScaffold>
   );
 }

@@ -119,9 +119,17 @@ const summaryRow = (label: string) =>
 /** The by-payer spending summary region. */
 const byPayer = () => within(screen.getByRole('region', { name: 'Gastos por responsável' }));
 
+/** The expand/collapse toggle for the by-payer spending summary. */
+const summaryToggle = () =>
+  screen.getByRole('button', { name: 'Gastos por responsável' });
+
 /** One payer's group inside the by-payer summary, addressed by its name. */
 const payerGroup = (name: string) =>
   within(byPayer().getByText(name).closest('li') as HTMLElement);
+
+/** Whether `first` appears before `second` in document order. */
+const appearsBefore = (first: HTMLElement, second: HTMLElement) =>
+  Boolean(first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING);
 
 /** Wait out the debounced sync and assert some bills write-back satisfies `matches`. */
 async function expectBillsWritten(matches: (written: Bill[]) => boolean) {
@@ -156,6 +164,67 @@ describe('Bills', () => {
     expect(screen.getByText('Pago')).toBeInTheDocument();
     expect(screen.getByRole('checkbox', { name: 'Marcar como paga: Luz' })).not.toBeChecked();
     expect(screen.getByRole('checkbox', { name: 'Marcar como em aberto: Internet' })).toBeChecked();
+  });
+
+  it('lists open bills before paid ones, alphabetically within each group', () => {
+    // Given June has open and paid bills listed out of order
+    renderBills(`/bills/${JUNE}`, [
+      bill({ month: JUNE, name: 'Luz', amount: 150 }),
+      bill({ month: JUNE, name: 'Internet', amount: 110, isPaid: true }),
+      bill({ month: JUNE, name: 'Água', amount: 90 }),
+      bill({ month: JUNE, name: 'Gym', amount: 50, isPaid: true }),
+    ]);
+
+    // When the list renders
+    // Then the open bills lead in alphabetical order, then the paid ones
+    const rows = screen
+      .getAllByRole('checkbox')
+      .map((box) => box.getAttribute('aria-label'));
+    expect(rows).toEqual([
+      'Marcar como paga: Água',
+      'Marcar como paga: Luz',
+      'Marcar como em aberto: Gym',
+      'Marcar como em aberto: Internet',
+    ]);
+  });
+
+  it('shows the by-payer summary below the totals and above the bills list', () => {
+    // Given June has a bill
+    renderBills(`/bills/${JUNE}`, [bill({ month: JUNE, name: 'Luz', amount: 150 })]);
+
+    // When the screen renders
+    const summaryRegion = screen.getByRole('region', { name: 'Resumo do mês' });
+    const byPayerRegion = screen.getByRole('region', { name: 'Gastos por responsável' });
+    const billsRegion = screen.getByRole('region', { name: 'Contas' });
+
+    // Then the totals lead, the by-payer summary follows, then the list
+    expect(appearsBefore(summaryRegion, byPayerRegion)).toBe(true);
+    expect(appearsBefore(byPayerRegion, billsRegion)).toBe(true);
+  });
+
+  it('keeps the by-payer summary collapsed until it is expanded', async () => {
+    // Given June has a bill
+    renderBills(`/bills/${JUNE}`, [bill({ month: JUNE, name: 'Luz', amount: 150 })]);
+    const user = userEvent.setup();
+
+    // When the screen first renders
+    // Then the summary is collapsed and its content is hidden
+    expect(summaryToggle()).toHaveAttribute('aria-expanded', 'false');
+    expect(byPayer().queryByText('Marcelo')).not.toBeInTheDocument();
+
+    // When I expand it
+    await user.click(summaryToggle());
+
+    // Then its content is shown and the toggle reads expanded
+    expect(summaryToggle()).toHaveAttribute('aria-expanded', 'true');
+    expect(byPayer().getByText('Marcelo')).toBeInTheDocument();
+
+    // When I collapse it again
+    await user.click(summaryToggle());
+
+    // Then the content is hidden once more
+    expect(summaryToggle()).toHaveAttribute('aria-expanded', 'false');
+    expect(byPayer().queryByText('Marcelo')).not.toBeInTheDocument();
   });
 
   it('shows the payer and bank each bill was assigned', () => {
@@ -198,7 +267,7 @@ describe('Bills', () => {
     expect(summaryRow('Saldo da conta').getByText(/8\.951,00/)).toBeInTheDocument();
   });
 
-  it('groups the month spending by payer and then by bank', () => {
+  it('groups the month spending by payer and then by bank', async () => {
     // Given June's bills split across two payers and two banks
     renderBills(`/bills/${JUNE}`, [
       bill({ month: JUNE, name: 'Luz', amount: 150 }),
@@ -206,8 +275,11 @@ describe('Bills', () => {
       bill({ month: JUNE, name: 'Cartão guta', amount: 2899, payerId: 'payer-guta', bankId: 'bank-itau' }),
       bill({ month: JUNE, name: 'Gym', amount: 200, payerId: 'payer-guta', bankId: 'bank-nubank' }),
     ]);
+    const user = userEvent.setup();
 
-    // When I look at the by-payer summary
+    // When I open the by-payer summary
+    await user.click(summaryToggle());
+
     // Then Marcelo carries 260 on Nubank, and Guta carries 3.099 split across Itaú and Nubank
     expect(payerGroup('Marcelo').getAllByText(/260,00/)).toHaveLength(2); // group total + bank line
     expect(payerGroup('Marcelo').getByText('Nubank')).toBeInTheDocument();
@@ -216,13 +288,16 @@ describe('Bills', () => {
     expect(payerGroup('Guta').getByText(/200,00/)).toBeInTheDocument();
   });
 
-  it('still counts a bill whose payer and bank were removed from the registries', () => {
+  it('still counts a bill whose payer and bank were removed from the registries', async () => {
     // Given a June bill referencing a payer and bank no longer registered
     renderBills(`/bills/${JUNE}`, [
       bill({ month: JUNE, name: 'Luz', amount: 150, payerId: 'payer-gone', bankId: 'bank-gone' }),
     ]);
+    const user = userEvent.setup();
 
-    // When I look at the by-payer summary
+    // When I open the by-payer summary
+    await user.click(summaryToggle());
+
     // Then the amount survives under removal fallbacks — removing a registry
     // entry never loses money
     expect(byPayer().getByText('Responsável removido')).toBeInTheDocument();
@@ -327,14 +402,18 @@ describe('Bills', () => {
     );
   });
 
-  it('is empty until bills are added, with zero totals', () => {
+  it('is empty until bills are added, with zero totals', async () => {
     // Given July has no bills and no income
     // When the screen renders
     renderBills(`/bills/${JULY}`);
+    const user = userEvent.setup();
 
     // Then the empty state and zero totals are shown
     expect(screen.getByText('As contas deste mês aparecerão aqui.')).toBeInTheDocument();
     expect(summary().getAllByText(/0,00/)).toHaveLength(3);
+
+    // And the by-payer summary reads empty once opened
+    await user.click(summaryToggle());
     expect(byPayer().getByText('Adicione contas para ver o resumo por responsável.')).toBeInTheDocument();
   });
 });
