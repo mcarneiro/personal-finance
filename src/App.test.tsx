@@ -240,15 +240,24 @@ describe('app shell', () => {
     expect(screen.getByRole('heading', { name: 'Nova conta' })).toBeInTheDocument();
   });
 
-  it('hides the top-bar "+" on screens without a record to add', () => {
-    // Given the app is open on the Income screen
+  it('adds an income entry from the top-bar "+" on the income screen', async () => {
+    // Given the app is open on the June Income
+    const user = userEvent.setup();
     renderApp('/income/2026-06');
 
-    // Then no add action is offered — income is out of scope for now
+    // Then the income add action is offered, and not the plan or bills ones
+    expect(screen.getByRole('button', { name: 'Adicionar renda' })).toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: 'Adicionar teto de gastos' })
     ).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Adicionar conta' })).not.toBeInTheDocument();
+
+    // When I tap the top-bar add action
+    await user.click(screen.getByRole('button', { name: 'Adicionar renda' }));
+
+    // Then the full-screen income editor is shown, with no bottom navigation
+    expect(screen.getByRole('heading', { name: 'Nova renda' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Renda' })).not.toBeInTheDocument();
   });
 
   it('hides the top-bar "+" on the Dashboard', () => {
@@ -259,6 +268,8 @@ describe('app shell', () => {
     expect(
       screen.queryByRole('button', { name: 'Adicionar teto de gastos' })
     ).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Adicionar conta' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Adicionar renda' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Ajustes' })).toBeInTheDocument();
   });
 });

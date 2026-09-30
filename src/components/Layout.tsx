@@ -39,7 +39,7 @@ const NAV_ITEMS: NavItem[] = [
 const SCREEN_TITLES: { prefix: string; labelKey: string; addLabelKey?: string }[] = [
   { prefix: '/plan', labelKey: 'plan.title', addLabelKey: 'plan.addBucket' },
   { prefix: '/bills', labelKey: 'bills.title', addLabelKey: 'bills.addBill' },
-  { prefix: '/income', labelKey: 'income.title' },
+  { prefix: '/income', labelKey: 'income.title', addLabelKey: 'income.addEntry' },
 ];
 
 const BACK_ICON = 'M15 19l-7-7 7-7';

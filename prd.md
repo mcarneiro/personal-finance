@@ -62,6 +62,7 @@ A React app using Google Sheets as the database (same foundation as Stayoo) that
 #### 4. Income Management
 **Route:** `/income/:month`
 - Income entries: amount + optional source note. Receipt is not tracked.
+- Add via the top-bar "+" and tap a row to edit both on a **full-screen editor** (`/income/new/:month`, `/income/edit/:id`); delete lives on the editor behind a confirmation modal, never inline in the list
 - Total shown; replicate-last-month button for the recurring salary
 - Account net (income − bills) is surfaced on the Bills screen
 
@@ -171,11 +172,11 @@ Onboarding validates the connected sheet and creates any missing tabs with the h
 1. **Dashboard** (`/`) — the app entry point and a placeholder shell for the household dashboard (still to be designed). Its top bar shows the title "Dashboard" and the Settings shortcut; every other screen's top bar shows a back button and that screen's name.
 2. **Spending Plan** (`/plan/:month`) — spending buckets, check-in inputs, remaining estimates, Projected Result headline. Tap a bucket to edit on `/plan/edit/:id`; add via the top-bar "+" (`/plan/new/:month`)
 3. **Bills** (`/bills/:month`) — bill list with paid toggles, income total, account net, the by-payer spending summary, and the replicate-last-month button. Tap a row to edit on `/bills/edit/:id`; add via the top-bar "+" (`/bills/new/:month`)
-4. **Income** (`/income/:month`) — entries, total, replicate button
+4. **Income** (`/income/:month`) — entries, total, replicate button. Tap a row to edit on `/income/edit/:id`; add via the top-bar "+" (`/income/new/:month`)
 5. **Settings** — card, bank and payer registries + connected sheet. Opened only from the Dashboard top bar; it is a full-screen page with a back button and no bottom navigation.
 6. **Onboarding** — Stayoo flow
 
-The app shell is a mobile-first Layout: a contextual top bar (with an optional screen-declared "+" for adding a record to the browsed month), the scrollable content column, and a fixed bottom navigation with three tabs (Plan, Bills, Income). Creating and editing a bill or spending bucket happens on a full-screen record editor with its own header and no bottom nav, like Settings. The shell and navigation conventions are recorded in ADR-0004.
+The app shell is a mobile-first Layout: a contextual top bar (with an optional screen-declared "+" for adding a record to the browsed month), the scrollable content column, and a fixed bottom navigation with three tabs (Plan, Bills, Income). Creating and editing a bill, spending bucket or income entry happens on a full-screen record editor with its own header and no bottom nav, like Settings. The shell and navigation conventions are recorded in ADR-0004.
 
 ## Control Loop Specification
 

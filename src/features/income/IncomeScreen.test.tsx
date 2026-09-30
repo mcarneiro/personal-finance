@@ -43,7 +43,8 @@ function incomeEntry(
 /**
  * Renders the Income screen with a real store and the real debounced sync
  * middleware: only the sheets service boundary is mocked, so every mutation is
- * verified all the way to the write-back call (Seam B).
+ * verified all the way to the write-back call (Seam B). The editor routes are
+ * stubs so a row tap's navigation is observable.
  */
 function renderIncome(initialPath = `/income/${JUNE}`, items: IncomeEntry[] = []) {
   const store = configureStore({
@@ -64,6 +65,8 @@ function renderIncome(initialPath = `/income/${JUNE}`, items: IncomeEntry[] = []
       <MemoryRouter initialEntries={[initialPath]}>
         <Routes>
           <Route path="/income/:month" element={<IncomeScreen />} />
+          <Route path="/income/edit/:id" element={<p>Editor da renda</p>} />
+          <Route path="/income/new/:month" element={<p>Nova renda</p>} />
         </Routes>
       </MemoryRouter>
     </Provider>
@@ -112,123 +115,31 @@ describe('Income entries', () => {
     expect(summary().queryByText(/21\.750,00/)).not.toBeInTheDocument();
   });
 
-  it('adds an entry with an amount and a source note, persisting to the income tab', async () => {
-    // Given June has no income yet
-    renderIncome(`/income/${JUNE}`);
-    const user = userEvent.setup();
-
-    // When I add the salary with its source note
-    await user.type(screen.getByLabelText('Valor da renda'), '12000');
-    await user.type(screen.getByLabelText('Fonte (opcional)'), 'Salário');
-    await user.click(screen.getByRole('button', { name: 'Adicionar renda' }));
-
-    // Then it is listed and the total reflects it
-    expect(screen.getByText('Salário')).toBeInTheDocument();
-    expect(summary().getByText(/12\.000,00/)).toBeInTheDocument();
-
-    // And the income tab is written back with the new entry
-    await waitFor(
-      () =>
-        expect(googleSheetsService.writeIncome).toHaveBeenCalledWith('sheet-1', [
-          expect.objectContaining({ month: JUNE, amount: 12000, source: 'Salário' }),
-        ]),
-      { timeout: 2500 }
-    );
-  });
-
-  it('adds an entry with only an amount, leaving the source note undefined', async () => {
-    // Given June has no income yet
-    renderIncome(`/income/${JUNE}`);
-    const user = userEvent.setup();
-
-    // When I add an amount without a source note
-    await user.type(screen.getByLabelText('Valor da renda'), '800');
-    await user.click(screen.getByRole('button', { name: 'Adicionar renda' }));
-
-    // Then the entry is recorded without a source
-    await waitFor(() => {
-      const calls = vi.mocked(googleSheetsService.writeIncome).mock.calls;
-      const written = calls[calls.length - 1]?.[1] ?? [];
-      expect(written).toHaveLength(1);
-      expect(written[0]).toMatchObject({ month: JUNE, amount: 800 });
-      expect(written[0].source).toBeUndefined();
-    }, { timeout: 2500 });
-  });
-
-  it('does not add an entry without a valid amount', async () => {
-    // Given June has no income yet
-    renderIncome(`/income/${JUNE}`);
-    const user = userEvent.setup();
-    const addButton = screen.getByRole('button', { name: 'Adicionar renda' });
-
-    // When the amount is missing or unparseable
-    expect(addButton).toBeDisabled();
-    await user.type(screen.getByLabelText('Fonte (opcional)'), 'Freela');
-    expect(addButton).toBeDisabled();
-    await user.type(screen.getByLabelText('Valor da renda'), 'abc');
-    expect(addButton).toBeDisabled();
-
-    // And only becomes submittable once the amount parses
-    await user.clear(screen.getByLabelText('Valor da renda'));
-    await user.type(screen.getByLabelText('Valor da renda'), '500');
-    expect(addButton).toBeEnabled();
-  });
-
-  it('edits an entry and writes the income tab back', async () => {
-    // Given June has a salary of 12.000
+  it('opens the full-screen editor when a row is tapped', async () => {
+    // Given June has a salary with a source note
     renderIncome(`/income/${JUNE}`, [
       incomeEntry({ month: JUNE, amount: 12000, source: 'Salário' }),
     ]);
     const user = userEvent.setup();
 
-    // When I edit its amount and note
+    // When I tap the entry's row
     await user.click(screen.getByRole('button', { name: 'Editar Salário' }));
-    const amountInput = screen.getByLabelText('Valor da entrada');
-    await user.clear(amountInput);
-    await user.type(amountInput, '12500');
-    const sourceInput = screen.getByLabelText('Fonte');
-    await user.clear(sourceInput);
-    await user.type(sourceInput, 'Salário líquido');
-    await user.click(screen.getByRole('button', { name: 'Salvar' }));
 
-    // Then the updated entry is shown
-    expect(screen.getByText('Salário líquido')).toBeInTheDocument();
-    expect(screen.queryByText('Salário')).not.toBeInTheDocument();
-
-    // And the income tab carries the edit
-    await waitFor(
-      () =>
-        expect(googleSheetsService.writeIncome).toHaveBeenCalledWith('sheet-1', [
-          expect.objectContaining({ amount: 12500, source: 'Salário líquido' }),
-        ]),
-      { timeout: 2500 }
-    );
+    // Then the full-screen editor for that entry is shown
+    expect(screen.getByText('Editor da renda')).toBeInTheDocument();
   });
 
-  it('removes an entry and writes the income tab back', async () => {
-    // Given June has a salary and an extra
+  it('no longer offers inline add or remove affordances', () => {
+    // Given June has a salary
     renderIncome(`/income/${JUNE}`, [
       incomeEntry({ month: JUNE, amount: 12000, source: 'Salário' }),
-      incomeEntry({ month: JUNE, amount: 500, source: 'Freela' }),
     ]);
-    const user = userEvent.setup();
 
-    // When I remove the extra
-    await user.click(screen.getByRole('button', { name: 'Remover Freela' }));
-
-    // Then it is gone from the list and the total drops
-    expect(screen.queryByText('Freela')).not.toBeInTheDocument();
-    expect(screen.getByText('Salário')).toBeInTheDocument();
-    expect(summary().getByText(/12\.000,00/)).toBeInTheDocument();
-
-    // And the income tab is written back without it
-    await waitFor(
-      () =>
-        expect(googleSheetsService.writeIncome).toHaveBeenCalledWith('sheet-1', [
-          expect.objectContaining({ source: 'Salário' }),
-        ]),
-      { timeout: 2500 }
-    );
+    // When the list renders
+    // Then adding and removing happen on the editor page, not inline
+    expect(screen.queryByLabelText('Valor da renda')).not.toBeInTheDocument();
+    expect(screen.queryByText('Adicionar renda')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Remover Salário' })).not.toBeInTheDocument();
   });
 
   it('is empty until entries are added, with a zero total', () => {

@@ -9,6 +9,7 @@ import BucketEditor from './features/plan/BucketEditor';
 import BillsScreen from './features/bills/BillsScreen';
 import BillEditor from './features/bills/BillEditor';
 import IncomeScreen from './features/income/IncomeScreen';
+import IncomeEditor from './features/income/IncomeEditor';
 import SettingsScreen from './features/settings/SettingsScreen';
 import Onboarding from './features/onboarding/Onboarding';
 import { useAppSelector } from './store/hooks';
@@ -126,6 +127,8 @@ function App() {
             </Layout>
           }
         />
+        <Route path="/income/new/:month" element={<IncomeEditor />} />
+        <Route path="/income/edit/:id" element={<IncomeEditor />} />
         <Route path="/settings" element={<SettingsScreen />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

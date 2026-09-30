@@ -1,5 +1,4 @@
 import { FormEvent, useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import { parseAmount } from '../../utils/currency';
 
 interface IncomeEntryFormProps {
@@ -13,15 +12,15 @@ interface IncomeEntryFormProps {
   autoFocusAmount?: boolean;
   /** The note is optional; a blank one is submitted as `undefined`. */
   onSubmit: (amount: number, source?: string) => void;
-  /** Render a Cancel action (editing an existing entry). */
-  onCancel?: () => void;
+  /** Render a Cancel action (editing an existing entry); label and handler are paired. */
+  onCancel?: { label: string; onClick: () => void };
 }
 
 /**
- * The amount + optional source-note form for an income entry, used both to add
- * an entry and to edit one in place. Only the amount is required; amounts are
- * typed as loose text (pt-BR comma or en-US dot) and only become submittable
- * once they parse — a bad amount can never be recorded.
+ * The amount + optional source-note form for an income entry, used by the
+ * full-screen income editor to create and edit an entry. Only the amount is
+ * required; amounts are typed as loose text (pt-BR comma or en-US dot) and only
+ * become submittable once they parse — a bad amount can never be recorded.
  */
 export default function IncomeEntryForm({
   formId,
@@ -34,7 +33,6 @@ export default function IncomeEntryForm({
   onSubmit,
   onCancel,
 }: IncomeEntryFormProps) {
-  const { t } = useTranslation();
   const [amount, setAmount] = useState(initialAmount === undefined ? '' : String(initialAmount));
   const [source, setSource] = useState(initialSource);
 
@@ -98,10 +96,10 @@ export default function IncomeEntryForm({
         {onCancel && (
           <button
             type="button"
-            onClick={onCancel}
+            onClick={onCancel.onClick}
             className="rounded-lg px-3 py-2 text-sm font-medium text-gray-600 transition-colors hover:text-gray-900"
           >
-            {t('income.cancel')}
+            {onCancel.label}
           </button>
         )}
       </div>
