@@ -9,3 +9,9 @@ Concretely, the shared conventions are:
 - Cards use `rounded-lg bg-white shadow-sm` — a drop shadow, no border.
 
 We chose one shell over per-screen chrome to keep the visual language identical across the app, and consistent with Stayoo, which the app is based on. A single contextual top bar also removes the title duplication that creeps in when each screen draws its own header, and keeping Settings out of the bottom bar leaves the three tabs for month-to-month work only.
+
+## Amendment: the top bar carries an optional add action, and records are edited on full-screen pages
+
+Some screens need a way to create a record in the month they are browsing. Rather than draw per-screen chrome, the shared top bar exposes at most one optional action: a screen opts in by declaring an `addLabelKey` next to its title in `Layout`'s `SCREEN_TITLES`, and the shell renders a blue "+" on the right that opens the full-screen editor for a new record of the *current* month (`/plan/new/:month`, `/bills/new/:month`). The action is shown only when the route carries a month segment and the screen opted in; Income has no add action in this version.
+
+Creating and editing a record always happens on a **full-screen record editor** — its own `PageHeader` (back + title), no bottom navigation — exactly like Settings and Stayoo's `NewExpense`. Tapping a row on the Plan or Bills list navigates to `/plan/edit/:id` or `/bills/edit/:id`; the red Remove action lives there and always confirms in a modal before deleting, never inline in the list. The shell stays free of per-screen chrome while each screen still gets the actions it needs. `PageHeader` is shared by Settings and both editors so the full-screen header is defined once.

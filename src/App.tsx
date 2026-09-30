@@ -5,7 +5,9 @@ import Layout from './components/Layout';
 import LoadingScreen from './components/LoadingScreen';
 import DashboardScreen from './features/dashboard/DashboardScreen';
 import PlanScreen from './features/plan/PlanScreen';
+import BucketEditor from './features/plan/BucketEditor';
 import BillsScreen from './features/bills/BillsScreen';
+import BillEditor from './features/bills/BillEditor';
 import IncomeScreen from './features/income/IncomeScreen';
 import SettingsScreen from './features/settings/SettingsScreen';
 import Onboarding from './features/onboarding/Onboarding';
@@ -101,6 +103,9 @@ function App() {
             </Layout>
           }
         />
+        {/* Record editors are full-screen pages: their own header, no bottom nav. */}
+        <Route path="/plan/new/:month" element={<BucketEditor />} />
+        <Route path="/plan/edit/:id" element={<BucketEditor />} />
         <Route path="/bills" element={<Navigate to={`/bills/${currentMonth}`} replace />} />
         <Route
           path="/bills/:month"
@@ -110,6 +115,8 @@ function App() {
             </Layout>
           }
         />
+        <Route path="/bills/new/:month" element={<BillEditor />} />
+        <Route path="/bills/edit/:id" element={<BillEditor />} />
         <Route path="/income" element={<Navigate to={`/income/${currentMonth}`} replace />} />
         <Route
           path="/income/:month"

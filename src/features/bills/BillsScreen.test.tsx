@@ -99,6 +99,8 @@ function renderBills(
       <MemoryRouter initialEntries={[initialPath]}>
         <Routes>
           <Route path="/bills/:month" element={<BillsScreen />} />
+          <Route path="/bills/edit/:id" element={<p>Editor da conta</p>} />
+          <Route path="/bills/new/:month" element={<p>Nova conta</p>} />
         </Routes>
       </MemoryRouter>
     </Provider>
@@ -119,16 +121,6 @@ const byPayer = () => within(screen.getByRole('region', { name: 'Gastos por resp
 /** One payer's group inside the by-payer summary, addressed by its name. */
 const payerGroup = (name: string) =>
   within(byPayer().getByText(name).closest('li') as HTMLElement);
-
-/** Select a payer and bank on the add form (both required to save). */
-async function choosePayerAndBank(
-  user: ReturnType<typeof userEvent.setup>,
-  payerId = 'payer-marcelo',
-  bankId = 'bank-nubank'
-) {
-  await user.selectOptions(screen.getByLabelText('Responsável'), payerId);
-  await user.selectOptions(screen.getByLabelText('Banco'), bankId);
-}
 
 /** Wait out the debounced sync and assert some bills write-back satisfies `matches`. */
 async function expectBillsWritten(matches: (written: Bill[]) => boolean) {
@@ -250,76 +242,28 @@ describe('Bills', () => {
     expect(summary().queryByText(/1\.050,00/)).not.toBeInTheDocument();
   });
 
-  it('adds a bill with a name, amount, payer and bank, persisting to the bills tab', async () => {
-    // Given June has no bills yet
-    renderBills(`/bills/${JUNE}`);
+  it('opens the full-screen editor when a row is tapped', async () => {
+    // Given June has a bill
+    renderBills(`/bills/${JUNE}`, [bill({ month: JUNE, name: 'Luz', amount: 150 })]);
     const user = userEvent.setup();
 
-    // When I add a bill choosing who pays it and from which bank
-    await user.type(screen.getByLabelText('Nome da conta'), 'Luz');
-    await user.type(screen.getByLabelText('Valor da conta'), '150');
-    await choosePayerAndBank(user, 'payer-marcelo', 'bank-nubank');
-    await user.click(screen.getByRole('button', { name: 'Adicionar conta' }));
+    // When I tap the bill's row
+    await user.click(screen.getByRole('button', { name: 'Editar Luz' }));
 
-    // Then it is listed with its payer and bank, open by default, and counted
-    expect(screen.getByText('Luz')).toBeInTheDocument();
-    expect(screen.getByText('Marcelo · Nubank')).toBeInTheDocument();
-    expect(screen.getByText('Em aberto')).toBeInTheDocument();
-    expect(summaryRow('Total das contas').getByText(/150,00/)).toBeInTheDocument();
-
-    // And the bills tab is written back with the new bill and its references
-    await expectBillsWritten((written) =>
-      written.some(
-        (entry) =>
-          entry.month === JUNE &&
-          entry.name === 'Luz' &&
-          entry.amount === 150 &&
-          entry.payerId === 'payer-marcelo' &&
-          entry.bankId === 'bank-nubank' &&
-          !entry.isPaid
-      )
-    );
+    // Then the full-screen editor for that bill is shown
+    expect(screen.getByText('Editor da conta')).toBeInTheDocument();
   });
 
-  it('enters the card bill as a regular bill with the real statement value', async () => {
-    // Given June has no bills yet
-    renderBills(`/bills/${JUNE}`);
-    const user = userEvent.setup();
+  it('no longer offers inline add or remove affordances', () => {
+    // Given June has a bill
+    renderBills(`/bills/${JUNE}`, [bill({ month: JUNE, name: 'Luz', amount: 150 })]);
 
-    // When I record the card bill exactly as the statement reads
-    await user.type(screen.getByLabelText('Nome da conta'), 'Cartão guta');
-    await user.type(screen.getByLabelText('Valor da conta'), '2899');
-    await choosePayerAndBank(user, 'payer-guta', 'bank-itau');
-    await user.click(screen.getByRole('button', { name: 'Adicionar conta' }));
-
-    // Then it is an ordinary bill — name, statement amount, paid toggle — with
-    // no installment-specific anything
-    expect(screen.getByText('Cartão guta')).toBeInTheDocument();
-    expect(screen.getByRole('checkbox', { name: 'Marcar como paga: Cartão guta' })).toBeInTheDocument();
-    expect(summaryRow('Total das contas').getByText(/2\.899,00/)).toBeInTheDocument();
-    await expectBillsWritten((written) =>
-      written.some((entry) => entry.name === 'Cartão guta' && entry.amount === 2899)
-    );
-  });
-
-  it('does not add a bill until a name, a valid amount, a payer and a bank are set', async () => {
-    // Given June has no bills yet
-    renderBills(`/bills/${JUNE}`);
-    const user = userEvent.setup();
-    const addButton = screen.getByRole('button', { name: 'Adicionar conta' });
-
-    // When any required field is missing, the form refuses to submit
-    expect(addButton).toBeDisabled();
-    await user.type(screen.getByLabelText('Nome da conta'), 'Luz');
-    await user.type(screen.getByLabelText('Valor da conta'), '150');
-    expect(addButton).toBeDisabled();
-    await user.selectOptions(screen.getByLabelText('Responsável'), 'payer-marcelo');
-    expect(addButton).toBeDisabled();
-    await user.selectOptions(screen.getByLabelText('Banco'), 'bank-nubank');
-    expect(addButton).toBeEnabled();
-    await user.clear(screen.getByLabelText('Valor da conta'));
-    await user.type(screen.getByLabelText('Valor da conta'), 'abc');
-    expect(addButton).toBeDisabled();
+    // When the list renders
+    // Then adding and removing happen on the editor page, not inline
+    expect(screen.queryByLabelText('Nome da conta')).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Remover Luz' })
+    ).not.toBeInTheDocument();
   });
 
   it('asks for registries in Settings when there are no payers or banks', () => {
@@ -327,7 +271,7 @@ describe('Bills', () => {
     renderBills(`/bills/${JUNE}`, [], [], [], []);
 
     // When the screen renders
-    // Then the add form is replaced by guidance instead of an unusable form
+    // Then it points at Settings instead of an unusable add flow
     expect(
       screen.getByText('Cadastre ao menos um responsável e um banco em Ajustes para adicionar contas.')
     ).toBeInTheDocument();
@@ -349,66 +293,6 @@ describe('Bills', () => {
     // And the bills tab carries the paid status
     await expectBillsWritten((written) =>
       written.some((entry) => entry.name === 'Luz' && entry.isPaid)
-    );
-  });
-
-  it('edits a bill including its payer and bank, and writes the bills tab back', async () => {
-    // Given June has a bill of 150 paid by Marcelo from Nubank
-    renderBills(`/bills/${JUNE}`, [bill({ month: JUNE, name: 'Luz', amount: 150 })]);
-    const user = userEvent.setup();
-
-    // When I edit its name, amount, payer and bank
-    await user.click(screen.getByRole('button', { name: 'Editar Luz' }));
-    const editForm = screen.getByRole('button', { name: 'Salvar' }).closest('form') as HTMLElement;
-    const nameInput = within(editForm).getByLabelText('Nome');
-    await user.clear(nameInput);
-    await user.type(nameInput, 'Energia elétrica');
-    const amountInput = within(editForm).getByLabelText('Valor');
-    await user.clear(amountInput);
-    await user.type(amountInput, '175');
-    await user.selectOptions(within(editForm).getByLabelText('Responsável'), 'payer-guta');
-    await user.selectOptions(within(editForm).getByLabelText('Banco'), 'bank-itau');
-    await user.click(screen.getByRole('button', { name: 'Salvar' }));
-
-    // Then the updated bill is shown with its new payer and bank
-    expect(screen.getByText('Energia elétrica')).toBeInTheDocument();
-    expect(screen.queryByText('Luz')).not.toBeInTheDocument();
-    expect(screen.getByText('Guta · Itaú')).toBeInTheDocument();
-    expect(summaryRow('Total das contas').getByText(/175,00/)).toBeInTheDocument();
-
-    // And the bills tab carries the edit
-    await expectBillsWritten((written) =>
-      written.some(
-        (entry) =>
-          entry.name === 'Energia elétrica' &&
-          entry.amount === 175 &&
-          entry.payerId === 'payer-guta' &&
-          entry.bankId === 'bank-itau'
-      )
-    );
-  });
-
-  it('removes a bill and writes the bills tab back', async () => {
-    // Given June has two bills
-    renderBills(`/bills/${JUNE}`, [
-      bill({ month: JUNE, name: 'Luz', amount: 150 }),
-      bill({ month: JUNE, name: 'Internet', amount: 110 }),
-    ]);
-    const user = userEvent.setup();
-
-    // When I remove one
-    await user.click(screen.getByRole('button', { name: 'Remover Internet' }));
-
-    // Then it is gone and the bills total drops
-    expect(screen.queryByText('Internet')).not.toBeInTheDocument();
-    expect(screen.getByText('Luz')).toBeInTheDocument();
-    expect(summaryRow('Total das contas').getByText(/150,00/)).toBeInTheDocument();
-
-    // And the bills tab is written back without it
-    await expectBillsWritten(
-      (written) =>
-        written.some((entry) => entry.name === 'Luz') &&
-        !written.some((entry) => entry.name === 'Internet')
     );
   });
 
@@ -548,21 +432,4 @@ describe('Month navigation', () => {
     expect(summary().getAllByText(/0,00/)).toHaveLength(3);
   });
 
-  it('adds a bill to the browsed month, not the calendar month', async () => {
-    // Given the current month is empty and I navigate to the next one
-    renderBills(`/bills/${CURRENT}`);
-    const user = userEvent.setup();
-    await user.click(screen.getByRole('button', { name: 'Próximo mês' }));
-
-    // When I add a bill
-    await user.type(screen.getByLabelText('Nome da conta'), 'Luz');
-    await user.type(screen.getByLabelText('Valor da conta'), '150');
-    await choosePayerAndBank(user);
-    await user.click(screen.getByRole('button', { name: 'Adicionar conta' }));
-
-    // Then it lands in the month I am browsing
-    await expectBillsWritten((written) =>
-      written.some((entry) => entry.month === NEXT && entry.name === 'Luz' && entry.amount === 150)
-    );
-  });
 });

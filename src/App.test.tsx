@@ -214,6 +214,53 @@ describe('app shell', () => {
     // Then the plan summary card uses the shared drop-shadow card style
     expect(screen.getByLabelText('Resumo do plano')).toHaveClass('shadow-sm');
   });
+
+  it('adds a spending bucket from the top-bar "+" on the plan screen', async () => {
+    // Given the app is open on the June Spending Plan
+    const user = userEvent.setup();
+    renderApp('/plan/2026-06');
+
+    // When I tap the top-bar add action
+    await user.click(screen.getByRole('button', { name: 'Adicionar teto de gastos' }));
+
+    // Then the full-screen bucket editor is shown, with no bottom navigation
+    expect(screen.getByRole('heading', { name: 'Novo teto de gastos' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Plano' })).not.toBeInTheDocument();
+  });
+
+  it('adds a bill from the top-bar "+" on the bills screen', async () => {
+    // Given the app is open on the June Bills
+    const user = userEvent.setup();
+    renderApp('/bills/2026-06');
+
+    // When I tap the top-bar add action
+    await user.click(screen.getByRole('button', { name: 'Adicionar conta' }));
+
+    // Then the full-screen bill editor is shown
+    expect(screen.getByRole('heading', { name: 'Nova conta' })).toBeInTheDocument();
+  });
+
+  it('hides the top-bar "+" on screens without a record to add', () => {
+    // Given the app is open on the Income screen
+    renderApp('/income/2026-06');
+
+    // Then no add action is offered — income is out of scope for now
+    expect(
+      screen.queryByRole('button', { name: 'Adicionar teto de gastos' })
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Adicionar conta' })).not.toBeInTheDocument();
+  });
+
+  it('hides the top-bar "+" on the Dashboard', () => {
+    // Given the app is open on the Dashboard
+    renderApp('/');
+
+    // Then there is no add action, only the Settings shortcut
+    expect(
+      screen.queryByRole('button', { name: 'Adicionar teto de gastos' })
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Ajustes' })).toBeInTheDocument();
+  });
 });
 
 describe('startup gate', () => {

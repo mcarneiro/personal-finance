@@ -67,14 +67,14 @@ A React app using Google Sheets as the database (same foundation as Stayoo) that
 
 #### 5. Bills Management
 **Route:** `/bills/:month`
-- Bills: add (name, amount, payer, bank), toggle paid, edit, delete — no auto-generation (the card bill is entered by hand). A **replicate-last-month button** seeds an empty month from last month's bills; copies carry name, amount, payer and bank, but always arrive **unpaid** (ADR-0003)
+- Bills: add (name, amount, payer, bank), toggle paid, edit, delete — no auto-generation (the card bill is entered by hand). Add via the top-bar "+" and tap a row to edit both on a **full-screen editor** (`/bills/new/:month`, `/bills/edit/:id`); delete lives on the editor behind a confirmation modal, never inline in the list. A **replicate-last-month button** seeds an empty month from last month's bills; copies carry name, amount, payer and bank, but always arrive **unpaid** (ADR-0003)
 - **Payer and bank are required**: every bill records who pays it and which registered bank it is paid from; unset or since-removed references still render and still count
 - **Card bill**: entered by hand as a regular bill when the statement arrives; its amount is the real statement value (covers the previous month's card spending). Installments, fees and refunds are absorbed by the statement value — never modeled
 - Shows: bills total, income total, **account net** = income − bills, and a **by-payer spending summary** (per payer, broken down by bank)
 
 #### 6. Spending Plan (the core)
 **Route:** `/plan/:month`
-- **Plan composition**: spending buckets (name + cap). User-defined names
+- **Plan composition**: spending buckets (name + cap). User-defined names. Add via the top-bar "+" and tap a row's name/amount to edit both on a **full-screen editor** (`/plan/new/:month`, `/plan/edit/:id`); delete lives on the editor behind a confirmation modal, while the remaining-estimate check-in stays inline on the list
 - **Copy-last-month button**: one tap seeds the new month's plan from last month's; then edit freely (does not copy remaining estimates or card totals — those start at zero)
 - **Card check-in**: one editable current total per card; Total Spent = sum. Totals are current-state — overwritten at each check-in, no snapshot history in V1
 - **Remaining Estimates**: one editable estimate per bucket ("still expected until month end")
@@ -169,13 +169,13 @@ Onboarding validates the connected sheet and creates any missing tabs with the h
 
 ### Key Screens
 1. **Dashboard** (`/`) — the app entry point and a placeholder shell for the household dashboard (still to be designed). Its top bar shows the title "Dashboard" and the Settings shortcut; every other screen's top bar shows a back button and that screen's name.
-2. **Spending Plan** (`/plan/:month`) — spending buckets, check-in inputs, remaining estimates, Projected Result headline
-3. **Bills** (`/bills/:month`) — bill list with paid toggles, income total, account net, the by-payer spending summary, and the replicate-last-month button
+2. **Spending Plan** (`/plan/:month`) — spending buckets, check-in inputs, remaining estimates, Projected Result headline. Tap a bucket to edit on `/plan/edit/:id`; add via the top-bar "+" (`/plan/new/:month`)
+3. **Bills** (`/bills/:month`) — bill list with paid toggles, income total, account net, the by-payer spending summary, and the replicate-last-month button. Tap a row to edit on `/bills/edit/:id`; add via the top-bar "+" (`/bills/new/:month`)
 4. **Income** (`/income/:month`) — entries, total, replicate button
 5. **Settings** — card, bank and payer registries + connected sheet. Opened only from the Dashboard top bar; it is a full-screen page with a back button and no bottom navigation.
 6. **Onboarding** — Stayoo flow
 
-The app shell is a mobile-first Layout: a contextual top bar, the scrollable content column, and a fixed bottom navigation with three tabs (Plan, Bills, Income). The shell and navigation conventions are recorded in ADR-0004.
+The app shell is a mobile-first Layout: a contextual top bar (with an optional screen-declared "+" for adding a record to the browsed month), the scrollable content column, and a fixed bottom navigation with three tabs (Plan, Bills, Income). Creating and editing a bill or spending bucket happens on a full-screen record editor with its own header and no bottom nav, like Settings. The shell and navigation conventions are recorded in ADR-0004.
 
 ## Control Loop Specification
 

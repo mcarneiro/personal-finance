@@ -103,6 +103,8 @@ function renderPlan(
       <MemoryRouter initialEntries={[initialPath]}>
         <Routes>
           <Route path="/plan/:month" element={<PlanScreen />} />
+          <Route path="/plan/edit/:id" element={<p>Editor do teto</p>} />
+          <Route path="/plan/new/:month" element={<p>Novo teto</p>} />
         </Routes>
       </MemoryRouter>
     </Provider>
@@ -142,109 +144,30 @@ describe('Spending Plan composition', () => {
     expect(summary().getByText(/10\.750,00/)).toBeInTheDocument();
   });
 
-  it('adds a spending bucket and writes the plan back to the sheet', async () => {
-    // Given June has no plan yet
-    renderPlan(`/plan/${JUNE}`);
-    const user = userEvent.setup();
-
-    // When I add a spending bucket
-    await user.type(screen.getByLabelText('Nome do teto'), 'Pets');
-    await user.type(screen.getByLabelText('Limite do teto'), '300');
-    await user.click(screen.getByRole('button', { name: 'Adicionar teto de gastos' }));
-
-    // Then it is listed
-    expect(screen.getByText('Pets')).toBeInTheDocument();
-
-    // And the plan tab is written back with the new bucket at zero estimate
-    await waitFor(
-      () =>
-        expect(googleSheetsService.writePlanItems).toHaveBeenCalledWith('sheet-1', [
-          expect.objectContaining({
-            month: JUNE,
-            name: 'Pets',
-            amount: 300,
-            remainingEstimate: 0,
-          }),
-        ]),
-      { timeout: 2500 }
-    );
-  });
-
-  it('does not add an item without a name and a valid amount', async () => {
-    // Given June has no plan yet
-    renderPlan(`/plan/${JUNE}`);
-    const user = userEvent.setup();
-    const addButton = screen.getByRole('button', { name: 'Adicionar teto de gastos' });
-
-    // When the form is incomplete
-    expect(addButton).toBeDisabled();
-
-    await user.type(screen.getByLabelText('Nome do teto'), 'Pets');
-    expect(addButton).toBeDisabled();
-
-    await user.type(screen.getByLabelText('Limite do teto'), 'abc');
-    expect(addButton).toBeDisabled();
-
-    // And only becomes submittable once both fields are valid
-    await user.clear(screen.getByLabelText('Limite do teto'));
-    await user.type(screen.getByLabelText('Limite do teto'), '44');
-    expect(addButton).toBeEnabled();
-  });
-
-  it('edits an item and writes the plan back to the sheet', async () => {
+  it('opens the full-screen editor when a bucket row is tapped', async () => {
     // Given June's plan has an Internet bucket
     renderPlan(`/plan/${JUNE}`, [
       planItem({ month: JUNE, name: 'Internet', amount: 110 }),
     ]);
     const user = userEvent.setup();
 
-    // When I edit its name and amount
+    // When I tap the bucket's name/amount
     await user.click(screen.getByRole('button', { name: 'Editar Internet' }));
-    const nameInput = screen.getByLabelText('Nome do item');
-    await user.clear(nameInput);
-    await user.type(nameInput, 'Internet fibra');
-    const amountInput = screen.getByLabelText('Valor do item');
-    await user.clear(amountInput);
-    await user.type(amountInput, '120');
-    await user.click(screen.getByRole('button', { name: 'Salvar' }));
 
-    // Then the updated item is shown
-    expect(screen.getByText('Internet fibra')).toBeInTheDocument();
-    expect(screen.queryByText('Internet')).not.toBeInTheDocument();
-
-    // And the plan tab is written back with the edit
-    await waitFor(
-      () =>
-        expect(googleSheetsService.writePlanItems).toHaveBeenCalledWith('sheet-1', [
-          expect.objectContaining({ name: 'Internet fibra', amount: 120 }),
-        ]),
-      { timeout: 2500 }
-    );
+    // Then the full-screen editor for that bucket is shown
+    expect(screen.getByText('Editor do teto')).toBeInTheDocument();
   });
 
-  it('removes an item and writes the plan back to the sheet', async () => {
-    // Given June's plan has an Internet and a Gym bucket
+  it('no longer offers inline add or remove affordances', () => {
+    // Given June's plan has an Internet bucket
     renderPlan(`/plan/${JUNE}`, [
       planItem({ month: JUNE, name: 'Internet', amount: 110 }),
-      planItem({ month: JUNE, name: 'Gym', amount: 200 }),
     ]);
-    const user = userEvent.setup();
 
-    // When I remove the Internet charge
-    await user.click(screen.getByRole('button', { name: 'Remover Internet' }));
-
-    // Then it is gone from the plan
-    expect(screen.queryByText('Internet')).not.toBeInTheDocument();
-    expect(screen.getByText('Gym')).toBeInTheDocument();
-
-    // And the plan tab is written back without it
-    await waitFor(
-      () =>
-        expect(googleSheetsService.writePlanItems).toHaveBeenCalledWith('sheet-1', [
-          expect.objectContaining({ name: 'Gym' }),
-        ]),
-      { timeout: 2500 }
-    );
+    // When the plan renders
+    // Then composing happens on the editor page, not inline
+    expect(screen.queryByLabelText('Nome do teto')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Remover Internet' })).not.toBeInTheDocument();
   });
 
   it("copies last month's composition into an empty month, zeroing the estimates", async () => {

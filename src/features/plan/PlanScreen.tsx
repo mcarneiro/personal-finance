@@ -1,13 +1,10 @@
-import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import MonthScaffold from '../../components/MonthScaffold';
-import NameAmountForm from '../../components/NameAmountForm';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
-import { addPlanItem, addPlanItems, deletePlanItem, updatePlanItem } from '../../store/planSlice';
+import { addPlanItems, updatePlanItem } from '../../store/planSlice';
 import { planResult, planTotal, projectedResult } from '../../utils/controlLoop';
 import { formatCurrency } from '../../utils/currency';
-import { generateId } from '../../utils/id';
 import { isPastMonth, isValidMonth, shiftMonth } from '../../utils/month';
 import { copyPlanItems } from '../../utils/planCopy';
 import AmountInput from './AmountInput';
@@ -24,11 +21,11 @@ import CardCheckIn from './CardCheckIn';
  */
 export default function PlanScreen() {
   const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
   const { month } = useParams<{ month: string }>();
   const dispatch = useAppDispatch();
   const items = useAppSelector((state) => state.plan.items);
   const cardSpending = useAppSelector((state) => state.plan.cardSpending);
-  const [editingId, setEditingId] = useState<string | null>(null);
 
   if (!isValidMonth(month)) {
     // MonthScaffold owns the redirect; nothing to compose until it settles.
@@ -96,90 +93,39 @@ export default function PlanScreen() {
         ) : (
           <ul className="mt-2 divide-y divide-gray-100">
             {monthItems.map((item) => (
-              <li key={item.id} className="py-2">
-                {editingId === item.id ? (
-                  <NameAmountForm
-                    formId={`edit-${item.id}`}
-                    nameLabel={t('plan.itemNameLabel')}
-                    amountLabel={t('plan.itemAmountLabel')}
-                    submitLabel={t('plan.save')}
-                    initialName={item.name}
-                    initialAmount={item.amount}
-                    autoFocusName
-                    onSubmit={(name, amount) => {
-                      dispatch(updatePlanItem({ ...item, name, amount }));
-                      setEditingId(null);
-                    }}
-                    onCancel={{ label: t('plan.cancel'), onClick: () => setEditingId(null) }}
-                  />
-                ) : (
-                  <div className="flex flex-col gap-1">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="min-w-0 flex-1 truncate text-sm text-gray-900">
-                        {item.name}
-                      </span>
-                      <span className="text-sm font-medium text-gray-900">
-                        {formatCurrency(item.amount, i18n.language)}
-                      </span>
-                      <div className="flex items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() => setEditingId(item.id)}
-                          aria-label={t('plan.edit', { name: item.name })}
-                          className="rounded-lg px-2 py-1 text-sm font-medium text-blue-600 transition-colors hover:text-blue-700"
-                        >
-                          {t('plan.editAction')}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => dispatch(deletePlanItem(item.id))}
-                          aria-label={t('plan.remove', { name: item.name })}
-                          className="rounded-lg px-2 py-1 text-sm font-medium text-red-600 transition-colors hover:text-red-700"
-                        >
-                          {t('plan.removeAction')}
-                        </button>
-                      </div>
-                    </div>
+              <li key={item.id} className="flex flex-col gap-1 py-2">
+                <button
+                  type="button"
+                  onClick={() => navigate(`/plan/edit/${item.id}`)}
+                  aria-label={t('plan.edit', { name: item.name })}
+                  className="flex items-center justify-between gap-2 text-left"
+                >
+                  <span className="min-w-0 flex-1 truncate text-sm text-gray-900">
+                    {item.name}
+                  </span>
+                  <span className="text-sm font-medium text-gray-900">
+                    {formatCurrency(item.amount, i18n.language)}
+                  </span>
+                </button>
 
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs text-gray-500">
-                        {t('plan.remainingEstimateLabel')}
-                      </span>
-                      <AmountInput
-                        id={`estimate-${item.id}`}
-                        label={t('plan.remainingEstimate', { name: item.name })}
-                        value={item.remainingEstimate}
-                        onCommit={(remainingEstimate) =>
-                          dispatch(updatePlanItem({ ...item, remainingEstimate }))
-                        }
-                      />
-                    </div>
-                  </div>
-                )}
+                {/* The remaining-estimate check-in is the core control loop, so
+                    it stays inline — a sibling of the row button, never nested
+                    inside it. */}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs text-gray-500">{t('plan.remainingEstimateLabel')}</span>
+                  <AmountInput
+                    id={`estimate-${item.id}`}
+                    label={t('plan.remainingEstimate', { name: item.name })}
+                    value={item.remainingEstimate}
+                    onCommit={(remainingEstimate) =>
+                      dispatch(updatePlanItem({ ...item, remainingEstimate }))
+                    }
+                  />
+                </div>
               </li>
             ))}
           </ul>
         )}
-
-        <div className={monthItems.length > 0 ? 'mt-4 border-t border-gray-100 pt-4' : 'mt-3'}>
-          <NameAmountForm
-            formId="add-bucket"
-            nameLabel={t('plan.bucketNameLabel')}
-            amountLabel={t('plan.bucketAmountLabel')}
-            submitLabel={t('plan.addBucket')}
-            onSubmit={(name, amount) =>
-              dispatch(
-                addPlanItem({
-                  id: generateId(),
-                  month,
-                  name,
-                  amount,
-                  remainingEstimate: 0,
-                })
-              )
-            }
-          />
-        </div>
       </section>
     </MonthScaffold>
   );

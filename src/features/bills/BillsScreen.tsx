@@ -1,16 +1,13 @@
-import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import MonthScaffold from '../../components/MonthScaffold';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
-import { addBill, addBills, deleteBill, toggleBillPaid, updateBill } from '../../store/billsSlice';
+import { addBills, toggleBillPaid } from '../../store/billsSlice';
 import { accountNet, billsTotal, incomeTotal } from '../../utils/controlLoop';
 import { billsByPayerAndBank, type BankTotal, type PayerGroup } from '../../utils/billSummary';
 import { copyBills } from '../../utils/billCopy';
 import { formatCurrency } from '../../utils/currency';
-import { generateId } from '../../utils/id';
 import { isValidMonth, shiftMonth } from '../../utils/month';
-import BillForm from './BillForm';
 
 /**
  * The Bills screen for one month: payment obligations added by hand (name,
@@ -25,13 +22,13 @@ import BillForm from './BillForm';
  */
 export default function BillsScreen() {
   const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
   const { month } = useParams<{ month: string }>();
   const dispatch = useAppDispatch();
   const bills = useAppSelector((state) => state.bills.items);
   const income = useAppSelector((state) => state.income.items);
   const banks = useAppSelector((state) => state.banks.items);
   const payers = useAppSelector((state) => state.payers.items);
-  const [editingId, setEditingId] = useState<string | null>(null);
 
   if (!isValidMonth(month)) {
     // MonthScaffold owns the redirect; nothing to list until it settles.
@@ -98,110 +95,64 @@ export default function BillsScreen() {
         <section className="mt-4 rounded-lg bg-white p-4 shadow-sm">
           <ul className="divide-y divide-gray-100">
             {monthBills.map((bill) => (
-              <li key={bill.id} className="py-2">
-                {editingId === bill.id ? (
-                  <BillForm
-                    formId={`edit-${bill.id}`}
-                    payers={payers}
-                    banks={banks}
-                    nameLabel={t('bills.itemNameLabel')}
-                    amountLabel={t('bills.itemAmountLabel')}
-                    submitLabel={t('bills.save')}
-                    initialName={bill.name}
-                    initialAmount={bill.amount}
-                    initialPayerId={bill.payerId}
-                    initialBankId={bill.bankId}
-                    autoFocusName
-                    onSubmit={(draft) => {
-                      dispatch(updateBill({ ...bill, ...draft }));
-                      setEditingId(null);
-                    }}
-                    onCancel={{ label: t('bills.cancel'), onClick: () => setEditingId(null) }}
-                  />
-                ) : (
-                  <div className="flex flex-col gap-1">
-                    <div className="flex items-center gap-2">
-                      <input
-                        id={`paid-${bill.id}`}
-                        type="checkbox"
-                        checked={bill.isPaid}
-                        onChange={() => dispatch(toggleBillPaid(bill.id))}
-                        aria-label={t(bill.isPaid ? 'bills.markOpen' : 'bills.markPaid', {
-                          name: bill.name,
-                        })}
-                        className="h-4 w-4 shrink-0 rounded border-gray-300"
-                      />
-                      <span
-                        className={`min-w-0 flex-1 truncate text-sm ${
-                          bill.isPaid ? 'text-gray-400 line-through' : 'text-gray-900'
-                        }`}
-                      >
-                        {bill.name}
-                      </span>
-                      <span
-                        className={`text-sm font-medium ${
-                          bill.isPaid ? 'text-gray-400 line-through' : 'text-gray-900'
-                        }`}
-                      >
-                        {formatCurrency(bill.amount, i18n.language)}
-                      </span>
-                    </div>
-                    <p className="ml-6 text-xs text-gray-500">
-                      {payerLabel(bill.payerId)} · {bankLabel(bill.bankId)}
-                    </p>
-                    <div className="flex items-center justify-between">
-                      <span
-                        className={`text-xs font-medium ${
-                          bill.isPaid ? 'text-green-600' : 'text-amber-600'
-                        }`}
-                      >
-                        {t(bill.isPaid ? 'bills.paid' : 'bills.open')}
-                      </span>
-                      <div className="flex items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() => setEditingId(bill.id)}
-                          aria-label={t('bills.edit', { name: bill.name })}
-                          className="rounded-lg px-2 py-1 text-sm font-medium text-blue-600 transition-colors hover:text-blue-700"
-                        >
-                          {t('bills.editAction')}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => dispatch(deleteBill(bill.id))}
-                          aria-label={t('bills.remove', { name: bill.name })}
-                          className="rounded-lg px-2 py-1 text-sm font-medium text-red-600 transition-colors hover:text-red-700"
-                        >
-                          {t('bills.removeAction')}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
+              <li key={bill.id} className="flex items-start gap-2 py-2">
+                {/* The paid toggle stays a sibling of the row button — a
+                    checkbox nested in a button would be invalid and awkward
+                    to reach with a screen reader. */}
+                <input
+                  id={`paid-${bill.id}`}
+                  type="checkbox"
+                  checked={bill.isPaid}
+                  onChange={() => dispatch(toggleBillPaid(bill.id))}
+                  aria-label={t(bill.isPaid ? 'bills.markOpen' : 'bills.markPaid', {
+                    name: bill.name,
+                  })}
+                  className="mt-1 h-4 w-4 shrink-0 rounded border-gray-300"
+                />
+                <button
+                  type="button"
+                  onClick={() => navigate(`/bills/edit/${bill.id}`)}
+                  aria-label={t('bills.edit', { name: bill.name })}
+                  className="flex min-w-0 flex-1 flex-col gap-1 text-left"
+                >
+                  <span className="flex items-center justify-between gap-2">
+                    <span
+                      className={`min-w-0 flex-1 truncate text-sm ${
+                        bill.isPaid ? 'text-gray-400 line-through' : 'text-gray-900'
+                      }`}
+                    >
+                      {bill.name}
+                    </span>
+                    <span
+                      className={`text-sm font-medium ${
+                        bill.isPaid ? 'text-gray-400 line-through' : 'text-gray-900'
+                      }`}
+                    >
+                      {formatCurrency(bill.amount, i18n.language)}
+                    </span>
+                  </span>
+                  <span className="text-xs text-gray-500">
+                    {payerLabel(bill.payerId)} · {bankLabel(bill.bankId)}
+                  </span>
+                  <span
+                    className={`text-xs font-medium ${
+                      bill.isPaid ? 'text-green-600' : 'text-amber-600'
+                    }`}
+                  >
+                    {t(bill.isPaid ? 'bills.paid' : 'bills.open')}
+                  </span>
+                </button>
               </li>
             ))}
           </ul>
         </section>
       )}
 
-      <section className="mt-4 rounded-lg bg-white p-4 shadow-sm">
-        {registryReady ? (
-          <BillForm
-            key={month}
-            formId="add-bill"
-            payers={payers}
-            banks={banks}
-            nameLabel={t('bills.nameLabel')}
-            amountLabel={t('bills.amountLabel')}
-            submitLabel={t('bills.addBill')}
-            onSubmit={(draft) =>
-              dispatch(addBill({ id: generateId(), month, isPaid: false, ...draft }))
-            }
-          />
-        ) : (
+      {!registryReady && (
+        <section className="mt-4 rounded-lg bg-white p-4 shadow-sm">
           <p className="text-sm text-gray-600">{t('bills.needsRegistry')}</p>
-        )}
-      </section>
+        </section>
+      )}
 
       <section
         aria-label={t('bills.byPayerSummary')}

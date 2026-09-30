@@ -1,7 +1,7 @@
 import { FormEvent, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import LanguageSwitcher from '../../components/LanguageSwitcher';
+import PageHeader from '../../components/PageHeader';
 import CardRegistry from './CardRegistry';
 import BankRegistry from './BankRegistry';
 import PayerRegistry from './PayerRegistry';
@@ -18,7 +18,6 @@ function maskSheetId(sheetId: string): string {
 
 export default function SettingsScreen() {
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const sheetId = useAppSelector((state) => state.settings.sheetId);
   const { userEmail } = useGoogleAuth();
@@ -58,23 +57,7 @@ export default function SettingsScreen() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Full-screen page: its own header with a back button, no bottom navigation. */}
-      <header className="sticky top-0 z-10 border-b border-gray-200 bg-white">
-        <div className="mx-auto flex max-w-md items-center gap-3 px-4 py-3">
-          <button
-            type="button"
-            onClick={() => navigate('/')}
-            aria-label={t('common.back')}
-            className="-ml-2 rounded-lg p-2 transition-colors hover:bg-gray-100"
-          >
-            <svg className="h-6 w-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-          <h1 className="min-w-0 flex-1 truncate text-xl font-bold text-gray-900">
-            {t('settings.title')}
-          </h1>
-        </div>
-      </header>
+      <PageHeader title={t('settings.title')} />
 
       <div className="mx-auto w-full max-w-md px-4 py-6">
         {userEmail && (
