@@ -65,7 +65,7 @@ export default function NameRegistry({
   };
 
   return (
-    <section className="mt-6 rounded-lg border border-gray-200 bg-white p-4">
+    <section className="mt-6 rounded-lg bg-white p-4 shadow-sm">
       <h2 className="text-sm font-semibold text-gray-900">{title}</h2>
 
       {items.length === 0 ? (

@@ -162,6 +162,60 @@ describe('month navigation', () => {
   });
 });
 
+describe('app shell', () => {
+  beforeEach(async () => {
+    await setLanguage('pt-BR');
+  });
+
+  it('names the current screen in the top bar and returns home with the back button', async () => {
+    // Given the app is open on the Spending Plan
+    const user = userEvent.setup();
+    renderApp('/plan/2026-06');
+    expect(screen.getByRole('heading', { name: 'Plano de Gastos' })).toBeInTheDocument();
+
+    // When I tap the back button
+    await user.click(screen.getByRole('button', { name: 'Voltar' }));
+
+    // Then the home placeholder is shown
+    expect(screen.getByRole('heading', { name: 'Dashboard' })).toBeInTheDocument();
+    expect(screen.getByText('Seu painel está chegando')).toBeInTheDocument();
+  });
+
+  it('moves Settings out of the bottom bar and into the home top bar', async () => {
+    // Given the app is open on the Spending Plan
+    const user = userEvent.setup();
+    renderApp('/plan/2026-06');
+
+    // Then Settings is not one of the bottom-nav tabs
+    expect(screen.queryByRole('button', { name: 'Ajustes' })).not.toBeInTheDocument();
+
+    // When I go home and open Settings from the top bar
+    await user.click(screen.getByRole('button', { name: 'Voltar' }));
+    await user.click(screen.getByRole('button', { name: 'Ajustes' }));
+
+    // Then Settings is a full-screen page with its own back button and no bottom nav
+    expect(screen.getByRole('heading', { name: 'Ajustes' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Voltar' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Plano' })).not.toBeInTheDocument();
+  });
+
+  it('keeps the scrollable content clear of the fixed bottom bar', () => {
+    // Given the app is open on the Spending Plan
+    renderApp('/plan/2026-06');
+
+    // Then the main content reserves space for the bottom navigation
+    expect(screen.getByRole('main')).toHaveClass('pb-24');
+  });
+
+  it('renders plan cards with the elevated card style', () => {
+    // Given the app is open on the Spending Plan
+    renderApp('/plan/2026-06');
+
+    // Then the plan summary card uses the shared drop-shadow card style
+    expect(screen.getByLabelText('Resumo do plano')).toHaveClass('shadow-sm');
+  });
+});
+
 describe('startup gate', () => {
   beforeEach(async () => {
     await setLanguage('pt-BR');

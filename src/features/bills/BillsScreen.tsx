@@ -35,7 +35,7 @@ export default function BillsScreen() {
 
   if (!isValidMonth(month)) {
     // MonthScaffold owns the redirect; nothing to list until it settles.
-    return <MonthScaffold basePath="/bills" title={t('bills.title')} />;
+    return <MonthScaffold basePath="/bills" />;
   }
 
   const monthBills = bills.filter((bill) => bill.month === month);
@@ -54,10 +54,10 @@ export default function BillsScreen() {
   const registryReady = payers.length > 0 && banks.length > 0;
 
   return (
-    <MonthScaffold basePath="/bills" title={t('bills.title')}>
+    <MonthScaffold basePath="/bills">
       <section
         aria-label={t('bills.summary')}
-        className="mt-4 rounded-lg border border-gray-200 bg-white p-4"
+        className="mt-4 rounded-lg bg-white p-4 shadow-sm"
       >
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium text-gray-700">{t('bills.billsTotal')}</span>
@@ -95,7 +95,7 @@ export default function BillsScreen() {
       )}
 
       {monthBills.length > 0 && (
-        <section className="mt-4 rounded-lg border border-gray-200 bg-white p-4">
+        <section className="mt-4 rounded-lg bg-white p-4 shadow-sm">
           <ul className="divide-y divide-gray-100">
             {monthBills.map((bill) => (
               <li key={bill.id} className="py-2">
@@ -184,7 +184,7 @@ export default function BillsScreen() {
         </section>
       )}
 
-      <section className="mt-4 rounded-lg border border-gray-200 bg-white p-4">
+      <section className="mt-4 rounded-lg bg-white p-4 shadow-sm">
         {registryReady ? (
           <BillForm
             key={month}
@@ -205,7 +205,7 @@ export default function BillsScreen() {
 
       <section
         aria-label={t('bills.byPayerSummary')}
-        className="mt-4 rounded-lg border border-gray-200 bg-white p-4"
+        className="mt-4 rounded-lg bg-white p-4 shadow-sm"
       >
         <h2 className="text-sm font-semibold text-gray-900">{t('bills.byPayerSummary')}</h2>
 

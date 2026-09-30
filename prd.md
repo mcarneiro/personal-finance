@@ -169,11 +169,14 @@ Onboarding validates the connected sheet and creates any missing tabs with the h
 - Check-in friction below 30 seconds: N card inputs + estimate tweaks
 
 ### Key Screens
-1. **Spending Plan** (`/plan/:month`) — plan items, check-in inputs, remaining estimates, Projected Result headline
-2. **Bills** (`/bills/:month`) — bill list with paid toggles, income total, account net, the by-payer spending summary, and the replicate-last-month button
-3. **Income** (`/income/:month`) — entries, total, replicate button
-4. **Settings** — card, bank and payer registries + connected sheet
-5. **Onboarding** — Stayoo flow
+1. **Dashboard** (`/`) — the app entry point and a placeholder shell for the household dashboard (still to be designed). Its top bar shows the title "Dashboard" and the Settings shortcut; every other screen's top bar shows a back button and that screen's name.
+2. **Spending Plan** (`/plan/:month`) — plan items, check-in inputs, remaining estimates, Projected Result headline
+3. **Bills** (`/bills/:month`) — bill list with paid toggles, income total, account net, the by-payer spending summary, and the replicate-last-month button
+4. **Income** (`/income/:month`) — entries, total, replicate button
+5. **Settings** — card, bank and payer registries + connected sheet. Opened only from the Home top bar; it is a full-screen page with a back button and no bottom navigation.
+6. **Onboarding** — Stayoo flow
+
+The app shell is a mobile-first Layout: a contextual top bar, the scrollable content column, and a fixed bottom navigation with three tabs (Plan, Bills, Income).
 
 ## Control Loop Specification
 

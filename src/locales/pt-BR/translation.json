@@ -1,6 +1,7 @@
 {
   "common": {
     "loading": "Carregando...",
+    "back": "Voltar",
     "previousMonth": "Mês anterior",
     "nextMonth": "Próximo mês"
   },
@@ -14,6 +15,11 @@
     "bills": "Contas",
     "income": "Renda",
     "settings": "Ajustes"
+  },
+  "home": {
+    "title": "Dashboard",
+    "placeholderTitle": "Seu painel está chegando",
+    "placeholderMessage": "O painel da casa será construído em breve. Por enquanto, use as abas Plano, Contas e Renda para acompanhar o mês."
   },
   "onboarding": {
     "title": "Bem-vindo ao Planoo",

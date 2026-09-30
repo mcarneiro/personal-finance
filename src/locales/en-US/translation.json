@@ -1,6 +1,7 @@
 {
   "common": {
     "loading": "Loading...",
+    "back": "Back",
     "previousMonth": "Previous month",
     "nextMonth": "Next month"
   },
@@ -14,6 +15,11 @@
     "bills": "Bills",
     "income": "Income",
     "settings": "Settings"
+  },
+  "home": {
+    "title": "Dashboard",
+    "placeholderTitle": "Your dashboard is coming",
+    "placeholderMessage": "The household dashboard is being built. For now, use the Plan, Bills and Income tabs to follow the month."
   },
   "onboarding": {
     "title": "Welcome to Planoo",

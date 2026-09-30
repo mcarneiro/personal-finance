@@ -3,6 +3,7 @@ import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-
 import { useTranslation } from 'react-i18next';
 import Layout from './components/Layout';
 import LoadingScreen from './components/LoadingScreen';
+import HomeScreen from './features/home/HomeScreen';
 import PlanScreen from './features/plan/PlanScreen';
 import BillsScreen from './features/bills/BillsScreen';
 import IncomeScreen from './features/income/IncomeScreen';
@@ -83,7 +84,14 @@ function App() {
 
       <Routes>
         <Route path="/onboarding" element={<Onboarding />} />
-        <Route path="/" element={<Navigate to={`/plan/${currentMonth}`} replace />} />
+        <Route
+          path="/"
+          element={
+            <Layout>
+              <HomeScreen />
+            </Layout>
+          }
+        />
         <Route path="/plan" element={<Navigate to={`/plan/${currentMonth}`} replace />} />
         <Route
           path="/plan/:month"
@@ -111,15 +119,8 @@ function App() {
             </Layout>
           }
         />
-        <Route
-          path="/settings"
-          element={
-            <Layout>
-              <SettingsScreen />
-            </Layout>
-          }
-        />
-        <Route path="*" element={<Navigate to={`/plan/${currentMonth}`} replace />} />
+        <Route path="/settings" element={<SettingsScreen />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>
   );

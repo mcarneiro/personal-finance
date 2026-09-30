@@ -34,7 +34,7 @@ export default function IncomeScreen() {
 
   if (!isValidMonth(month)) {
     // MonthScaffold owns the redirect; nothing to list until it settles.
-    return <MonthScaffold basePath="/income" title={t('income.title')} />;
+    return <MonthScaffold basePath="/income" />;
   }
 
   const monthEntries = items.filter((entry) => entry.month === month);
@@ -45,10 +45,10 @@ export default function IncomeScreen() {
     entry.source || formatCurrency(entry.amount, i18n.language);
 
   return (
-    <MonthScaffold basePath="/income" title={t('income.title')}>
+    <MonthScaffold basePath="/income">
       <section
         aria-label={t('income.summary')}
-        className="mt-4 rounded-lg border border-gray-200 bg-white p-4"
+        className="mt-4 rounded-lg bg-white p-4 shadow-sm"
       >
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium text-gray-700">{t('income.total')}</span>
@@ -74,7 +74,7 @@ export default function IncomeScreen() {
       )}
 
       {monthEntries.length > 0 && (
-        <section className="mt-4 rounded-lg border border-gray-200 bg-white p-4">
+        <section className="mt-4 rounded-lg bg-white p-4 shadow-sm">
           <ul className="divide-y divide-gray-100">
             {monthEntries.map((entry) => (
               <li key={entry.id} className="py-2">
@@ -129,7 +129,7 @@ export default function IncomeScreen() {
         </section>
       )}
 
-      <section className="mt-4 rounded-lg border border-gray-200 bg-white p-4">
+      <section className="mt-4 rounded-lg bg-white p-4 shadow-sm">
         <IncomeEntryForm
           formId="add-income"
           amountLabel={t('income.amountLabel')}

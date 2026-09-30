@@ -57,7 +57,7 @@ export default function PlanScreen() {
 
   if (!isValidMonth(month)) {
     // MonthScaffold owns the redirect; nothing to compose until it settles.
-    return <MonthScaffold basePath="/plan" title={t('plan.title')} />;
+    return <MonthScaffold basePath="/plan" />;
   }
 
   const monthItems = items.filter((item) => item.month === month);
@@ -73,10 +73,10 @@ export default function PlanScreen() {
     : projectedResult(month, items, cardSpending);
 
   return (
-    <MonthScaffold basePath="/plan" title={t('plan.title')}>
+    <MonthScaffold basePath="/plan">
       <section
         aria-label={headlineLabel}
-        className="mt-4 rounded-lg border border-gray-200 bg-white p-4 text-center"
+        className="mt-4 rounded-lg bg-white p-4 shadow-sm text-center"
       >
         <span className="text-sm font-medium text-gray-700">{headlineLabel}</span>
         <p
@@ -90,7 +90,7 @@ export default function PlanScreen() {
 
       <section
         aria-label={t('plan.summary')}
-        className="mt-4 rounded-lg border border-gray-200 bg-white p-4"
+        className="mt-4 rounded-lg bg-white p-4 shadow-sm"
       >
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium text-gray-700">{t('plan.total')}</span>
@@ -122,7 +122,7 @@ export default function PlanScreen() {
         const copy = SECTION_COPY[kind];
 
         return (
-          <section key={kind} className="mt-4 rounded-lg border border-gray-200 bg-white p-4">
+          <section key={kind} className="mt-4 rounded-lg bg-white p-4 shadow-sm">
             <h2 className="text-sm font-semibold text-gray-900">{t(copy.title)}</h2>
 
             {sectionItems.length > 0 && (

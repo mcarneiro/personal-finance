@@ -6,16 +6,16 @@ import { getCurrentMonth, isValidMonth } from '../utils/month';
 interface MonthScaffoldProps {
   /** Base route the month is scoped to, e.g. `/plan`. */
   basePath: string;
-  title: string;
   children?: ReactNode;
 }
 
 /**
- * Shared month-scoped screen chrome: title plus prev/next month navigation that
- * pushes the adjacent month onto the route. A malformed `:month` param redirects
- * to the current month.
+ * Shared month-scoped screen chrome: prev/next month navigation that pushes the
+ * adjacent month onto the route. The screen's name lives in the Layout top bar,
+ * so the scaffold only owns the month switcher and the content column. A
+ * malformed `:month` param redirects to the current month.
  */
-export default function MonthScaffold({ basePath, title, children }: MonthScaffoldProps) {
+export default function MonthScaffold({ basePath, children }: MonthScaffoldProps) {
   const { month } = useParams<{ month: string }>();
   const navigate = useNavigate();
 
@@ -24,8 +24,7 @@ export default function MonthScaffold({ basePath, title, children }: MonthScaffo
   }
 
   return (
-    <div className="mx-auto w-full max-w-md px-4 pt-6">
-      <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
+    <div className="mx-auto w-full max-w-md px-4">
       <MonthNavigation
         currentMonth={month}
         onMonthChange={(nextMonth) => navigate(`${basePath}/${nextMonth}`)}
