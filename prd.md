@@ -68,7 +68,8 @@ A React app using Google Sheets as the database (same foundation as Stayoo) that
 
 #### 5. Bills Management
 **Route:** `/bills/:month`
-- Bills: add (name, amount, payer, bank), toggle paid, edit, delete — no auto-generation (the card bill is entered by hand). Add via the top-bar "+" and tap a row to edit both on a **full-screen editor** (`/bills/new/:month`, `/bills/edit/:id`); delete lives on the editor behind a confirmation modal, never inline in the list. The list reads **open bills first, then paid**, each group **alphabetical by name**. A **replicate-last-month button** seeds an empty month from last month's bills; copies carry name, amount, payer and bank, but always arrive **unpaid** (ADR-0003)
+- Bills: add (name, amount, payer, bank, final value), toggle paid, edit, delete — no auto-generation (the card bill is entered by hand). Add via the top-bar "+" and tap a row to edit both on a **full-screen editor** (`/bills/new/:month`, `/bills/edit/:id`); delete lives on the editor behind a confirmation modal, never inline in the list. The list reads **final values first, then bills still awaiting one**; within each group **open bills first, then paid**, each group **alphabetical by name**. A **replicate-last-month button** seeds an empty month from last month's bills; copies carry name, amount, payer and bank, but always arrive **unpaid and not final** (ADR-0003)
+- **Final value**: each bill carries a **Final value** flag, set on the editor (unset by default). It marks the amount as confirmed for the month. Bills whose value is not final are flagged with a ⚠️ before their name and grouped at the end of the list, so the variable amounts that still need updating after a replicate are gathered together and easy to find. The flag is a workflow marker only — it never changes a total (ADR-0006)
 - **Payer and bank are required**: every bill records who pays it and which registered bank it is paid from; unset or since-removed references still render and still count. When the payer or bank registry is empty, the Bills list and the editor show a highlighted callout with a shortcut straight to Settings instead of an unusable form
 - **Card bill**: entered by hand as a regular bill when the statement arrives; its amount is the real statement value (covers the previous month's card spending). Installments, fees and refunds are absorbed by the statement value — never modeled
 - Shows: bills total, income total, **account net** = income − bills, and a **by-payer spending summary** (per payer, broken down by bank). The summary sits below the totals and above the bills and is **collapsed by default**, expanding on tap
@@ -132,6 +133,7 @@ export interface Bill {
   name: string;                 // "Luz", "Cartão guta"
   amount: number;
   isPaid: boolean;
+  isFinal: boolean;             // amount confirmed for the month; default false
   payerId: string;              // references a registered Payer
   bankId: string;               // references a registered Bank
 }
@@ -155,7 +157,7 @@ export interface IncomeEntry {
 | `payers` | id, name |
 | `plan` | id, month, name, amount, remaining_estimate |
 | `card_spending` | id, month, card_id, total |
-| `bills` | id, month, name, amount, is_paid, payer_id, bank_id |
+| `bills` | id, month, name, amount, is_paid, payer_id, bank_id, is_final |
 | `income` | id, month, amount, source |
 
 #### Sheet Initialization
@@ -171,7 +173,7 @@ Onboarding validates the connected sheet and creates any missing tabs with the h
 ### Key Screens
 1. **Dashboard** (`/`) — the app entry point and a placeholder shell for the household dashboard (still to be designed). Its top bar shows the title "Dashboard" and the Settings shortcut; every other screen's top bar shows a back button and that screen's name.
 2. **Spending Plan** (`/plan/:month`) — spending buckets, check-in inputs, remaining estimates, Projected Result headline. Tap a bucket to edit on `/plan/edit/:id`; add via the top-bar "+" (`/plan/new/:month`)
-3. **Bills** (`/bills/:month`) — bill list with paid toggles, income total, account net, the by-payer spending summary, and the replicate-last-month button. Tap a row to edit on `/bills/edit/:id`; add via the top-bar "+" (`/bills/new/:month`)
+3. **Bills** (`/bills/:month`) — bill list with paid toggles, income total, account net, the by-payer spending summary, and the replicate-last-month button. Bills awaiting a final value are flagged with a ⚠️ and sink to the end of the list. Tap a row to edit on `/bills/edit/:id`; add via the top-bar "+" (`/bills/new/:month`)
 4. **Income** (`/income/:month`) — entries, total, replicate button. Tap a row to edit on `/income/edit/:id`; add via the top-bar "+" (`/income/new/:month`)
 5. **Settings** — card, bank and payer registries + connected sheet. Opened only from the Dashboard top bar; it is a full-screen page with a back button and no bottom navigation.
 6. **Onboarding** — Stayoo flow

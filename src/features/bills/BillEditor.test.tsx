@@ -41,6 +41,7 @@ function bill(overrides: Partial<Bill> & Pick<Bill, 'month' | 'name' | 'amount'>
   return {
     id: `${overrides.month}-${overrides.name}`,
     isPaid: false,
+    isFinal: true,
     payerId: 'payer-marcelo',
     bankId: 'bank-nubank',
     ...overrides,
@@ -146,6 +147,61 @@ describe('Bill editor', () => {
           entry.bankId === 'bank-itau' &&
           !entry.isPaid
       )
+    );
+  });
+
+  it('saves a new bill as not final by default', async () => {
+    // Given the editor is open to add a bill to June
+    renderEditor(`/bills/new/${JUNE}`);
+    const user = userEvent.setup();
+
+    // When I fill the required fields without ticking the final-value box
+    await user.type(screen.getByLabelText('Nome da conta'), 'Luz');
+    await user.type(screen.getByLabelText('Valor da conta'), '150');
+    await choosePayerAndBank(user);
+    await user.click(screen.getByRole('button', { name: 'Salvar' }));
+
+    // Then the new bill is written as awaiting a final value
+    await expectBillsWritten((written) =>
+      written.some((entry) => entry.month === JUNE && entry.name === 'Luz' && !entry.isFinal)
+    );
+  });
+
+  it('saves a new bill as final when the final-value box is ticked', async () => {
+    // Given the editor is open to add a bill to June
+    renderEditor(`/bills/new/${JUNE}`);
+    const user = userEvent.setup();
+
+    // When I fill the required fields and tick the final-value box
+    await user.type(screen.getByLabelText('Nome da conta'), 'Luz');
+    await user.type(screen.getByLabelText('Valor da conta'), '150');
+    await choosePayerAndBank(user);
+    await user.click(screen.getByLabelText('Valor final'));
+    await user.click(screen.getByRole('button', { name: 'Salvar' }));
+
+    // Then the new bill is written with its value confirmed
+    await expectBillsWritten((written) =>
+      written.some((entry) => entry.month === JUNE && entry.name === 'Luz' && entry.isFinal)
+    );
+  });
+
+  it('prefills the existing final value and clears it on save', async () => {
+    // Given June has a bill whose value is confirmed
+    renderEditor(`/bills/edit/${JUNE}-Luz`, [
+      bill({ month: JUNE, name: 'Luz', amount: 150, isFinal: true }),
+    ]);
+    const user = userEvent.setup();
+
+    // Then the final-value box arrives ticked
+    expect(screen.getByLabelText('Valor final')).toBeChecked();
+
+    // When I untick it and save
+    await user.click(screen.getByLabelText('Valor final'));
+    await user.click(screen.getByRole('button', { name: 'Salvar' }));
+
+    // Then the bill is written back as awaiting a final value, same id
+    await expectBillsWritten((written) =>
+      written.some((entry) => entry.id === `${JUNE}-Luz` && !entry.isFinal)
     );
   });
 

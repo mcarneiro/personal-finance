@@ -6,6 +6,7 @@ import { parseAmount } from '../../utils/currency';
 export interface BillDraft {
   name: string;
   amount: number;
+  isFinal: boolean;
   payerId: string;
   bankId: string;
 }
@@ -20,6 +21,7 @@ interface BillFormProps {
   submitLabel: string;
   initialName?: string;
   initialAmount?: number;
+  initialIsFinal?: boolean;
   initialPayerId?: string;
   initialBankId?: string;
   autoFocusName?: boolean;
@@ -32,7 +34,9 @@ interface BillFormProps {
  * The bill form: name, amount, payer and bank — all four required, so a bill can
  * never be saved without knowing who pays it and from where. Amounts are typed
  * as loose text (pt-BR comma or en-US dot) and only become submittable once they
- * parse. Payer/bank are chosen from the registries maintained in Settings.
+ * parse. Payer/bank are chosen from the registries maintained in Settings. The
+ * final-value checkbox is optional and unset by default, marking the amount as
+ * confirmed for the month.
  */
 export default function BillForm({
   formId,
@@ -43,6 +47,7 @@ export default function BillForm({
   submitLabel,
   initialName = '',
   initialAmount,
+  initialIsFinal = false,
   initialPayerId = '',
   initialBankId = '',
   autoFocusName = false,
@@ -52,6 +57,7 @@ export default function BillForm({
   const { t } = useTranslation();
   const [name, setName] = useState(initialName);
   const [amount, setAmount] = useState(initialAmount === undefined ? '' : String(initialAmount));
+  const [isFinal, setIsFinal] = useState(initialIsFinal);
   const [payerId, setPayerId] = useState(initialPayerId);
   const [bankId, setBankId] = useState(initialBankId);
 
@@ -61,15 +67,17 @@ export default function BillForm({
 
   const nameId = `${formId}-name`;
   const amountId = `${formId}-amount`;
+  const finalId = `${formId}-final`;
   const payerIdField = `${formId}-payer`;
   const bankIdField = `${formId}-bank`;
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
     if (!canSubmit || parsedAmount === null) return;
-    onSubmit({ name: name.trim(), amount: parsedAmount, payerId, bankId });
+    onSubmit({ name: name.trim(), amount: parsedAmount, isFinal, payerId, bankId });
     setName('');
     setAmount('');
+    setIsFinal(false);
     setPayerId('');
     setBankId('');
   };
@@ -145,6 +153,19 @@ export default function BillForm({
             ))}
           </select>
         </div>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <input
+          id={finalId}
+          type="checkbox"
+          checked={isFinal}
+          onChange={(event) => setIsFinal(event.target.checked)}
+          className="h-4 w-4 rounded border-gray-300"
+        />
+        <label htmlFor={finalId} className="text-sm text-gray-700">
+          {t('bills.finalValueLabel')}
+        </label>
       </div>
 
       <div className="flex items-center gap-2">

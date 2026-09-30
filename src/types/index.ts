@@ -50,6 +50,12 @@ export interface Bill {
   amount: number;
   isPaid: boolean;
   /**
+   * Whether the amount has been confirmed for this month. A bill starts (and
+   * replicated copies always arrive) not final, so variable amounts are visibly
+   * flagged until reviewed; the amount itself is still fully editable.
+   */
+  isFinal: boolean;
+  /**
    * The registered payer and bank, referenced by id so renaming a registry
    * entry flows through. `''` means unset — legacy rows written before these
    * fields existed, or a registry entry that was later removed.

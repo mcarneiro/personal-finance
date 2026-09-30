@@ -30,7 +30,16 @@ function cardTotal(month: Month, cardId: string, total: number): CardSpending {
 
 /** Build a bill pinned to a month. */
 function bill(month: Month, name: string, amount: number, isPaid = false): Bill {
-  return { id: `${month}-${name}`, month, name, amount, isPaid, payerId: '', bankId: '' };
+  return {
+    id: `${month}-${name}`,
+    month,
+    name,
+    amount,
+    isPaid,
+    isFinal: true,
+    payerId: '',
+    bankId: '',
+  };
 }
 
 /** Build an income entry pinned to a month. */

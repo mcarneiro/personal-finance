@@ -18,9 +18,12 @@ import NeedsRegistryNotice from './NeedsRegistryNotice';
  * statement value), each with a paid toggle, plus the month's bills total,
  * income total and the account net (income − bills). Below the totals sits the
  * by-payer spending summary, collapsed until opened, then the month's bills
- * ordered open-first and alphabetically. The replicate-last-month button copies
- * last month's obligations so recurring bills need no retyping; the copies
- * arrive open (never pre-paid) and can be edited freely. The derived numbers
+ * ordered final-first, open-first and alphabetically. A bill whose value is not
+ * final is flagged with a warning before its name and sinks to the bottom, so a
+ * replicated month gathers the variable amounts still needing review. The
+ * replicate-last-month button copies last month's obligations so recurring bills
+ * need no retyping; the copies arrive open and not final (never pre-paid or
+ * pre-confirmed) and can be edited freely. The derived numbers
  * come from the control-loop utilities and the bill-summary utility and are
  * never stored; every mutation syncs through the debounced middleware onto the
  * bills tab.
@@ -174,12 +177,24 @@ export default function BillsScreen() {
                   className="flex min-w-0 flex-1 flex-col gap-1 text-left"
                 >
                   <span className="flex items-center justify-between gap-2">
-                    <span
-                      className={`min-w-0 flex-1 truncate text-sm ${
-                        bill.isPaid ? 'text-gray-400 line-through' : 'text-gray-900'
-                      }`}
-                    >
-                      {bill.name}
+                    <span className="flex min-w-0 flex-1 items-center gap-1">
+                      {!bill.isFinal && (
+                        <span
+                          role="img"
+                          aria-label={t('bills.notFinal')}
+                          title={t('bills.notFinal')}
+                          className="shrink-0 text-sm"
+                        >
+                          ⚠️
+                        </span>
+                      )}
+                      <span
+                        className={`min-w-0 truncate text-sm ${
+                          bill.isPaid ? 'text-gray-400 line-through' : 'text-gray-900'
+                        }`}
+                      >
+                        {bill.name}
+                      </span>
                     </span>
                     <span
                       className={`text-sm font-medium ${

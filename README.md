@@ -1,6 +1,6 @@
 # Planoo
 
-A household card-spending planner. Planoo plans card spending as spending buckets, tracks weekly card check-ins and per-bucket remaining estimates, projects the month result live, and tracks income and bills — including who pays each bill, from which bank, a by-payer spending summary, and one-tap replication of last month's bills. All data lives in your own Google Sheet.
+A household card-spending planner. Planoo plans card spending as spending buckets, tracks weekly card check-ins and per-bucket remaining estimates, projects the month result live, and tracks income and bills — including who pays each bill, from which bank, whether each amount is final, a by-payer spending summary, and one-tap replication of last month's bills. All data lives in your own Google Sheet.
 
 See `prd.md` for the product spec, `CONTEXT.md` for the domain glossary, and `docs/adr/` for the hard decisions.
 

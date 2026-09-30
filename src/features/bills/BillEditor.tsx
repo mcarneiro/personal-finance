@@ -63,6 +63,7 @@ export default function BillEditor() {
             submitLabel={t('bills.saveButton')}
             initialName={bill?.name}
             initialAmount={bill?.amount}
+            initialIsFinal={bill?.isFinal}
             initialPayerId={bill?.payerId}
             initialBankId={bill?.bankId}
             autoFocusName={!isEdit}

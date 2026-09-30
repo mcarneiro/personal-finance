@@ -4,13 +4,14 @@ import { orderBills } from '../billOrder';
 
 const MONTH: Month = '2026-06';
 
-function bill(name: string, isPaid = false): Bill {
+function bill(name: string, isPaid = false, isFinal = true): Bill {
   return {
     id: `${MONTH}-${name}`,
     month: MONTH,
     name,
     amount: 100,
     isPaid,
+    isFinal,
     payerId: 'payer-marcelo',
     bankId: 'bank-nubank',
   };
@@ -36,6 +37,39 @@ describe('orderBills', () => {
       'Internet',
       'Luz',
     ]);
+  });
+
+  it('sinks bills without a final value to the end, whatever their paid status', () => {
+    // Given a final and a non-final bill in each paid state
+    const bills = [
+      bill('Água'), // final, open
+      bill('Gym', true, false), // not final, paid
+      bill('Internet', true), // final, paid
+      bill('Luz', false, false), // not final, open
+    ];
+
+    // When the list is ordered
+    const ordered = orderBills(bills, 'pt-BR');
+
+    // Then every final bill leads (open before paid, alphabetical), then every
+    // bill still awaiting a final value (open before paid, alphabetical)
+    expect(ordered.map((entry) => entry.name)).toEqual([
+      'Água',
+      'Internet',
+      'Luz',
+      'Gym',
+    ]);
+  });
+
+  it('keeps open before paid within the not-final group', () => {
+    // Given two non-final bills, one already paid
+    const bills = [bill('Zebra', true, false), bill('Abacaxi', false, false)];
+
+    // When the list is ordered
+    const ordered = orderBills(bills, 'pt-BR');
+
+    // Then the open one leads and the group stays alphabetical
+    expect(ordered.map((entry) => entry.name)).toEqual(['Abacaxi', 'Zebra']);
   });
 
   it('leaves the input array untouched', () => {

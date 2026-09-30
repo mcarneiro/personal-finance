@@ -85,6 +85,8 @@
     "accountNet": "Saldo da conta",
     "nameLabel": "Nome da conta",
     "amountLabel": "Valor da conta",
+    "finalValueLabel": "Valor final",
+    "notFinal": "Valor não final",
     "addBill": "Adicionar conta",
     "newTitle": "Nova conta",
     "editTitle": "Editar conta",

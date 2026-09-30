@@ -87,13 +87,15 @@ describe('GoogleSheetsService schema round-trip', () => {
     expect(bills.map((bill) => bill.isPaid)).toEqual([true, false]);
   });
 
-  it('reads a bill row with its payer and bank references', async () => {
+  it('reads a bill row with its payer, bank and final-value references', async () => {
     // Given the sheet stores the new columns
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue(
         jsonResponse({
-          values: [['b1', '2026-06', 'Luz', 120, 'TRUE', 'payer-marcelo', 'bank-nubank']],
+          values: [
+            ['b1', '2026-06', 'Luz', 120, 'TRUE', 'payer-marcelo', 'bank-nubank', 'TRUE'],
+          ],
         })
       )
     );
@@ -101,7 +103,7 @@ describe('GoogleSheetsService schema round-trip', () => {
     // When the bills tab is read
     const bills = await service.readBills('sheet-1');
 
-    // Then the references survive the round trip
+    // Then the references and the final-value flag survive the round trip
     expect(bills).toEqual([
       {
         id: 'b1',
@@ -109,14 +111,15 @@ describe('GoogleSheetsService schema round-trip', () => {
         name: 'Luz',
         amount: 120,
         isPaid: true,
+        isFinal: true,
         payerId: 'payer-marcelo',
         bankId: 'bank-nubank',
       },
     ]);
   });
 
-  it('reads a legacy five-column bill row as unset payer and bank', async () => {
-    // Given a row written before the payer/bank columns existed
+  it('reads a legacy five-column bill row as unset references and not final', async () => {
+    // Given a row written before the payer/bank/final columns existed
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue(
@@ -127,12 +130,18 @@ describe('GoogleSheetsService schema round-trip', () => {
     // When the bills tab is read
     const bills = await service.readBills('sheet-1');
 
-    // Then the missing cells default to unset rather than corrupting the row
-    expect(bills[0]).toMatchObject({ name: 'Luz', payerId: '', bankId: '' });
+    // Then the missing cells default to unset rather than corrupting the row,
+    // and the absent final-value flag reads as not final
+    expect(bills[0]).toMatchObject({
+      name: 'Luz',
+      isFinal: false,
+      payerId: '',
+      bankId: '',
+    });
   });
 
-  it('writes bills with their payer and bank references', async () => {
-    // Given a bill assigned to a payer and bank
+  it('writes bills with their payer, bank and final-value flag', async () => {
+    // Given a final bill assigned to a payer and bank
     const fetchMock = vi.fn().mockResolvedValue(jsonResponse({}));
     vi.stubGlobal('fetch', fetchMock);
 
@@ -144,12 +153,13 @@ describe('GoogleSheetsService schema round-trip', () => {
         name: 'Luz',
         amount: 120,
         isPaid: false,
+        isFinal: true,
         payerId: 'payer-marcelo',
         bankId: 'bank-nubank',
       },
     ]);
 
-    // Then the row carries all seven columns, in order
+    // Then the row carries all eight columns, in order
     const put = fetchMock.mock.calls.find(
       ([url, options]) =>
         String(url).includes('/values/bills!A2') &&
@@ -157,7 +167,7 @@ describe('GoogleSheetsService schema round-trip', () => {
     );
     const body = JSON.parse(String((put?.[1] as RequestInit).body));
     expect(body.values).toEqual([
-      ['b1', '2026-06', 'Luz', 120, 'FALSE', 'payer-marcelo', 'bank-nubank'],
+      ['b1', '2026-06', 'Luz', 120, 'FALSE', 'payer-marcelo', 'bank-nubank', 'TRUE'],
     ]);
   });
 
@@ -278,7 +288,7 @@ describe('initializeSheets schema migration', () => {
         JSON.parse(String((options as RequestInit).body)).values[0]
       );
     expect(headerWrites).toEqual([
-      ['id', 'month', 'name', 'amount', 'is_paid', 'payer_id', 'bank_id'],
+      ['id', 'month', 'name', 'amount', 'is_paid', 'payer_id', 'bank_id', 'is_final'],
     ]);
 
     // While a tab whose header already matches is left alone

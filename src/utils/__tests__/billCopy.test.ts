@@ -12,6 +12,7 @@ function bill(overrides: Partial<Bill>): Bill {
     name: 'Luz',
     amount: 150,
     isPaid: false,
+    isFinal: true,
     payerId: 'payer-marcelo',
     bankId: 'bank-nubank',
     ...overrides,
@@ -57,6 +58,17 @@ describe('copyBills', () => {
 
     // Then the new month's obligation starts open
     expect(copies[0].isPaid).toBe(false);
+  });
+
+  it("starts every copied bill not final, so last month's confirmed value never leaks", () => {
+    // Given last month's bill had its value confirmed as final
+    const source = [bill({ id: 'a', isFinal: true })];
+
+    // When I replicate it
+    const copies = copyBills(source, JUNE);
+
+    // Then the new month's copy is flagged as still awaiting review
+    expect(copies[0].isFinal).toBe(false);
   });
 
   it('gives every copy a fresh id so it cannot collide with its source', () => {

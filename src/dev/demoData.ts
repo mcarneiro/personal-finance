@@ -61,7 +61,8 @@ function bill(
   amount: number,
   payerId: string,
   bankId: string,
-  isPaid = false
+  isPaid = false,
+  isFinal = true
 ): Bill {
   const slug = name
     .toLowerCase()
@@ -69,7 +70,7 @@ function bill(
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/(^-|-$)/g, '');
-  return { id: `bill-${month}-${slug}`, month, name, amount, isPaid, payerId, bankId };
+  return { id: `bill-${month}-${slug}`, month, name, amount, isPaid, isFinal, payerId, bankId };
 }
 
 /** Build an income entry pinned to a month. */
@@ -185,7 +186,7 @@ const JULY: DemoMonth = {
   ],
   bills: [
     bill('2026-07', 'Cartão guta', 3100, 'payer-guta', 'bank-itau', true),
-    bill('2026-07', 'Luz', 190, 'payer-marcelo', 'bank-nubank'),
+    bill('2026-07', 'Luz', 190, 'payer-marcelo', 'bank-nubank', false, false),
     bill('2026-07', 'Internet', 110, 'payer-marcelo', 'bank-nubank', true),
     bill('2026-07', 'Gym', 200, 'payer-guta', 'bank-inter'),
   ],
@@ -246,9 +247,11 @@ const SEPTEMBER: DemoMonth = {
     cardTotal('2026-09', 'card-ml', 0),
   ],
   bills: [
-    bill('2026-09', 'Cartão guta', 3200, 'payer-guta', 'bank-itau'),
+    // The card bill and Internet await this month's real values, so they show
+    // the not-final warning and sink below the confirmed Luz.
+    bill('2026-09', 'Cartão guta', 3200, 'payer-guta', 'bank-itau', false, false),
     bill('2026-09', 'Luz', 185, 'payer-marcelo', 'bank-nubank', true),
-    bill('2026-09', 'Internet', 110, 'payer-marcelo', 'bank-nubank'),
+    bill('2026-09', 'Internet', 110, 'payer-marcelo', 'bank-nubank', false, false),
   ],
   income: [income('2026-09', 12000, 'Salário')],
   expected: {

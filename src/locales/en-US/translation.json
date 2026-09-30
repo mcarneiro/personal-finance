@@ -85,6 +85,8 @@
     "accountNet": "Account net",
     "nameLabel": "Bill name",
     "amountLabel": "Bill amount",
+    "finalValueLabel": "Final value",
+    "notFinal": "Value not final",
     "addBill": "Add bill",
     "newTitle": "New bill",
     "editTitle": "Edit bill",

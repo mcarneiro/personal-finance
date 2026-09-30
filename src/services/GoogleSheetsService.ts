@@ -370,9 +370,9 @@ export class GoogleSheetsService {
   }
 
   async readBills(spreadsheetId: string): Promise<Bill[]> {
-    const rows = await this.readRows(spreadsheetId, 'bills', 'A2:G');
+    const rows = await this.readRows(spreadsheetId, 'bills', 'A2:H');
     return rows.filter((row) => !this.isBlankRow(row)).map((row, index) => {
-      const [id, month, name, amount, isPaid, payerId, bankId] = row;
+      const [id, month, name, amount, isPaid, payerId, bankId, isFinal] = row;
       return {
         id: this.parseString(id, `bill-${index}`),
         month: this.parseString(month),
@@ -380,7 +380,9 @@ export class GoogleSheetsService {
         amount: this.parseNumber(amount),
         isPaid: this.parseBoolean(isPaid),
         // Blank cells are the legacy default: bills written before these
-        // columns existed read back as unset.
+        // columns existed read back as unset, and an absent is_final reads as
+        // not final so the value is flagged for review.
+        isFinal: this.parseBoolean(isFinal),
         payerId: this.parseString(payerId),
         bankId: this.parseString(bankId),
       };
@@ -391,7 +393,7 @@ export class GoogleSheetsService {
     await this.writeRows(
       spreadsheetId,
       'bills',
-      'G',
+      'H',
       bills.map((bill) => [
         bill.id,
         bill.month,
@@ -400,6 +402,7 @@ export class GoogleSheetsService {
         bill.isPaid ? 'TRUE' : 'FALSE',
         bill.payerId,
         bill.bankId,
+        bill.isFinal ? 'TRUE' : 'FALSE',
       ])
     );
   }

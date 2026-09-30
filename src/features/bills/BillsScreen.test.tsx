@@ -53,6 +53,7 @@ function bill(
   return {
     id: `${overrides.month}-${overrides.name}`,
     isPaid: false,
+    isFinal: true,
     payerId: 'payer-marcelo',
     bankId: 'bank-nubank',
     ...overrides,
@@ -185,6 +186,43 @@ describe('Bills', () => {
       'Marcar como paga: Luz',
       'Marcar como em aberto: Gym',
       'Marcar como em aberto: Internet',
+    ]);
+  });
+
+  it('flags a bill whose value is not final with a warning before its name', () => {
+    // Given one confirmed bill and one still awaiting its final value
+    renderBills(`/bills/${JUNE}`, [
+      bill({ month: JUNE, name: 'Luz', amount: 150, isFinal: true }),
+      bill({ month: JUNE, name: 'Internet', amount: 110, isFinal: false }),
+    ]);
+
+    // When the list renders
+    const unconfirmedRow = screen.getByText('Internet').closest('li') as HTMLElement;
+    const confirmedRow = screen.getByText('Luz').closest('li') as HTMLElement;
+
+    // Then only the unconfirmed bill carries the warning
+    expect(within(unconfirmedRow).getByText('⚠️')).toBeInTheDocument();
+    expect(within(confirmedRow).queryByText('⚠️')).not.toBeInTheDocument();
+  });
+
+  it('sinks bills still awaiting a final value below the confirmed ones', () => {
+    // Given a confirmed paid bill and two unconfirmed open bills
+    renderBills(`/bills/${JUNE}`, [
+      bill({ month: JUNE, name: 'Água', amount: 90, isFinal: false }),
+      bill({ month: JUNE, name: 'Internet', amount: 110, isPaid: true, isFinal: true }),
+      bill({ month: JUNE, name: 'Luz', amount: 150, isFinal: false }),
+    ]);
+
+    // When the list renders
+    const rows = screen
+      .getAllByRole('checkbox')
+      .map((box) => box.getAttribute('aria-label'));
+
+    // Then the confirmed bill leads and the unconfirmed ones follow, alphabetical
+    expect(rows).toEqual([
+      'Marcar como em aberto: Internet',
+      'Marcar como paga: Água',
+      'Marcar como paga: Luz',
     ]);
   });
 

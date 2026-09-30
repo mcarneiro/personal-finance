@@ -20,7 +20,16 @@ function bill(
   payerId: string,
   bankId: string
 ): Bill {
-  return { id: `${month}-${name}`, month, name, amount, isPaid: false, payerId, bankId };
+  return {
+    id: `${month}-${name}`,
+    month,
+    name,
+    amount,
+    isPaid: false,
+    isFinal: true,
+    payerId,
+    bankId,
+  };
 }
 
 describe('billsByPayerAndBank', () => {
