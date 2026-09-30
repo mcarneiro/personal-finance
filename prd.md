@@ -176,7 +176,7 @@ Onboarding validates the connected sheet and creates any missing tabs with the h
 5. **Settings** — card, bank and payer registries + connected sheet. Opened only from the Dashboard top bar; it is a full-screen page with a back button and no bottom navigation.
 6. **Onboarding** — Stayoo flow
 
-The app shell is a mobile-first Layout: a contextual top bar, the scrollable content column, and a fixed bottom navigation with three tabs (Plan, Bills, Income).
+The app shell is a mobile-first Layout: a contextual top bar, the scrollable content column, and a fixed bottom navigation with three tabs (Plan, Bills, Income). The shell and navigation conventions are recorded in ADR-0004.
 
 ## Control Loop Specification
 

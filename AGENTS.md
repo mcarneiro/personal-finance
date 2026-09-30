@@ -16,17 +16,7 @@ Planoo is a household card-spending planner. It plans card spending in fixed cha
 - All derived numbers (Plan Total, Total Spent, Projected Result, Plan Result, Account Net) are computed in pure, fully tested utilities — never stored in state or the sheet.
 - Use `react-i18next` for all user-facing text (pt-BR primary, en-US) and Tailwind CSS for styling. Preserve the mobile-first UI.
 - Types live in `src/types/index.ts`. Do not use `any`. There are no purchase entities in this app — do not add them.
-
-## UI & navigation
-
-Keep every new screen on the same shell so the visual language stays consistent (mirroring Stayoo):
-
-- The shell is `src/components/Layout.tsx`: a contextual top bar, the `max-w-md` content column, and a fixed bottom navigation. Screen components are named `<Feature>Screen` and live under `src/features/<feature>/` (e.g. `features/dashboard/DashboardScreen.tsx`).
-- The **Dashboard** (`/`) is the app entry point. Its top bar shows the title "Dashboard" plus the Settings shortcut.
-- Every other screen's top bar shows a back button (to `/`) and that screen's name. Keep the name in the top bar; do not duplicate it in the content (month screens own only the month switcher — `MonthScaffold`).
-- **Settings** is reached only from the Dashboard top bar. It is a full-screen page with its own header and back button, and no bottom navigation.
-- The bottom navigation has exactly three tabs: Plan, Bills, Income. Settings is never a tab.
-- Cards use `rounded-lg bg-white shadow-sm` (drop shadow, no border). The top bar, bottom nav, and content share the same `mx-auto max-w-md px-4` column, and the scrollable content reserves space for the fixed bottom nav (`pb-24`).
+- The app shell and navigation conventions are fixed in ADR-0004 (`docs/adr/0004-app-shell-and-navigation.md`) — keep every new screen on the same shell.
 
 ## Development Workflow
 
@@ -34,7 +24,12 @@ Keep every new screen on the same shell so the visual language stays consistent 
 - Add a reproduction test for every bug fix. Prioritize tests for the control-loop calculations (Projected Result, Plan Result, Account Net).
 - Run `npm run lint`, `npx tsc --noEmit`, and relevant `npm test` tests after changes.
 - Verify every implementation in the browser using the Chrome DevTools MCP (chrome-mcp) before calling it done — drive the real UI, not just unit tests. If chrome-mcp is not connected, stop and ask the user to connect it manually (they run WSL, so they must open it themselves); do not silently skip the check.
-- Keep `README.md` and `prd.md` accurate when product behavior changes.
+
+## Documentation
+
+- Treat docs as part of the change, never a follow-up: whenever you change behavior, terminology, or structure, update every affected doc in the same change and commit it together with the code. Never leave a doc to be synced by a later session.
+- Keep these in sync: `README.md` (product summary), `prd.md` (spec and key screens), `CONTEXT.md` (domain glossary), `docs/adr/` (hard decisions), and this `AGENTS.md` (working rules).
+- Record a hard-to-reverse decision as a new numbered ADR in `docs/adr/` and link it from here or `prd.md`.
 
 ## Security
 
