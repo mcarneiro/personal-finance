@@ -1,3 +1,5 @@
+import type { SheetKey } from '../config/google';
+
 /**
  * A month identifier in `YYYY-MM` format (e.g. `2026-06`).
  * Month strings are the app's canonical month scope across routes and data.
@@ -71,3 +73,40 @@ export interface IncomeEntry {
   amount: number;
   source?: string;
 }
+
+/**
+ * The record-level edit a Pending Change represents. `create` and `update`
+ * carry the record's new value; `delete` carries only its id.
+ */
+export type PendingChangeType = 'create' | 'update' | 'delete';
+
+/**
+ * A member's edit to one record that has not yet been written to the sheet
+ * (CONTEXT.md, "Pending Change"). It carries the id it is keyed by, so a
+ * record has at most one Pending Change at a time — the latest local intent.
+ * `create` and `update` carry the new record; `delete` carries nothing else.
+ */
+export type PendingChange<T extends { id: string }> =
+  | { type: 'create'; id: string; record: T }
+  | { type: 'update'; id: string; record: T }
+  | { type: 'delete'; id: string };
+
+/** One tab's Pending Changes, keyed by record id. */
+export type TabPendingChanges<T extends { id: string }> = Record<string, PendingChange<T>>;
+
+/** The record type each sheet tab holds. */
+export interface SheetRecords {
+  cards: Card;
+  banks: Bank;
+  payers: Payer;
+  plan: PlanItem;
+  card_spending: CardSpending;
+  bills: Bill;
+  income: IncomeEntry;
+}
+
+/** The record type a given sheet tab holds. */
+export type SheetRecord<K extends SheetKey> = SheetRecords[K];
+
+/** A device's Pending Changes for every tab, grouped by tab. */
+export type PendingChanges = { [K in SheetKey]?: TabPendingChanges<SheetRecord<K>> };

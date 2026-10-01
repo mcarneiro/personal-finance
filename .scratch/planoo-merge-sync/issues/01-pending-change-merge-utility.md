@@ -4,9 +4,16 @@
 
 **Blocked by:** None — can start immediately.
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Pending Change types cover create, update, and delete per record, keyed by record id and grouped by tab.
-- [ ] The merge utility is pure, with no timeouts, dispatch, or I/O.
-- [ ] Unit tests (Given/When/Then) cover: upsert over a fresh row (local wins), create adds a row, delete removes a row, untouched fresh rows pass through, blank rows are skipped, and zero Pending Changes returns the fresh rows unchanged.
-- [ ] `npm run lint`, `npx tsc --noEmit`, and the new tests pass.
+- [x] Pending Change types cover create, update, and delete per record, keyed by record id and grouped by tab.
+- [x] The merge utility is pure, with no timeouts, dispatch, or I/O.
+- [x] Unit tests (Given/When/Then) cover: upsert over a fresh row (local wins), create adds a row, delete removes a row, untouched fresh rows pass through, blank rows are skipped, and zero Pending Changes returns the fresh rows unchanged.
+- [x] `npm run lint`, `npx tsc --noEmit`, and the new tests pass.
+
+## Comments
+
+- Added the Pending Change vocabulary to `src/types/index.ts`: `PendingChange<T>` (a discriminated `create`/`update`/`delete`, carrying the record for create/update and just the id for delete), `TabPendingChanges<T>` keyed by record id, and `PendingChanges` grouping every tab type-safely off `SheetKey`.
+- Added `src/utils/mergePendingChanges.ts`: a pure `mergePendingChanges(freshRows, changes)` that replays one tab's changes over its fresh rows. Local wins on an id collision, absent ids are appended (create/upsert), deletes drop their row, blank-id rows are skipped, and untouched rows keep their order. No I/O, dispatch, or state.
+- Added `src/utils/__tests__/mergePendingChanges.test.ts` (8 Given/When/Then cases) covering local-wins, create append, edit upsert, delete, untouched pass-through, blank rows, zero changes, no input mutation, and the tab-grouped type shape.
+- No user-facing surface changed, so there is nothing to drive in the browser; verification is the ticket's own gate. `npx tsc --noEmit`, `npm run lint`, the new tests, the full suite (245 passed) and `npm run build` all pass. Confirmed the dev app still renders in chrome-mcp (no regression).
