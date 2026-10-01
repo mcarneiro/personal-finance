@@ -128,6 +128,25 @@ const summaryToggle = () =>
 const payerGroup = (name: string) =>
   within(byPayer().getByText(name).closest('li') as HTMLElement);
 
+/** The small icon that opens the filter drawer. */
+const filterButton = () => screen.getByRole('button', { name: 'Filtrar contas' });
+
+/** The filter drawer, addressed once it is open. */
+const filterDrawer = () =>
+  within(screen.getByRole('dialog', { name: 'Filtrar contas' }));
+
+/** Open the drawer, tick the named boxes, and apply. */
+async function applyFilter(
+  user: ReturnType<typeof userEvent.setup>,
+  ...names: string[]
+) {
+  await user.click(filterButton());
+  for (const name of names) {
+    await user.click(filterDrawer().getByRole('checkbox', { name }));
+  }
+  await user.click(filterDrawer().getByRole('button', { name: 'Aplicar filtros' }));
+}
+
 /** Whether `first` appears before `second` in document order. */
 const appearsBefore = (first: HTMLElement, second: HTMLElement) =>
   Boolean(first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING);
@@ -453,6 +472,194 @@ describe('Bills', () => {
     // And the by-payer summary reads empty once opened
     await user.click(summaryToggle());
     expect(byPayer().getByText('Adicione contas para ver o resumo por responsável.')).toBeInTheDocument();
+  });
+});
+
+describe('Bill filter', () => {
+  it('places the filter control between the by-payer summary and the bills list', () => {
+    // Given June has a bill
+    renderBills(`/bills/${JUNE}`, [bill({ month: JUNE, name: 'Luz', amount: 150 })]);
+
+    // When the screen renders
+    const byPayerRegion = screen.getByRole('region', { name: 'Gastos por responsável' });
+    const billsRegion = screen.getByRole('region', { name: 'Contas' });
+
+    // Then the filter icon sits between the summary and the list, closed
+    expect(appearsBefore(byPayerRegion, filterButton())).toBe(true);
+    expect(appearsBefore(filterButton(), billsRegion)).toBe(true);
+    expect(filterButton()).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('dialog', { name: 'Filtrar contas' })).not.toBeInTheDocument();
+  });
+
+  it('opens a drawer with a checkbox per payer and bank used this month', async () => {
+    // Given June's bills use both payers and both banks
+    renderBills(`/bills/${JUNE}`, [
+      bill({ month: JUNE, name: 'Luz', amount: 150 }),
+      bill({ month: JUNE, name: 'Cartão guta', amount: 2899, payerId: 'payer-guta', bankId: 'bank-itau' }),
+    ]);
+    const user = userEvent.setup();
+
+    // When I open the filter
+    await user.click(filterButton());
+
+    // Then every payer and bank has a checkbox, all unchecked
+    const drawer = filterDrawer();
+    expect(drawer.getByRole('checkbox', { name: 'Marcelo' })).not.toBeChecked();
+    expect(drawer.getByRole('checkbox', { name: 'Guta' })).not.toBeChecked();
+    expect(drawer.getByRole('checkbox', { name: 'Itaú' })).not.toBeChecked();
+    expect(drawer.getByRole('checkbox', { name: 'Nubank' })).not.toBeChecked();
+  });
+
+  it('offers only the payers and banks that have bills this month', async () => {
+    // Given only Marcelo and Nubank appear in June
+    renderBills(`/bills/${JUNE}`, [bill({ month: JUNE, name: 'Luz', amount: 150 })]);
+    const user = userEvent.setup();
+
+    // When I open the filter
+    await user.click(filterButton());
+
+    // Then entries with no bill this month are not offered
+    const drawer = filterDrawer();
+    expect(drawer.getByRole('checkbox', { name: 'Marcelo' })).toBeInTheDocument();
+    expect(drawer.getByRole('checkbox', { name: 'Nubank' })).toBeInTheDocument();
+    expect(drawer.queryByRole('checkbox', { name: 'Guta' })).not.toBeInTheDocument();
+    expect(drawer.queryByRole('checkbox', { name: 'Itaú' })).not.toBeInTheDocument();
+  });
+
+  it('narrows the list to the selected payer when the filter is applied', async () => {
+    // Given June has a Marcelo bill and a Guta bill
+    renderBills(`/bills/${JUNE}`, [
+      bill({ month: JUNE, name: 'Luz', amount: 150 }),
+      bill({ month: JUNE, name: 'Cartão guta', amount: 2899, payerId: 'payer-guta', bankId: 'bank-itau' }),
+    ]);
+    const user = userEvent.setup();
+
+    // When I filter by Guta
+    await applyFilter(user, 'Guta');
+
+    // Then only Guta's bill is listed and the drawer has closed
+    expect(screen.getByText('Cartão guta')).toBeInTheDocument();
+    expect(screen.queryByText('Luz')).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: 'Filtrar contas' })).not.toBeInTheDocument();
+  });
+
+  it('matches any selected payer AND any selected bank together', async () => {
+    // Given June's bills spread across both payers and both banks
+    renderBills(`/bills/${JUNE}`, [
+      bill({ month: JUNE, name: 'Luz', amount: 150 }),
+      bill({ month: JUNE, name: 'Água', amount: 90, bankId: 'bank-itau' }),
+      bill({ month: JUNE, name: 'Cartão guta', amount: 2899, payerId: 'payer-guta', bankId: 'bank-itau' }),
+      bill({ month: JUNE, name: 'Gym', amount: 200, payerId: 'payer-guta' }),
+    ]);
+    const user = userEvent.setup();
+
+    // When I pick both payers but only Itaú
+    await applyFilter(user, 'Marcelo', 'Guta', 'Itaú');
+
+    // Then only the Itaú bills of the selected payers remain
+    expect(screen.getByText('Água')).toBeInTheDocument();
+    expect(screen.getByText('Cartão guta')).toBeInTheDocument();
+    expect(screen.queryByText('Luz')).not.toBeInTheDocument();
+    expect(screen.queryByText('Gym')).not.toBeInTheDocument();
+  });
+
+  it('shows a filtered empty state and clears it back to the month', async () => {
+    // Given no bill is both Marcelo's and from Itaú
+    renderBills(`/bills/${JUNE}`, [
+      bill({ month: JUNE, name: 'Luz', amount: 150 }),
+      bill({ month: JUNE, name: 'Cartão guta', amount: 2899, payerId: 'payer-guta', bankId: 'bank-itau' }),
+    ]);
+    const user = userEvent.setup();
+
+    // When I filter by a combination no bill satisfies
+    await applyFilter(user, 'Marcelo', 'Itaú');
+
+    // Then the list is empty rather than blank
+    expect(screen.getByText('Nenhuma conta corresponde aos filtros.')).toBeInTheDocument();
+    expect(screen.queryByText('Luz')).not.toBeInTheDocument();
+
+    // When I clear the filters from the list
+    await user.click(screen.getByRole('button', { name: 'Limpar filtros' }));
+
+    // Then the whole month is back
+    expect(screen.getByText('Luz')).toBeInTheDocument();
+    expect(screen.getByText('Cartão guta')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Limpar filtros' })).not.toBeInTheDocument();
+  });
+
+  it('leaves the month totals and the by-payer summary on the full month', async () => {
+    // Given June has a 150 bill and a 2.899 bill on different payers
+    renderBills(`/bills/${JUNE}`, [
+      bill({ month: JUNE, name: 'Luz', amount: 150 }),
+      bill({ month: JUNE, name: 'Cartão guta', amount: 2899, payerId: 'payer-guta', bankId: 'bank-itau' }),
+    ]);
+    const user = userEvent.setup();
+
+    // When I filter to Guta
+    await applyFilter(user, 'Guta');
+
+    // Then the list narrows, but the totals and summary keep the whole month
+    expect(screen.queryByText('Luz')).not.toBeInTheDocument();
+    expect(summaryRow('Total das contas').getByText(/3\.049,00/)).toBeInTheDocument();
+    await user.click(summaryToggle());
+    expect(byPayer().getByText('Marcelo')).toBeInTheDocument();
+    expect(byPayer().getByText('Guta')).toBeInTheDocument();
+  });
+
+  it('discards an unapplied selection when the drawer is closed', async () => {
+    // Given June has a Marcelo bill and a Guta bill
+    renderBills(`/bills/${JUNE}`, [
+      bill({ month: JUNE, name: 'Luz', amount: 150 }),
+      bill({ month: JUNE, name: 'Cartão guta', amount: 2899, payerId: 'payer-guta', bankId: 'bank-itau' }),
+    ]);
+    const user = userEvent.setup();
+
+    // When I open the filter, tick Guta, then press Escape without applying
+    await user.click(filterButton());
+    await user.click(filterDrawer().getByRole('checkbox', { name: 'Guta' }));
+    await user.keyboard('{Escape}');
+
+    // Then the drawer closes and nothing changed
+    expect(screen.queryByRole('dialog', { name: 'Filtrar contas' })).not.toBeInTheDocument();
+    expect(screen.getByText('Luz')).toBeInTheDocument();
+
+    // And reopening shows an untouched drawer
+    await user.click(filterButton());
+    expect(filterDrawer().getByRole('checkbox', { name: 'Guta' })).not.toBeChecked();
+  });
+
+  it('offers unset payer and bank as labelled options', async () => {
+    // Given a legacy June bill with no payer or bank recorded
+    renderBills(`/bills/${JUNE}`, [
+      bill({ month: JUNE, name: 'Luz', amount: 150, payerId: '', bankId: '' }),
+    ]);
+    const user = userEvent.setup();
+
+    // When I open the filter
+    await user.click(filterButton());
+
+    // Then the unset references are offered under their fallback labels
+    expect(filterDrawer().getByRole('checkbox', { name: 'Sem responsável' })).toBeInTheDocument();
+    expect(filterDrawer().getByRole('checkbox', { name: 'Sem banco' })).toBeInTheDocument();
+  });
+
+  it('resets the filter when the browsed month changes', async () => {
+    // Given the current month has a Marcelo bill and a Guta bill
+    renderBills(`/bills/${CURRENT}`, [
+      bill({ month: CURRENT, name: 'Luz', amount: 150 }),
+      bill({ month: CURRENT, name: 'Cartão guta', amount: 2899, payerId: 'payer-guta', bankId: 'bank-itau' }),
+    ]);
+    const user = userEvent.setup();
+
+    // When I filter to Guta and then move away and back
+    await applyFilter(user, 'Guta');
+    expect(screen.queryByText('Luz')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Próximo mês' }));
+    await user.click(screen.getByRole('button', { name: 'Mês anterior' }));
+
+    // Then the new month starts unfiltered — a stale selection never hides it
+    expect(screen.getByText('Luz')).toBeInTheDocument();
+    expect(screen.getByText('Cartão guta')).toBeInTheDocument();
   });
 });
 

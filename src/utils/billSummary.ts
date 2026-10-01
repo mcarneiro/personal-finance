@@ -30,7 +30,7 @@ export interface PayerGroup {
 }
 
 /** Registry ids first (in registry order), then unknown ids in first-seen order. */
-function orderKeys(preferred: string[], present: string[]): string[] {
+export function orderKeys(preferred: string[], present: string[]): string[] {
   const presentSet = new Set(present);
   const known = preferred.filter((id) => presentSet.has(id));
   const knownSet = new Set(known);

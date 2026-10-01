@@ -112,7 +112,13 @@
     "removedPayer": "Payer removed",
     "unassignedBank": "No bank",
     "removedBank": "Bank removed",
-    "copyLastMonth": "Replicate last month's bills"
+    "copyLastMonth": "Replicate last month's bills",
+    "filterOpen": "Filter bills",
+    "filterTitle": "Filter bills",
+    "filterApply": "Apply filters",
+    "filterClear": "Clear",
+    "filterClearAll": "Clear filters",
+    "filterEmpty": "No bills match the filters."
   },
   "income": {
     "title": "Income",

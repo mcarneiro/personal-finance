@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 import MonthScaffold from '../../components/MonthScaffold';
@@ -7,10 +7,19 @@ import { addBills, toggleBillPaid } from '../../store/billsSlice';
 import { accountNet, billsTotal, incomeTotal } from '../../utils/controlLoop';
 import { billsByPayerAndBank, type BankTotal, type PayerGroup } from '../../utils/billSummary';
 import { orderBills } from '../../utils/billOrder';
+import {
+  EMPTY_BILL_FILTER,
+  billFilterCount,
+  billFilterOptions,
+  filterBills,
+  isBillFilterEmpty,
+  type BillFilter,
+} from '../../utils/billFilter';
 import { copyBills } from '../../utils/billCopy';
 import { formatCurrency } from '../../utils/currency';
 import { isValidMonth, shiftMonth } from '../../utils/month';
 import NeedsRegistryNotice from './NeedsRegistryNotice';
+import BillFilterDrawer from './BillFilterDrawer';
 
 /**
  * The Bills screen for one month: payment obligations added by hand (name,
@@ -20,7 +29,11 @@ import NeedsRegistryNotice from './NeedsRegistryNotice';
  * by-payer spending summary, collapsed until opened, then the month's bills
  * ordered final-first, open-first and alphabetically. A bill whose value is not
  * final is flagged with a warning before its name and sinks to the bottom, so a
- * replicated month gathers the variable amounts still needing review. The
+ * replicated month gathers the variable amounts still needing review. A small
+ * filter icon between the summary and the list opens a right-side drawer that
+ * narrows the list by payer and/or bank (OR within a facet, AND across facets);
+ * that filter is view state only — it resets with the browsed month and never
+ * touches the totals or the summary, which always keep the full month. The
  * replicate-last-month button copies last month's obligations so recurring bills
  * need no retyping; the copies arrive open and not final (never pre-paid or
  * pre-confirmed) and can be edited freely. The derived numbers
@@ -40,6 +53,15 @@ export default function BillsScreen() {
   // The by-payer summary starts folded so the month's bills — the thing being
   // checked off — lead the page; the totals stay visible as the section header.
   const [summaryOpen, setSummaryOpen] = useState(false);
+  // The payer/bank filter is pure view state: it never reaches Redux or the
+  // sheet, and it resets with the browsed month so a stale selection can never
+  // hide a new month's list.
+  const [filter, setFilter] = useState<BillFilter>(EMPTY_BILL_FILTER);
+  const [filterOpen, setFilterOpen] = useState(false);
+
+  useEffect(() => {
+    setFilter(EMPTY_BILL_FILTER);
+  }, [month]);
 
   if (!isValidMonth(month)) {
     // MonthScaffold owns the redirect; nothing to list until it settles.
@@ -50,7 +72,9 @@ export default function BillsScreen() {
   const lastMonthBills = bills.filter((bill) => bill.month === shiftMonth(month, -1));
   const net = accountNet(month, income, bills);
   const spending = billsByPayerAndBank(month, bills, banks, payers);
-  const orderedBills = orderBills(monthBills, i18n.language);
+  const filterOptions = billFilterOptions(monthBills, banks, payers);
+  const filterActive = !isBillFilterEmpty(filter);
+  const visibleBills = orderBills(filterBills(monthBills, filter), i18n.language);
 
   const payerNames = new Map(payers.map((payer) => [payer.id, payer.name]));
   const bankNames = new Map(banks.map((bank) => [bank.id, bank.name]));
@@ -153,73 +177,122 @@ export default function BillsScreen() {
       )}
 
       {monthBills.length > 0 && (
+        <div className="mt-4 flex items-center justify-end gap-3">
+          {filterActive && (
+            <button
+              type="button"
+              onClick={() => setFilter(EMPTY_BILL_FILTER)}
+              className="text-xs font-semibold text-blue-600 transition-colors hover:text-blue-700"
+            >
+              {t('bills.filterClearAll')}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => setFilterOpen(true)}
+            aria-label={t('bills.filterOpen')}
+            aria-expanded={filterOpen}
+            aria-controls="bill-filter"
+            className="relative rounded-lg border border-gray-300 bg-white p-2 text-gray-600 transition-colors hover:bg-gray-50"
+          >
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              className="h-5 w-5"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 6h16M7 12h10M10 18h4"
+              />
+            </svg>
+            {filterActive && (
+              <span
+                aria-hidden="true"
+                className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-[10px] font-semibold text-white"
+              >
+                {billFilterCount(filter)}
+              </span>
+            )}
+          </button>
+        </div>
+      )}
+
+      {monthBills.length > 0 && (
         <section aria-label={t('bills.title')} className="mt-4 rounded-lg bg-white p-4 shadow-sm">
-          <ul className="divide-y divide-gray-100">
-            {orderedBills.map((bill) => (
-              <li key={bill.id} className="flex items-start gap-2 py-2">
-                {/* The paid toggle stays a sibling of the row button — a
-                    checkbox nested in a button would be invalid and awkward
-                    to reach with a screen reader. */}
-                <input
-                  id={`paid-${bill.id}`}
-                  type="checkbox"
-                  checked={bill.isPaid}
-                  onChange={() => dispatch(toggleBillPaid(bill.id))}
-                  aria-label={t(bill.isPaid ? 'bills.markOpen' : 'bills.markPaid', {
-                    name: bill.name,
-                  })}
-                  className="mt-1 h-4 w-4 shrink-0 rounded border-gray-300"
-                />
-                <button
-                  type="button"
-                  onClick={() => navigate(`/bills/edit/${bill.id}`)}
-                  aria-label={t('bills.edit', { name: bill.name })}
-                  className="flex min-w-0 flex-1 flex-col gap-1 text-left"
-                >
-                  <span className="flex items-center justify-between gap-2">
-                    <span className="flex min-w-0 flex-1 items-center gap-1">
-                      {!bill.isFinal && (
+          {visibleBills.length === 0 ? (
+            <p className="text-sm text-gray-500">{t('bills.filterEmpty')}</p>
+          ) : (
+            <ul className="divide-y divide-gray-100">
+              {visibleBills.map((bill) => (
+                <li key={bill.id} className="flex items-start gap-2 py-2">
+                  {/* The paid toggle stays a sibling of the row button — a
+                      checkbox nested in a button would be invalid and awkward
+                      to reach with a screen reader. */}
+                  <input
+                    id={`paid-${bill.id}`}
+                    type="checkbox"
+                    checked={bill.isPaid}
+                    onChange={() => dispatch(toggleBillPaid(bill.id))}
+                    aria-label={t(bill.isPaid ? 'bills.markOpen' : 'bills.markPaid', {
+                      name: bill.name,
+                    })}
+                    className="mt-1 h-4 w-4 shrink-0 rounded border-gray-300"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/bills/edit/${bill.id}`)}
+                    aria-label={t('bills.edit', { name: bill.name })}
+                    className="flex min-w-0 flex-1 flex-col gap-1 text-left"
+                  >
+                    <span className="flex items-center justify-between gap-2">
+                      <span className="flex min-w-0 flex-1 items-center gap-1">
+                        {!bill.isFinal && (
+                          <span
+                            role="img"
+                            aria-label={t('bills.notFinal')}
+                            title={t('bills.notFinal')}
+                            className="shrink-0 text-sm"
+                          >
+                            ⚠️
+                          </span>
+                        )}
                         <span
-                          role="img"
-                          aria-label={t('bills.notFinal')}
-                          title={t('bills.notFinal')}
-                          className="shrink-0 text-sm"
+                          className={`min-w-0 truncate text-sm ${
+                            bill.isPaid ? 'text-gray-400 line-through' : 'text-gray-900'
+                          }`}
                         >
-                          ⚠️
+                          {bill.name}
                         </span>
-                      )}
+                      </span>
                       <span
-                        className={`min-w-0 truncate text-sm ${
+                        className={`text-sm font-medium ${
                           bill.isPaid ? 'text-gray-400 line-through' : 'text-gray-900'
                         }`}
                       >
-                        {bill.name}
+                        {formatCurrency(bill.amount, i18n.language)}
                       </span>
                     </span>
-                    <span
-                      className={`text-sm font-medium ${
-                        bill.isPaid ? 'text-gray-400 line-through' : 'text-gray-900'
-                      }`}
-                    >
-                      {formatCurrency(bill.amount, i18n.language)}
+                    <span className="flex items-center justify-between gap-2">
+                      <span className="min-w-0 truncate text-xs text-gray-500">
+                        {payerLabel(bill.payerId)} · {bankLabel(bill.bankId)}
+                      </span>
+                      <span
+                        className={`shrink-0 text-xs font-medium ${
+                          bill.isPaid ? 'text-green-600' : 'text-amber-600'
+                        }`}
+                      >
+                        {t(bill.isPaid ? 'bills.paid' : 'bills.open')}
+                      </span>
                     </span>
-                  </span>
-                  <span className="flex items-center justify-between gap-2">
-                    <span className="min-w-0 truncate text-xs text-gray-500">
-                      {payerLabel(bill.payerId)} · {bankLabel(bill.bankId)}
-                    </span>
-                    <span
-                      className={`shrink-0 text-xs font-medium ${
-                        bill.isPaid ? 'text-green-600' : 'text-amber-600'
-                      }`}
-                    >
-                      {t(bill.isPaid ? 'bills.paid' : 'bills.open')}
-                    </span>
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
       )}
 
@@ -227,6 +300,20 @@ export default function BillsScreen() {
         <div className="mt-4">
           <NeedsRegistryNotice />
         </div>
+      )}
+
+      {filterOpen && (
+        <BillFilterDrawer
+          options={filterOptions}
+          value={filter}
+          payerLabel={payerLabel}
+          bankLabel={bankLabel}
+          onApply={(next) => {
+            setFilter(next);
+            setFilterOpen(false);
+          }}
+          onClose={() => setFilterOpen(false)}
+        />
       )}
     </MonthScaffold>
   );

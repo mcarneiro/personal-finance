@@ -112,7 +112,13 @@
     "removedPayer": "Responsável removido",
     "unassignedBank": "Sem banco",
     "removedBank": "Banco removido",
-    "copyLastMonth": "Replicar contas do mês anterior"
+    "copyLastMonth": "Replicar contas do mês anterior",
+    "filterOpen": "Filtrar contas",
+    "filterTitle": "Filtrar contas",
+    "filterApply": "Aplicar filtros",
+    "filterClear": "Limpar",
+    "filterClearAll": "Limpar filtros",
+    "filterEmpty": "Nenhuma conta corresponde aos filtros."
   },
   "income": {
     "title": "Renda",
