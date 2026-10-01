@@ -1,6 +1,7 @@
 {
   "common": {
     "loading": "Loading...",
+    "syncing": "Syncing...",
     "back": "Back",
     "cancel": "Cancel",
     "previousMonth": "Previous month",

@@ -110,3 +110,17 @@ export type SheetRecord<K extends SheetKey> = SheetRecords[K];
 
 /** A device's Pending Changes for every tab, grouped by tab. */
 export type PendingChanges = { [K in SheetKey]?: TabPendingChanges<SheetRecord<K>> };
+
+/**
+ * One pull's fresh rows for every tab, decoded into their record types. The
+ * Working Copy's data half (CONTEXT.md) — the sheet is still the source of truth.
+ */
+export interface SheetData {
+  cards: Card[];
+  banks: Bank[];
+  payers: Payer[];
+  planItems: PlanItem[];
+  cardSpending: CardSpending[];
+  bills: Bill[];
+  income: IncomeEntry[];
+}

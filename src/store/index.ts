@@ -7,6 +7,7 @@ import planReducer from './planSlice';
 import billsReducer from './billsSlice';
 import incomeReducer from './incomeSlice';
 import settingsReducer from './settingsSlice';
+import pendingReducer from './pendingSlice';
 import { syncListenerMiddleware } from './middleware/syncListener';
 
 export const store = configureStore({
@@ -19,6 +20,7 @@ export const store = configureStore({
     bills: billsReducer,
     income: incomeReducer,
     settings: settingsReducer,
+    pending: pendingReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware().prepend(syncListenerMiddleware.middleware),

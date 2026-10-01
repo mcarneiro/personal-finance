@@ -25,6 +25,7 @@ function App() {
   const authInitialized = useAppSelector((state) => state.app.authInitialized);
   const dataLoading = useAppSelector((state) => state.app.dataLoading);
   const dataLoaded = useAppSelector((state) => state.app.dataLoaded);
+  const syncing = useAppSelector((state) => state.app.syncing);
   const { isSignedIn, sessionExpired, clearSessionExpired } = useGoogleAuth();
 
   // Load data from the connected sheet on start; writes go through the sync middleware.
@@ -82,6 +83,16 @@ function App() {
               </svg>
             </button>
           </div>
+        </div>
+      )}
+
+      {syncing && !dataLoading && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="pointer-events-none fixed left-1/2 top-16 z-40 -translate-x-1/2 rounded-full bg-gray-900/80 px-3 py-1 text-xs font-medium text-white shadow-sm"
+        >
+          {t('common.syncing')}
         </div>
       )}
 

@@ -2,26 +2,46 @@ import { useEffect, useCallback, useRef } from 'react';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { useGoogleAuth } from '../contexts/GoogleAuthContext';
 import { googleSheetsService } from '../services/GoogleSheetsService';
+import { mergeSheetData } from '../utils/mergePendingChanges';
 import { setCards } from '../store/cardsSlice';
 import { setBanks } from '../store/banksSlice';
 import { setPayers } from '../store/payersSlice';
 import { setPlanItems, setCardSpending } from '../store/planSlice';
 import { setBills } from '../store/billsSlice';
 import { setIncomeEntries } from '../store/incomeSlice';
-import { setDataLoading, setDataLoaded } from '../store/appSlice';
+import { setDataLoading, setDataLoaded, setSyncing } from '../store/appSlice';
 
 /**
- * Loads all data from the connected Google Sheet on start. Saving is handled
- * by the sync listener middleware (`syncListener.ts`); this hook only reads
- * (ported from Stayoo, ADR-0001).
+ * A pull runs on app open and on focus, but no more often than this: the
+ * household edits together, so a fresh enough Working Copy is cheap while a
+ * pull on every focus would burn Sheets quota (ADR-0007).
+ */
+const MIN_PULL_INTERVAL_MS = 30_000;
+
+/**
+ * The pull side of the sync cycle (ADR-0007). Reads every tab in a single
+ * Sheets request, replays this device's Pending Changes over the fresh rows
+ * (local always wins, ADR-0008), and swaps the merged snapshot into the store.
+ *
+ * The first pull of a session owns the startup loading gate; every later pull is
+ * a silent background swap that only toggles the subtle syncing indicator.
+ * Saving is handled by the sync listener middleware (`syncListener.ts`).
  */
 export function useDataSync() {
   const dispatch = useAppDispatch();
   const { isSignedIn, accessToken, signOut } = useGoogleAuth();
   const sheetId = useAppSelector((state) => state.settings.sheetId);
-  // Tabs and headers are ensured once per session: the metadata/header reads are
-  // cheap but not free, and the schema only ever moves forward.
-  const schemaEnsured = useRef(false);
+  const pending = useAppSelector((state) => state.pending.changes);
+  // Read the freshest Pending Changes without making `pull` change identity on
+  // every edit — that would re-subscribe the focus listener on each keystroke.
+  const pendingRef = useRef(pending);
+  pendingRef.current = pending;
+
+  const inFlight = useRef(false);
+  // Only the first pull attempt of a session owns the startup loading gate. A
+  // failed first attempt must not re-gate the UI when a later focus pull retries.
+  const hasAttempted = useRef(false);
+  const lastPullAt = useRef(0);
 
   const handleApiError = useCallback(
     (error: Error & { code?: string }) => {
@@ -41,56 +61,75 @@ export function useDataSync() {
     }
   }, [accessToken]);
 
-  /** Load all data from Google Sheets. */
+  /** Pull every tab, merge the Pending Changes, and swap the snapshot in. */
   const loadData = useCallback(async () => {
-    if (!isSignedIn || !sheetId) return;
+    if (!isSignedIn || !sheetId || inFlight.current) return;
 
-    dispatch(setDataLoading(true));
+    inFlight.current = true;
+    const isStartup = !hasAttempted.current;
+    // Stamp the attempt up front so the throttle counts failed pulls too: a
+    // focus storm after an offline pull waits for the next window, and the
+    // startup attempt can never re-open the loading gate.
+    lastPullAt.current = Date.now();
+    dispatch(setSyncing(true));
+    if (isStartup) dispatch(setDataLoading(true));
 
     try {
-      // Create missing tabs and backfill drifted headers before the reads, so a
-      // sheet connected before a column or tab existed is migrated in place.
-      if (!schemaEnsured.current) {
-        await googleSheetsService.initializeSheets(sheetId);
-        schemaEnsured.current = true;
-      }
+      // One Sheets request for headers and data alike; the service creates any
+      // missing tab, re-heads a drifted header and migrates the legacy plan.
+      const fresh = await googleSheetsService.pullAll(sheetId);
+      const merged = mergeSheetData(fresh, pendingRef.current);
 
-      const [cards, banks, payers, planItems, cardSpending, bills, income] = await Promise.all([
-        googleSheetsService.readCards(sheetId),
-        googleSheetsService.readBanks(sheetId),
-        googleSheetsService.readPayers(sheetId),
-        googleSheetsService.readPlanItems(sheetId),
-        googleSheetsService.readCardSpending(sheetId),
-        googleSheetsService.readBills(sheetId),
-        googleSheetsService.readIncome(sheetId),
-      ]);
+      dispatch(setCards(merged.cards));
+      dispatch(setBanks(merged.banks));
+      dispatch(setPayers(merged.payers));
+      dispatch(setPlanItems(merged.planItems));
+      dispatch(setCardSpending(merged.cardSpending));
+      dispatch(setBills(merged.bills));
+      dispatch(setIncomeEntries(merged.income));
 
-      dispatch(setCards(cards));
-      dispatch(setBanks(banks));
-      dispatch(setPayers(payers));
-      dispatch(setPlanItems(planItems));
-      dispatch(setCardSpending(cardSpending));
-      dispatch(setBills(bills));
-      dispatch(setIncomeEntries(income));
-
-      console.log('Data loaded from Google Sheets');
       dispatch(setDataLoaded(true));
     } catch (error) {
       handleApiError(error as Error & { code?: string });
-      // A failed schema walk may have left the flag unset; it will retry on the
-      // next load. Clear the loading flag too, otherwise the startup gate would
-      // strand the user on the loading screen after a failed load.
-      dispatch(setDataLoading(false));
-      dispatch(setDataLoaded(false));
+      // Clear the startup gate so a failed first pull does not strand the user
+      // on the loading screen (ADR-0007's offline hint arrives with the cache).
+      if (isStartup) {
+        dispatch(setDataLoading(false));
+        dispatch(setDataLoaded(false));
+      }
+    } finally {
+      hasAttempted.current = true;
+      inFlight.current = false;
+      dispatch(setSyncing(false));
     }
   }, [isSignedIn, sheetId, dispatch, handleApiError]);
 
-  // Load data on mount (when signed in, sheet ID, and access token are available)
+  // Pull on open, and again whenever the connection becomes ready.
   useEffect(() => {
     if (isSignedIn && sheetId && accessToken) {
       loadData();
     }
   }, [isSignedIn, sheetId, accessToken, loadData]);
+
+  // Pull on window/app focus, throttled, and ignored while one is in flight.
+  useEffect(() => {
+    const maybePull = () => {
+      if (inFlight.current) return;
+      if (Date.now() - lastPullAt.current < MIN_PULL_INTERVAL_MS) return;
+      loadData();
+    };
+    const onFocus = () => maybePull();
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') maybePull();
+    };
+
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [loadData]);
 
   return { loadData };
 }

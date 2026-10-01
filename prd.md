@@ -54,7 +54,7 @@ A React app using Google Sheets as the database (same foundation as Stayoo) that
 
 #### 2. Google Sheets Integration
 - **Authentication**: Google OAuth (same client-ID flow and `.env` as Stayoo)
-- **Data Sync**: fetch all data on app load; write mutations back through the same debounced sync middleware pattern (`useDataSync.ts` + `syncListener.ts` ported from Stayoo)
+- **Data Sync**: read every tab — headers and data — in one batched request on app open and on window focus (throttled ~30 s); write mutations back through the same debounced sync middleware pattern (`useDataSync.ts` + `syncListener.ts` ported from Stayoo)
 
 #### 3. Month Navigation
 - Month-scoped routes (`/plan/:month`, `/bills/:month`, `/income/:month`) with prev/next navigation (Stayoo pattern)
@@ -227,7 +227,7 @@ Account Net       = Σ income − Σ bills                        (month)
 | Google Sheets API rate limits | Caching, batch operations, exponential backoff (Stayoo pattern) |
 | Card totals go stale between check-ins | Check-in UX must stay under 30 s; Total Spent is labeled "so far" |
 | Stale remaining estimates inflate the projection | Past months show the Plan Result as headline, not the projection |
-| Concurrent edits from multiple devices | Load on start; Refresh option (Stayoo behavior) |
+| Concurrent edits from multiple devices | Pull on app open and on focus (throttled ~30 s); local Pending Changes win over fresh rows |
 | Existing sheet with unexpected columns | Initialization only creates missing tabs; warn on unexpected columns |
 
 ## Future Considerations

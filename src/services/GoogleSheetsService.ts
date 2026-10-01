@@ -1,5 +1,5 @@
-import { SHEET_CONFIGS } from '../config/google';
-import { Bank, Bill, Card, CardSpending, IncomeEntry, Payer, PlanItem } from '../types';
+import { SHEET_CONFIGS, type SheetKey } from '../config/google';
+import { Bank, Bill, Card, CardSpending, IncomeEntry, Payer, PlanItem, SheetData } from '../types';
 
 interface SheetResponse {
   sheets?: Array<{
@@ -12,6 +12,15 @@ interface SheetResponse {
 interface ValueResponse {
   values?: unknown[][];
 }
+
+interface BatchGetResponse {
+  valueRanges?: Array<{
+    values?: unknown[][];
+  }>;
+}
+
+/** Every tab, in the fixed order the batch read and parsing walk them. */
+const SHEET_KEYS = Object.keys(SHEET_CONFIGS) as SheetKey[];
 
 /**
  * Google Sheets plumbing ported from Stayoo (ADR-0001): OAuth token handling,
@@ -142,17 +151,30 @@ export class GoogleSheetsService {
     columns: readonly string[]
   ): Promise<void> {
     const rows = await this.readRows(spreadsheetId, sheetName, 'A1:Z1');
-    const header = rows[0] ?? [];
+    await this.reconcileHeader(spreadsheetId, sheetName, rows[0] ?? [], columns);
+  }
+
+  /**
+   * Reconcile a tab's header row against the contract, given the header already
+   * read. Nothing is written when it matches; otherwise the header is rewritten
+   * (data rows are never touched) and, when the contract shrank, the now
+   * superfluous header cells are cleared so the row stops reporting a mismatch.
+   */
+  private async reconcileHeader(
+    spreadsheetId: string,
+    sheetName: string,
+    header: unknown[],
+    columns: readonly string[]
+  ): Promise<void> {
     const matches =
       header.length === columns.length && columns.every((column, i) => String(header[i]) === column);
+    if (matches) return;
 
-    if (!matches) {
-      await this.writeHeaders(spreadsheetId, sheetName, columns);
-      if (header.length > columns.length) {
-        const firstExtra = String.fromCharCode(65 + columns.length);
-        const lastExtra = String.fromCharCode(64 + header.length);
-        await this.clearRange(spreadsheetId, sheetName, `${firstExtra}1:${lastExtra}1`);
-      }
+    await this.writeHeaders(spreadsheetId, sheetName, columns);
+    if (header.length > columns.length) {
+      const firstExtra = String.fromCharCode(65 + columns.length);
+      const lastExtra = String.fromCharCode(64 + header.length);
+      await this.clearRange(spreadsheetId, sheetName, `${firstExtra}1:${lastExtra}1`);
     }
   }
 
@@ -171,18 +193,19 @@ export class GoogleSheetsService {
    * ordinary bucket legitimately named `fixed` or `variable` is never mistaken
    * for legacy data.
    */
-  private async migrateLegacyPlanSheet(spreadsheetId: string): Promise<void> {
-    const rows = await this.readRows(spreadsheetId, 'plan', 'A1:Z');
-    const header = (rows[0] ?? []).map((cell) => String(cell));
-    const dataRows = rows.slice(1).filter((row) => !this.isBlankRow(row));
+  private async migrateLegacyPlanRows(
+    spreadsheetId: string,
+    header: unknown[],
+    dataRows: unknown[][]
+  ): Promise<unknown[][] | null> {
     const newColumns = SHEET_CONFIGS.plan.columns;
-
-    const headerHasKind = header[2] === 'kind';
+    const nonBlank = dataRows.filter((row) => !this.isBlankRow(row));
+    const headerHasKind = String(header[2]) === 'kind';
     const rowsLookLegacy =
-      header.length !== newColumns.length && dataRows.some((row) => row.length > newColumns.length);
-    if (!headerHasKind && !rowsLookLegacy) return;
+      header.length !== newColumns.length && nonBlank.some((row) => row.length > newColumns.length);
+    if (!headerHasKind && !rowsLookLegacy) return null;
 
-    const migrated = dataRows.map((row) => [
+    const migrated = nonBlank.map((row) => [
       row[0] ?? '',
       row[1] ?? '',
       row[3] ?? '',
@@ -192,6 +215,104 @@ export class GoogleSheetsService {
 
     await this.writeRows(spreadsheetId, 'plan', 'F', migrated);
     await this.writeHeaders(spreadsheetId, 'plan', newColumns);
+    return migrated;
+  }
+
+  /** Migrate the `plan` tab by reading it first (onboarding's schema walk). */
+  private async migrateLegacyPlanSheet(spreadsheetId: string): Promise<void> {
+    const rows = await this.readRows(spreadsheetId, 'plan', 'A1:Z');
+    await this.migrateLegacyPlanRows(spreadsheetId, rows[0] ?? [], rows.slice(1));
+  }
+
+  /** One range per tab, spanning the header row and every data row. */
+  private tabRanges(): string[] {
+    return SHEET_KEYS.map((key) => `${SHEET_CONFIGS[key].name}!A1:Z`);
+  }
+
+  /**
+   * Read every tab's header and data rows in one `values:batchGet`. The response
+   * is aligned to `tabRanges()`; a range the API omitted reads as empty.
+   */
+  private async batchGetTabValues(spreadsheetId: string): Promise<unknown[][][]> {
+    const ranges = this.tabRanges();
+    const query = ranges.map((range) => `ranges=${encodeURIComponent(range)}`).join('&');
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values:batchGet?${query}&valueRenderOption=UNFORMATTED_VALUE`;
+    const data: BatchGetResponse = await this.apiRequest(url);
+    const returned = data.valueRanges ?? [];
+    return ranges.map((_, index) => returned[index]?.values ?? []);
+  }
+
+  /**
+   * Whether a `batchGet` failure means a tab does not exist yet. Sheets rejects
+   * the whole batch when any range names a missing tab, so this is the only
+   * signal that justifies the metadata/title call (and the retried read). Other
+   * failures — auth, network, quota — are real errors and must surface.
+   */
+  private isMissingTabError(error: unknown): boolean {
+    const message = error instanceof Error ? error.message : String(error);
+    return /unable to parse range/i.test(message);
+  }
+
+  /** Create the tabs the connected sheet does not have yet, headers included. */
+  private async createMissingTabs(spreadsheetId: string): Promise<void> {
+    const titles = await this.listSheetTitles(spreadsheetId);
+    for (const key of SHEET_KEYS) {
+      const config = SHEET_CONFIGS[key];
+      if (!titles.has(config.name)) {
+        await this.createSheet(spreadsheetId, config.name);
+        await this.writeHeaders(spreadsheetId, config.name, config.columns);
+      }
+    }
+  }
+
+  /**
+   * The pull side of the sync cycle: read every tab — headers and data — in a
+   * single Sheets request, create any missing tab with its header row, re-head a
+   * drifted header without touching its data, and migrate the legacy plan sheet.
+   * The returned snapshot is the raw sheet state; replaying Pending Changes over
+   * it is the caller's job (ADR-0007, ADR-0008).
+   *
+   * A tab the sheet does not have yet makes `batchGet` reject. Only then is the
+   * sheet-metadata call made: the missing tabs are created and the same single
+   * read is retried. Any other failure is rethrown, so an offline or auth error
+   * never masquerades as a missing tab.
+   */
+  async pullAll(spreadsheetId: string): Promise<SheetData> {
+    let values: unknown[][][];
+    try {
+      values = await this.batchGetTabValues(spreadsheetId);
+    } catch (error) {
+      if (!this.isMissingTabError(error)) throw error;
+      await this.createMissingTabs(spreadsheetId);
+      values = await this.batchGetTabValues(spreadsheetId);
+    }
+
+    const byKey: Partial<Record<SheetKey, unknown[][]>> = {};
+    for (let i = 0; i < SHEET_KEYS.length; i++) {
+      const key = SHEET_KEYS[i];
+      const config = SHEET_CONFIGS[key];
+      const header: unknown[] = values[i][0] ?? [];
+      let body = values[i].slice(1);
+
+      if (key === 'plan') {
+        const migrated = await this.migrateLegacyPlanRows(spreadsheetId, header, body);
+        if (migrated) body = migrated;
+      }
+      // Reconcile against the header as read, not the migrated one, so a stale
+      // trailing cell from a wider legacy header is cleared in the same pull.
+      await this.reconcileHeader(spreadsheetId, config.name, header, config.columns);
+      byKey[key] = body;
+    }
+
+    return {
+      cards: this.parseCardsRows(byKey.cards ?? []),
+      banks: this.parseBanksRows(byKey.banks ?? []),
+      payers: this.parsePayersRows(byKey.payers ?? []),
+      planItems: this.parsePlanRows(byKey.plan ?? []),
+      cardSpending: this.parseCardSpendingRows(byKey.card_spending ?? []),
+      bills: this.parseBillsRows(byKey.bills ?? []),
+      income: this.parseIncomeRows(byKey.income ?? []),
+    };
   }
 
   /**
@@ -267,12 +388,90 @@ export class GoogleSheetsService {
     return row.every((cell) => cell === '' || cell === null || cell === undefined);
   }
 
-  async readCards(spreadsheetId: string): Promise<Card[]> {
-    const rows = await this.readRows(spreadsheetId, 'cards', 'A2:B');
+  /**
+   * Decode a tab's data rows (header already stripped) into records. Shared by
+   * the per-tab reads and the single-request pull, so both paths decode
+   * identically. Blank rows — the holes a delete leaves — are skipped.
+   */
+  private parseCardsRows(rows: unknown[][]): Card[] {
     return rows.filter((row) => !this.isBlankRow(row)).map((row, index) => {
       const [id, name] = row;
       return { id: this.parseString(id, `card-${index}`), name: this.parseString(name) };
     });
+  }
+
+  private parseBanksRows(rows: unknown[][]): Bank[] {
+    return rows.filter((row) => !this.isBlankRow(row)).map((row, index) => {
+      const [id, name] = row;
+      return { id: this.parseString(id, `bank-${index}`), name: this.parseString(name) };
+    });
+  }
+
+  private parsePayersRows(rows: unknown[][]): Payer[] {
+    return rows.filter((row) => !this.isBlankRow(row)).map((row, index) => {
+      const [id, name] = row;
+      return { id: this.parseString(id, `payer-${index}`), name: this.parseString(name) };
+    });
+  }
+
+  private parsePlanRows(rows: unknown[][]): PlanItem[] {
+    return rows.filter((row) => !this.isBlankRow(row)).map((row, index) => {
+      const [id, month, name, amount, remainingEstimate] = row;
+      return {
+        id: this.parseString(id, `plan-${index}`),
+        month: this.parseString(month),
+        name: this.parseString(name),
+        amount: this.parseNumber(amount),
+        remainingEstimate: this.parseNumber(remainingEstimate),
+      };
+    });
+  }
+
+  private parseCardSpendingRows(rows: unknown[][]): CardSpending[] {
+    return rows.filter((row) => !this.isBlankRow(row)).map((row, index) => {
+      const [id, month, cardId, total] = row;
+      return {
+        id: this.parseString(id, `card-spending-${index}`),
+        month: this.parseString(month),
+        cardId: this.parseString(cardId),
+        total: this.parseNumber(total),
+      };
+    });
+  }
+
+  private parseBillsRows(rows: unknown[][]): Bill[] {
+    return rows.filter((row) => !this.isBlankRow(row)).map((row, index) => {
+      const [id, month, name, amount, isPaid, payerId, bankId, isFinal] = row;
+      return {
+        id: this.parseString(id, `bill-${index}`),
+        month: this.parseString(month),
+        name: this.parseString(name),
+        amount: this.parseNumber(amount),
+        isPaid: this.parseBoolean(isPaid),
+        // Blank cells are the legacy default: bills written before these
+        // columns existed read back as unset, and an absent is_final reads as
+        // not final so the value is flagged for review.
+        isFinal: this.parseBoolean(isFinal),
+        payerId: this.parseString(payerId),
+        bankId: this.parseString(bankId),
+      };
+    });
+  }
+
+  private parseIncomeRows(rows: unknown[][]): IncomeEntry[] {
+    return rows.filter((row) => !this.isBlankRow(row)).map((row, index) => {
+      const [id, month, amount, source] = row;
+      return {
+        id: this.parseString(id, `income-${index}`),
+        month: this.parseString(month),
+        amount: this.parseNumber(amount),
+        source: this.parseString(source) || undefined,
+      };
+    });
+  }
+
+  async readCards(spreadsheetId: string): Promise<Card[]> {
+    return this.parseCardsRows(await this.readRows(spreadsheetId, 'cards', 'A2:B'));
   }
 
   async writeCards(spreadsheetId: string, cards: Card[]): Promise<void> {
@@ -285,11 +484,7 @@ export class GoogleSheetsService {
   }
 
   async readBanks(spreadsheetId: string): Promise<Bank[]> {
-    const rows = await this.readRows(spreadsheetId, 'banks', 'A2:B');
-    return rows.filter((row) => !this.isBlankRow(row)).map((row, index) => {
-      const [id, name] = row;
-      return { id: this.parseString(id, `bank-${index}`), name: this.parseString(name) };
-    });
+    return this.parseBanksRows(await this.readRows(spreadsheetId, 'banks', 'A2:B'));
   }
 
   async writeBanks(spreadsheetId: string, banks: Bank[]): Promise<void> {
@@ -302,11 +497,7 @@ export class GoogleSheetsService {
   }
 
   async readPayers(spreadsheetId: string): Promise<Payer[]> {
-    const rows = await this.readRows(spreadsheetId, 'payers', 'A2:B');
-    return rows.filter((row) => !this.isBlankRow(row)).map((row, index) => {
-      const [id, name] = row;
-      return { id: this.parseString(id, `payer-${index}`), name: this.parseString(name) };
-    });
+    return this.parsePayersRows(await this.readRows(spreadsheetId, 'payers', 'A2:B'));
   }
 
   async writePayers(spreadsheetId: string, payers: Payer[]): Promise<void> {
@@ -319,17 +510,7 @@ export class GoogleSheetsService {
   }
 
   async readPlanItems(spreadsheetId: string): Promise<PlanItem[]> {
-    const rows = await this.readRows(spreadsheetId, 'plan', 'A2:E');
-    return rows.filter((row) => !this.isBlankRow(row)).map((row, index) => {
-      const [id, month, name, amount, remainingEstimate] = row;
-      return {
-        id: this.parseString(id, `plan-${index}`),
-        month: this.parseString(month),
-        name: this.parseString(name),
-        amount: this.parseNumber(amount),
-        remainingEstimate: this.parseNumber(remainingEstimate),
-      };
-    });
+    return this.parsePlanRows(await this.readRows(spreadsheetId, 'plan', 'A2:E'));
   }
 
   async writePlanItems(spreadsheetId: string, items: PlanItem[]): Promise<void> {
@@ -348,16 +529,7 @@ export class GoogleSheetsService {
   }
 
   async readCardSpending(spreadsheetId: string): Promise<CardSpending[]> {
-    const rows = await this.readRows(spreadsheetId, 'card_spending', 'A2:D');
-    return rows.filter((row) => !this.isBlankRow(row)).map((row, index) => {
-      const [id, month, cardId, total] = row;
-      return {
-        id: this.parseString(id, `card-spending-${index}`),
-        month: this.parseString(month),
-        cardId: this.parseString(cardId),
-        total: this.parseNumber(total),
-      };
-    });
+    return this.parseCardSpendingRows(await this.readRows(spreadsheetId, 'card_spending', 'A2:D'));
   }
 
   async writeCardSpending(spreadsheetId: string, entries: CardSpending[]): Promise<void> {
@@ -370,23 +542,7 @@ export class GoogleSheetsService {
   }
 
   async readBills(spreadsheetId: string): Promise<Bill[]> {
-    const rows = await this.readRows(spreadsheetId, 'bills', 'A2:H');
-    return rows.filter((row) => !this.isBlankRow(row)).map((row, index) => {
-      const [id, month, name, amount, isPaid, payerId, bankId, isFinal] = row;
-      return {
-        id: this.parseString(id, `bill-${index}`),
-        month: this.parseString(month),
-        name: this.parseString(name),
-        amount: this.parseNumber(amount),
-        isPaid: this.parseBoolean(isPaid),
-        // Blank cells are the legacy default: bills written before these
-        // columns existed read back as unset, and an absent is_final reads as
-        // not final so the value is flagged for review.
-        isFinal: this.parseBoolean(isFinal),
-        payerId: this.parseString(payerId),
-        bankId: this.parseString(bankId),
-      };
-    });
+    return this.parseBillsRows(await this.readRows(spreadsheetId, 'bills', 'A2:H'));
   }
 
   async writeBills(spreadsheetId: string, bills: Bill[]): Promise<void> {
@@ -408,16 +564,7 @@ export class GoogleSheetsService {
   }
 
   async readIncome(spreadsheetId: string): Promise<IncomeEntry[]> {
-    const rows = await this.readRows(spreadsheetId, 'income', 'A2:D');
-    return rows.filter((row) => !this.isBlankRow(row)).map((row, index) => {
-      const [id, month, amount, source] = row;
-      return {
-        id: this.parseString(id, `income-${index}`),
-        month: this.parseString(month),
-        amount: this.parseNumber(amount),
-        source: this.parseString(source) || undefined,
-      };
-    });
+    return this.parseIncomeRows(await this.readRows(spreadsheetId, 'income', 'A2:D'));
   }
 
   async writeIncome(spreadsheetId: string, entries: IncomeEntry[]): Promise<void> {

@@ -1,4 +1,4 @@
-import type { TabPendingChanges } from '../types';
+import type { PendingChanges, SheetData, TabPendingChanges } from '../types';
 
 /** A row is blank when it carries no id — a blank hole left by a delete. */
 function isBlankRow(row: { id: string }): boolean {
@@ -46,4 +46,23 @@ export function mergePendingChanges<T extends { id: string }>(
   }
 
   return [...merged.values()];
+}
+
+/**
+ * Replay every tab's Pending Changes over one pull's fresh data, so a pull can
+ * never silently drop a local edit that has not been written yet — or whose
+ * write failed (ADR-0008). A thin, pure per-tab wrapper around
+ * `mergePendingChanges`; this is the single place the snapshot's field names are
+ * matched to the Pending Changes tab keys.
+ */
+export function mergeSheetData(data: SheetData, pending: PendingChanges): SheetData {
+  return {
+    cards: mergePendingChanges(data.cards, pending.cards),
+    banks: mergePendingChanges(data.banks, pending.banks),
+    payers: mergePendingChanges(data.payers, pending.payers),
+    planItems: mergePendingChanges(data.planItems, pending.plan),
+    cardSpending: mergePendingChanges(data.cardSpending, pending.card_spending),
+    bills: mergePendingChanges(data.bills, pending.bills),
+    income: mergePendingChanges(data.income, pending.income),
+  };
 }

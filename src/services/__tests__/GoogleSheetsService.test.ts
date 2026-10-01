@@ -434,3 +434,263 @@ describe('initializeSheets schema migration', () => {
     expect(headerCellCleared).toBe(true);
   });
 });
+
+/**
+ * The pull cycle's read path (ADR-0007): headers and every tab's data in one
+ * `values:batchGet`, with the schema fixes (missing tab, drifted header, legacy
+ * plan) applied only when the read shows they are needed.
+ */
+describe('pullAll', () => {
+  let service: GoogleSheetsService;
+
+  const HEADERS: Record<string, unknown[]> = {
+    cards: ['id', 'name'],
+    banks: ['id', 'name'],
+    payers: ['id', 'name'],
+    plan: ['id', 'month', 'name', 'amount', 'remaining_estimate'],
+    card_spending: ['id', 'month', 'card_id', 'total'],
+    bills: ['id', 'month', 'name', 'amount', 'is_paid', 'payer_id', 'bank_id', 'is_final'],
+    income: ['id', 'month', 'amount', 'source'],
+  };
+
+  function tabRows(): Record<string, unknown[][]> {
+    return {
+      cards: [HEADERS.cards, ['c1', 'cc guta']],
+      banks: [HEADERS.banks, ['bank-1', 'Nubank']],
+      payers: [HEADERS.payers, ['payer-1', 'Marcelo']],
+      plan: [HEADERS.plan, ['pl1', '2026-06', 'Mercado', 500, 250]],
+      card_spending: [HEADERS.card_spending, ['cs1', '2026-06', 'c1', 100]],
+      bills: [
+        HEADERS.bills,
+        ['b1', '2026-06', 'Luz', 120, 'FALSE', 'payer-1', 'bank-1', 'TRUE'],
+      ],
+      income: [HEADERS.income, ['i1', '2026-06', 3000, 'Salário']],
+    };
+  }
+
+  /** Serve a batchGet by slicing the ranges out of the request URL. */
+  function batchResponse(rows: Record<string, unknown[][]>) {
+    return (target: string) => {
+      const ranges = [...target.matchAll(/ranges=([^&]+)/g)].map((match) => match[1]);
+      return jsonResponse({
+        valueRanges: ranges.map((range) => ({ values: rows[range.split('!')[0]] ?? [] })),
+      });
+    };
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    service = GoogleSheetsService.getInstance();
+    service.setAccessToken('test-token');
+  });
+
+  it('reads every tab, headers and data, in a single request', async () => {
+    // Given a fully set-up sheet
+    const rows = tabRows();
+    const fetchMock = vi.fn().mockImplementation((url: string) =>
+      Promise.resolve(batchResponse(rows)(decodeURIComponent(String(url))))
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    // When the app pulls
+    const data = await service.pullAll('sheet-1');
+
+    // Then exactly one Sheets request was made, and it was the batched read
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(String(fetchMock.mock.calls[0][0])).toContain('values:batchGet');
+    expect(String(fetchMock.mock.calls[0][0])).not.toMatch(/\/spreadsheets\/sheet-1$/);
+
+    // And every tab decoded, months intact
+    expect(data.cards).toEqual([{ id: 'c1', name: 'cc guta' }]);
+    expect(data.banks).toEqual([{ id: 'bank-1', name: 'Nubank' }]);
+    expect(data.payers).toEqual([{ id: 'payer-1', name: 'Marcelo' }]);
+    expect(data.planItems).toEqual([
+      { id: 'pl1', month: '2026-06', name: 'Mercado', amount: 500, remainingEstimate: 250 },
+    ]);
+    expect(data.cardSpending).toEqual([
+      { id: 'cs1', month: '2026-06', cardId: 'c1', total: 100 },
+    ]);
+    expect(data.bills).toEqual([
+      {
+        id: 'b1',
+        month: '2026-06',
+        name: 'Luz',
+        amount: 120,
+        isPaid: false,
+        isFinal: true,
+        payerId: 'payer-1',
+        bankId: 'bank-1',
+      },
+    ]);
+    expect(data.income).toEqual([{ id: 'i1', month: '2026-06', amount: 3000, source: 'Salário' }]);
+  });
+
+  it('creates a missing tab and retries the same single read', async () => {
+    // Given a sheet missing the banks tab, so the first batchGet rejects
+    const rows = tabRows();
+    let batchCalls = 0;
+    const fetchMock = vi.fn().mockImplementation((url: string) => {
+      const target = decodeURIComponent(String(url));
+      if (target.includes('values:batchGet')) {
+        batchCalls += 1;
+        if (batchCalls === 1) {
+          return Promise.resolve({
+            ok: false,
+            status: 400,
+            json: async () => ({ error: { message: 'Unable to parse range: banks!A1:Z' } }),
+          });
+        }
+        return Promise.resolve(batchResponse(rows)(target));
+      }
+      if (/\/spreadsheets\/sheet-1$/.test(target)) {
+        return Promise.resolve(
+          jsonResponse({
+            sheets: ['cards', 'payers', 'plan', 'card_spending', 'bills', 'income'].map((title) => ({
+              properties: { title },
+            })),
+          })
+        );
+      }
+      return Promise.resolve(jsonResponse({}));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    // When the app pulls
+    const data = await service.pullAll('sheet-1');
+
+    // Then the metadata call happened only after the failed read, the tab was
+    // created with its header, and the read was retried
+    const metadataCalled = fetchMock.mock.calls.some(([url]) =>
+      /\/spreadsheets\/sheet-1$/.test(String(url))
+    );
+    expect(metadataCalled).toBe(true);
+    const created = fetchMock.mock.calls
+      .filter(([, options]) => (options as RequestInit)?.method === 'POST' && String((options as RequestInit).body).includes('addSheet'))
+      .map(([, options]) => JSON.parse(String((options as RequestInit).body)).requests[0].addSheet.properties.title);
+    expect(created).toEqual(['banks']);
+    expect(batchCalls).toBe(2);
+
+    // And the retried read decoded every tab
+    expect(data.banks).toEqual([{ id: 'bank-1', name: 'Nubank' }]);
+  });
+
+  it('re-heads a drifted header without touching its data rows', async () => {
+    // Given bills on the legacy five columns
+    const rows = tabRows();
+    rows.bills = [
+      ['id', 'month', 'name', 'amount', 'is_paid'],
+      ['b1', '2026-06', 'Luz', 120, 'FALSE'],
+    ];
+    const fetchMock = vi.fn().mockImplementation((url: string) =>
+      Promise.resolve(batchResponse(rows)(decodeURIComponent(String(url))))
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    // When the app pulls
+    const data = await service.pullAll('sheet-1');
+
+    // Then the header is rewritten to the contract...
+    const headerPut = fetchMock.mock.calls.find(
+      ([url, options]) =>
+        String(url).includes('/values/bills!A1') && (options as RequestInit)?.method === 'PUT'
+    );
+    expect(headerPut).toBeDefined();
+    expect(JSON.parse(String((headerPut?.[1] as RequestInit).body)).values[0]).toEqual(HEADERS.bills);
+
+    // ...its data rows are left alone, and the row still decodes (unset + not final)
+    const dataPut = fetchMock.mock.calls.some(
+      ([url, options]) =>
+        String(url).includes('/values/bills!A2') && (options as RequestInit)?.method === 'PUT'
+    );
+    expect(dataPut).toBe(false);
+    expect(data.bills).toEqual([
+      {
+        id: 'b1',
+        month: '2026-06',
+        name: 'Luz',
+        amount: 120,
+        isPaid: false,
+        isFinal: false,
+        payerId: '',
+        bankId: '',
+      },
+    ]);
+  });
+
+  it('migrates the legacy plan tab on the pull path', async () => {
+    // Given a plan tab with the retired kind column and real data behind it
+    const rows = tabRows();
+    rows.plan = [
+      ['id', 'month', 'kind', 'name', 'amount', 'remaining_estimate'],
+      ['p1', '2026-06', 'variable', 'Mercado', 500, 250],
+    ];
+    const fetchMock = vi.fn().mockImplementation((url: string) =>
+      Promise.resolve(batchResponse(rows)(decodeURIComponent(String(url))))
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    // When the app pulls
+    const data = await service.pullAll('sheet-1');
+
+    // Then the rows are rewritten without kind and decode in the new order
+    const rowPut = fetchMock.mock.calls.find(
+      ([url, options]) =>
+        String(url).includes('/values/plan!A2') && (options as RequestInit)?.method === 'PUT'
+    );
+    expect(JSON.parse(String((rowPut?.[1] as RequestInit).body)).values).toEqual([
+      ['p1', '2026-06', 'Mercado', 500, 250],
+    ]);
+    expect(data.planItems).toEqual([
+      { id: 'p1', month: '2026-06', name: 'Mercado', amount: 500, remainingEstimate: 250 },
+    ]);
+  });
+
+  it('clears a stale trailing header cell in the same pull that migrates the plan', async () => {
+    // Given a half-upgraded plan header: the new five columns plus a leftover
+    // sixth cell, with rows still carrying the retired kind column
+    const rows = tabRows();
+    rows.plan = [
+      ['id', 'month', 'name', 'amount', 'remaining_estimate', 'remaining_estimate'],
+      ['p1', '2026-06', 'variable', 'Mercado', 500, 250],
+    ];
+    const fetchMock = vi.fn().mockImplementation((url: string) =>
+      Promise.resolve(batchResponse(rows)(decodeURIComponent(String(url))))
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    // When the app pulls
+    const data = await service.pullAll('sheet-1');
+
+    // Then the stale trailing header cell is cleared in the same pull
+    const headerCellCleared = fetchMock.mock.calls.some(
+      ([url, options]) =>
+        (options as RequestInit)?.method === 'POST' &&
+        String(url).includes('plan!F1') &&
+        String(url).includes(':clear')
+    );
+    expect(headerCellCleared).toBe(true);
+    expect(data.planItems).toEqual([
+      { id: 'p1', month: '2026-06', name: 'Mercado', amount: 500, remainingEstimate: 250 },
+    ]);
+  });
+
+  it('rethrows a non-missing read failure without a metadata call', async () => {
+    // Given the batched read fails for a reason other than a missing tab
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+      json: async () => ({ error: { message: 'Internal error' } }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    // When the app pulls
+    await expect(service.pullAll('sheet-1')).rejects.toThrow('Internal error');
+
+    // Then the sheet-metadata call was never made and the read was not retried
+    const metadataCalled = fetchMock.mock.calls.some(([url]) =>
+      /\/spreadsheets\/sheet-1$/.test(String(url))
+    );
+    expect(metadataCalled).toBe(false);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});

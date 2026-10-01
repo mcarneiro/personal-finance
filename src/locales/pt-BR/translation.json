@@ -1,6 +1,7 @@
 {
   "common": {
     "loading": "Carregando...",
+    "syncing": "Sincronizando...",
     "back": "Voltar",
     "cancel": "Cancelar",
     "previousMonth": "Mês anterior",

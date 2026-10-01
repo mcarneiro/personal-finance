@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { Bill, PendingChanges, TabPendingChanges } from '../../types';
-import { mergePendingChanges } from '../mergePendingChanges';
+import type { Bill, PendingChanges, SheetData, TabPendingChanges } from '../../types';
+import { mergePendingChanges, mergeSheetData } from '../mergePendingChanges';
 
 function bill(id: string, overrides: Partial<Bill> = {}): Bill {
   return {
@@ -137,5 +137,44 @@ describe('mergePendingChanges', () => {
       id: 'card-1',
       record: { id: 'card-1', name: 'cc guta' },
     });
+  });
+});
+
+describe('mergeSheetData', () => {
+  function emptySheet(): SheetData {
+    return { cards: [], banks: [], payers: [], planItems: [], cardSpending: [], bills: [], income: [] };
+  }
+
+  it('replays each tab group over its own fresh rows, leaving the rest untouched', () => {
+    // Given a pull that brought a remote bill edit and a local pending edit to
+    // a different tab (a card rename)
+    const fresh: SheetData = {
+      ...emptySheet(),
+      bills: [bill('luz', { amount: 999 })],
+      cards: [{ id: 'c1', name: 'old' }],
+    };
+    const pending: PendingChanges = {
+      bills: { luz: { type: 'update', id: 'luz', record: bill('luz', { amount: 120 }) } },
+      cards: { c1: { type: 'update', id: 'c1', record: { id: 'c1', name: 'new' } } },
+    };
+
+    // When every tab's Pending Changes are replayed over the snapshot
+    const merged = mergeSheetData(fresh, pending);
+
+    // Then the local values win and the unrelated tabs are unchanged
+    expect(merged.bills).toEqual([bill('luz', { amount: 120 })]);
+    expect(merged.cards).toEqual([{ id: 'c1', name: 'new' }]);
+    expect(merged.income).toEqual([]);
+  });
+
+  it('returns the snapshot unchanged when there are no Pending Changes', () => {
+    // Given a snapshot and no Pending Changes
+    const fresh: SheetData = { ...emptySheet(), bills: [bill('luz')] };
+
+    // When it is merged
+    const merged = mergeSheetData(fresh, {});
+
+    // Then it is equivalent to the input
+    expect(merged).toEqual(fresh);
   });
 });

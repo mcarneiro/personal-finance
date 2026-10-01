@@ -4,12 +4,15 @@ interface AppState {
   authInitialized: boolean;
   dataLoading: boolean;
   dataLoaded: boolean;
+  /** True while a background pull is in flight; never gates the UI. */
+  syncing: boolean;
 }
 
 const initialState: AppState = {
   authInitialized: false,
   dataLoading: false,
   dataLoaded: false,
+  syncing: false,
 };
 
 const appSlice = createSlice({
@@ -31,9 +34,13 @@ const appSlice = createSlice({
         state.dataLoading = false;
       }
     },
+    setSyncing: (state, action: PayloadAction<boolean>) => {
+      state.syncing = action.payload;
+    },
   },
 });
 
-export const { setAuthInitialized, setDataLoading, setDataLoaded } = appSlice.actions;
+export const { setAuthInitialized, setDataLoading, setDataLoaded, setSyncing } =
+  appSlice.actions;
 
 export default appSlice.reducer;
