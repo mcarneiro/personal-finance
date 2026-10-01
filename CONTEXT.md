@@ -59,3 +59,23 @@ _Avoid_: Owner, user, cardholder, responsible
 **Bank**:
 A named account a Bill is paid from. Banks form a registry the household maintains in Settings; a Bill references one by id, so renaming a bank flows through to its bills.
 _Avoid_: Account, card, credit card
+
+### Months
+
+**Month**:
+The YYYY-MM period every Spending Plan, Card Spending, Bill, and Income Entry belongs to. It is the unit of navigation and the period a Plan Result is computed over.
+_Avoid_: Billing cycle, period, month key
+
+### Household collaboration
+
+**Working Copy**:
+The snapshot of the household's data one device holds between refreshes, together with its Pending Changes. The sheet remains the source of truth; a Working Copy is only ever a cache.
+_Avoid_: Session, local state, offline copy
+
+**Pending Change**:
+A member's edit not yet written to the sheet. It survives failed writes and is replayed over fresh rows on the next refresh, always winning.
+_Avoid_: Draft, unsaved edit, dirty row
+
+**Lost Update**:
+A member's written change silently overwritten by a save made from a stale Working Copy. The save protocol exists to prevent this.
+_Avoid_: Overwrite, conflict, race
