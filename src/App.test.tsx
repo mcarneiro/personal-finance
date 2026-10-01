@@ -65,7 +65,7 @@ function appStore({ dataLoading = false, dataLoaded = true } = {}) {
       settings: settingsReducer,
     },
     preloadedState: {
-      app: { authInitialized: true, dataLoading, dataLoaded, syncing: false },
+      app: { authInitialized: true, dataLoading, dataLoaded, syncing: false, offline: false },
       settings: { sheetId: 'test-sheet' },
     },
   });

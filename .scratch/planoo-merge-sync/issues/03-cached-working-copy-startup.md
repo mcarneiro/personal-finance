@@ -4,12 +4,27 @@
 
 **Blocked by:** 02 — The pull side of the sync cycle.
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Warm-cache startup paints content before any Sheets request settles; the pull then swaps it silently.
-- [ ] A first-ever connect (cold cache) still shows the loading gate.
-- [ ] The cache is keyed by spreadsheet id and is not reused across a Settings sheet change, nor across a sheet contract version change.
-- [ ] Warm-cache startup skips schema initialization; a cold or version-mismatched cache runs the batched header check.
-- [ ] A failed startup pull shows last-saved data with the offline hint; there is no empty-state app in which one edit could overwrite the sheet.
-- [ ] Browser-verified via chrome-mcp: reload shows instant content then updates; offline shows last-saved data and the hint; changing the sheet in Settings never shows the previous sheet's data.
-- [ ] `npm run lint`, `npx tsc --noEmit`, and relevant tests pass.
+- [x] Warm-cache startup paints content before any Sheets request settles; the pull then swaps it silently.
+- [x] A first-ever connect (cold cache) still shows the loading gate.
+- [x] The cache is keyed by spreadsheet id and is not reused across a Settings sheet change, nor across a sheet contract version change.
+- [x] Warm-cache startup skips schema initialization; a cold or version-mismatched cache runs the batched header check.
+- [x] A failed startup pull shows last-saved data with the offline hint; there is no empty-state app in which one edit could overwrite the sheet.
+- [x] Browser-verified via chrome-mcp: reload shows instant content then updates; offline shows last-saved data and the hint; changing the sheet in Settings never shows the previous sheet's data.
+- [x] `npm run lint`, `npx tsc --noEmit`, and relevant tests pass.
+
+## Comments
+
+- `src/config/google.ts` now exports `SHEET_CONTRACT_VERSION`, a deterministic signature of `SHEET_CONFIGS` (tab names + column lists), so the cache stamp invalidates itself whenever a column contract changes — no constant to remember to bump.
+- New `src/services/workingCopyCache.ts` persists the merged snapshot to `localStorage` under `planoo:workingCopy:<spreadsheetId>`, stamped with the contract version and a cache-format version. `loadWorkingCopy` returns null and clears the entry for a different sheet, contract, or format, and never throws on corrupt storage; `saveWorkingCopy` is best effort.
+- New `src/store/sheetData.ts`: `selectSheetData(state)` maps the slices to one `SheetData` snapshot; a missing slice reads as empty so the cache never fails a successful sync (`syncListener` runs with partial stores in isolation tests).
+- `GoogleSheetsService.pullAll(spreadsheetId, { verifySchema = true })` skips the per-tab header reconciliation and legacy-plan migration when false. Missing tabs are still created (that path is driven by the read failing, not the check).
+- `useDataSync` now owns a per-sheet session: `beginSession` paints a stamped cache synchronously (no gate, marks the schema verified, records that there is a working copy), or clears the store for a cold cache; a session generation guard drops a pull that lands after a Settings sheet change and restarts for the new sheet. The pull passes `verifySchema: schemaVerifiedFor.current !== sheetId`, merges Pending Changes, saves the cache, and clears the offline flag. A failed startup pull with no last-saved data leaves the gate up rather than opening an editable empty app; a failed background or warm pull keeps the data and raises the offline hint.
+- `appSlice` gains `offline`; `App.tsx` shows a non-blocking `role="status"` "offline — showing last saved data" hint (pt-BR/en-US `common.offline`).
+- `syncListener` persists the Working Copy after every successful push, so the next startup paints the just-saved data. A write whose debounce spans a Settings sheet change is abandoned (`settings.sheetId` is captured when the mutation is recorded and re-checked after the delay), so the previous sheet's data is never pushed to — or cached under — the new sheet.
+- Review-driven hardening: changing sheets also clears the device's Pending Changes (`pendingSlice.clearPendingChanges`, dispatched only on an actual switch), so sheet A's unwritten edits can neither be replayed over sheet B's fresh rows nor pushed to it; and `loadWorkingCopy` validates that a stored payload is a full snapshot (all seven tabs are arrays) before returning it, so a malformed entry falls back to a cold start instead of dispatching `undefined` into the store.
+- Tests: new `workingCopyCache` (save/load, cross-sheet isolation, contract- and format-mismatch invalidation, malformed payload, corrupt entry, clear), a `pullAll` `verifySchema: false` case, `pendingSlice.clearPendingChanges`, `App.sync` cases (warm paint before the pull settles, warm skips the schema check, cold verifies, offline hint with last-saved data, cache persisted after a successful pull, no previous-sheet data or pending edit after a Settings change, mid-flight sheet change discards the stale pull, cold failure keeps the gate), and middleware cases (push persists the cache; a debounced write that raced a sheet change is abandoned). Full suite 280 passed; `npx tsc --noEmit`, `npm run lint`, and `npm run build` pass.
+- Browser-verified via chrome-mcp (main signed-in tab; no data written to the real sheet): a normal reload rendered 32 bill rows while the "Sincronizando..." indicator was still in flight, with no "Carregando..." gate; a reload with a page script that rejects all `sheets.googleapis.com` fetches showed the last-saved rows plus "offline — mostrando os últimos dados salvos" and no gate; a probe sheet id (derived in-page, never printed) cold-started behind the gate with zero rows and no trace of the connected sheet's bills, then the original connection was restored. The exact Settings `setSheetId` dispatch path is covered by the `App.sync` automated test rather than the live Settings form, because connecting a second sheet would create tabs in a real spreadsheet.
+- Docs: `prd.md` Data Sync now describes cached startup, the contract-stamped skip of the header checks, and the offline hint.
+

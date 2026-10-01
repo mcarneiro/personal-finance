@@ -71,9 +71,17 @@ const pendingSlice = createSlice({
       }
       target[action.payload.tab] = tabChanges;
     },
+    /**
+     * Drop every Pending Change. Used when the connected sheet changes: edits
+     * recorded against the previous sheet must never be replayed over — or
+     * pushed to — the new one.
+     */
+    clearPendingChanges(state) {
+      state.changes = {};
+    },
   },
 });
 
-export const { recordPendingChange, dropPendingChanges } = pendingSlice.actions;
+export const { recordPendingChange, dropPendingChanges, clearPendingChanges } = pendingSlice.actions;
 
 export default pendingSlice.reducer;

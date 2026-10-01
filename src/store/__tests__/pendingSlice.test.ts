@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Bill } from '../../types';
-import reducer, { dropPendingChanges, recordPendingChange } from '../pendingSlice';
+import reducer, { clearPendingChanges, dropPendingChanges, recordPendingChange } from '../pendingSlice';
 
 function bill(id: string, overrides: Partial<Bill> = {}): Bill {
   return {
@@ -117,5 +117,23 @@ describe('pendingSlice', () => {
       id: 'luz',
       record: bill('luz', { amount: 300 }),
     });
+  });
+
+  it('clears every Pending Change when the connected sheet changes', () => {
+    // Given edits recorded across two tabs
+    let state = reducer(
+      undefined,
+      recordPendingChange({ tab: 'bills', change: { type: 'update', id: 'luz', record: bill('luz') } })
+    );
+    state = reducer(
+      state,
+      recordPendingChange({ tab: 'cards', change: { type: 'delete', id: 'c9' } })
+    );
+
+    // When the connected sheet changes
+    state = reducer(state, clearPendingChanges());
+
+    // Then nothing from the previous sheet is left to replay or push
+    expect(state.changes).toEqual({});
   });
 });

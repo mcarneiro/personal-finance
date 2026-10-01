@@ -13,7 +13,19 @@ import {
 } from '../planSlice';
 import { dropPendingChanges, recordPendingChange } from '../pendingSlice';
 import { googleSheetsService } from '../../services/GoogleSheetsService';
+import { saveWorkingCopy } from '../../services/workingCopyCache';
+import { selectSheetData } from '../sheetData';
 import type { RootState } from '../index';
+
+/**
+ * Persist the merged Working Copy after a successful write, so the next startup
+ * paints it instantly (ADR-0007). Best effort: a storage failure never fails a
+ * successful sync.
+ */
+function persistWorkingCopy(state: RootState): void {
+  if (!state.settings.sheetId) return;
+  saveWorkingCopy(state.settings.sheetId, selectSheetData(state));
+}
 
 /**
  * Debounced write-back to the connected sheet (ported from Stayoo, ADR-0001).
@@ -34,6 +46,7 @@ const DEBOUNCE_MS = 1000;
 startAppListening({
   matcher: isAnyOf(addCard, updateCard, deleteCard),
   effect: async (action, listenerApi) => {
+    const sheetIdAtChange = listenerApi.getState().settings.sheetId;
     if (addCard.match(action)) {
       listenerApi.dispatch(
         recordPendingChange({
@@ -58,12 +71,15 @@ startAppListening({
     listenerApi.cancelActiveListeners(); // Cancel any pending saves
 
     const { cards, settings } = listenerApi.getState();
-    if (!settings.sheetId) return;
+    // Abort a write that raced a Settings sheet change: the store was cleared
+    // for the new sheet, so proceeding would push empty (or the wrong) data.
+    if (!settings.sheetId || settings.sheetId !== sheetIdAtChange) return;
 
     const pendingBefore = listenerApi.getState().pending?.changes?.cards ?? {};
     try {
       await googleSheetsService.writeCards(settings.sheetId, cards.items);
       listenerApi.dispatch(dropPendingChanges({ tab: 'cards', changes: pendingBefore }));
+      persistWorkingCopy(listenerApi.getState());
     } catch (error) {
       console.error('Failed to sync cards:', error);
     }
@@ -73,6 +89,7 @@ startAppListening({
 startAppListening({
   matcher: isAnyOf(addBank, updateBank, deleteBank),
   effect: async (action, listenerApi) => {
+    const sheetIdAtChange = listenerApi.getState().settings.sheetId;
     if (addBank.match(action)) {
       listenerApi.dispatch(
         recordPendingChange({
@@ -97,12 +114,15 @@ startAppListening({
     listenerApi.cancelActiveListeners(); // Cancel any pending saves
 
     const { banks, settings } = listenerApi.getState();
-    if (!settings.sheetId) return;
+    // Abort a write that raced a Settings sheet change: the store was cleared
+    // for the new sheet, so proceeding would push empty (or the wrong) data.
+    if (!settings.sheetId || settings.sheetId !== sheetIdAtChange) return;
 
     const pendingBefore = listenerApi.getState().pending?.changes?.banks ?? {};
     try {
       await googleSheetsService.writeBanks(settings.sheetId, banks.items);
       listenerApi.dispatch(dropPendingChanges({ tab: 'banks', changes: pendingBefore }));
+      persistWorkingCopy(listenerApi.getState());
     } catch (error) {
       console.error('Failed to sync banks:', error);
     }
@@ -112,6 +132,7 @@ startAppListening({
 startAppListening({
   matcher: isAnyOf(addPayer, updatePayer, deletePayer),
   effect: async (action, listenerApi) => {
+    const sheetIdAtChange = listenerApi.getState().settings.sheetId;
     if (addPayer.match(action)) {
       listenerApi.dispatch(
         recordPendingChange({
@@ -136,12 +157,15 @@ startAppListening({
     listenerApi.cancelActiveListeners(); // Cancel any pending saves
 
     const { payers, settings } = listenerApi.getState();
-    if (!settings.sheetId) return;
+    // Abort a write that raced a Settings sheet change: the store was cleared
+    // for the new sheet, so proceeding would push empty (or the wrong) data.
+    if (!settings.sheetId || settings.sheetId !== sheetIdAtChange) return;
 
     const pendingBefore = listenerApi.getState().pending?.changes?.payers ?? {};
     try {
       await googleSheetsService.writePayers(settings.sheetId, payers.items);
       listenerApi.dispatch(dropPendingChanges({ tab: 'payers', changes: pendingBefore }));
+      persistWorkingCopy(listenerApi.getState());
     } catch (error) {
       console.error('Failed to sync payers:', error);
     }
@@ -151,6 +175,7 @@ startAppListening({
 startAppListening({
   matcher: isAnyOf(addPlanItem, addPlanItems, updatePlanItem, deletePlanItem),
   effect: async (action, listenerApi) => {
+    const sheetIdAtChange = listenerApi.getState().settings.sheetId;
     if (addPlanItem.match(action)) {
       listenerApi.dispatch(
         recordPendingChange({
@@ -181,12 +206,15 @@ startAppListening({
     listenerApi.cancelActiveListeners();
 
     const { plan, settings } = listenerApi.getState();
-    if (!settings.sheetId) return;
+    // Abort a write that raced a Settings sheet change: the store was cleared
+    // for the new sheet, so proceeding would push empty (or the wrong) data.
+    if (!settings.sheetId || settings.sheetId !== sheetIdAtChange) return;
 
     const pendingBefore = listenerApi.getState().pending?.changes?.plan ?? {};
     try {
       await googleSheetsService.writePlanItems(settings.sheetId, plan.items);
       listenerApi.dispatch(dropPendingChanges({ tab: 'plan', changes: pendingBefore }));
+      persistWorkingCopy(listenerApi.getState());
     } catch (error) {
       console.error('Failed to sync plan items:', error);
     }
@@ -196,6 +224,7 @@ startAppListening({
 startAppListening({
   actionCreator: setCardSpendingTotal,
   effect: async (action, listenerApi) => {
+    const sheetIdAtChange = listenerApi.getState().settings.sheetId;
     const { month, cardId } = action.payload;
     const entry = listenerApi
       .getState()
@@ -213,12 +242,15 @@ startAppListening({
     listenerApi.cancelActiveListeners();
 
     const { plan, settings } = listenerApi.getState();
-    if (!settings.sheetId) return;
+    // Abort a write that raced a Settings sheet change: the store was cleared
+    // for the new sheet, so proceeding would push empty (or the wrong) data.
+    if (!settings.sheetId || settings.sheetId !== sheetIdAtChange) return;
 
     const pendingBefore = listenerApi.getState().pending?.changes?.card_spending ?? {};
     try {
       await googleSheetsService.writeCardSpending(settings.sheetId, plan.cardSpending);
       listenerApi.dispatch(dropPendingChanges({ tab: 'card_spending', changes: pendingBefore }));
+      persistWorkingCopy(listenerApi.getState());
     } catch (error) {
       console.error('Failed to sync card spending:', error);
     }
@@ -228,6 +260,7 @@ startAppListening({
 startAppListening({
   matcher: isAnyOf(addBill, addBills, updateBill, deleteBill, toggleBillPaid),
   effect: async (action, listenerApi) => {
+    const sheetIdAtChange = listenerApi.getState().settings.sheetId;
     if (addBill.match(action)) {
       listenerApi.dispatch(
         recordPendingChange({
@@ -268,12 +301,15 @@ startAppListening({
     listenerApi.cancelActiveListeners();
 
     const { bills, settings } = listenerApi.getState();
-    if (!settings.sheetId) return;
+    // Abort a write that raced a Settings sheet change: the store was cleared
+    // for the new sheet, so proceeding would push empty (or the wrong) data.
+    if (!settings.sheetId || settings.sheetId !== sheetIdAtChange) return;
 
     const pendingBefore = listenerApi.getState().pending?.changes?.bills ?? {};
     try {
       await googleSheetsService.writeBills(settings.sheetId, bills.items);
       listenerApi.dispatch(dropPendingChanges({ tab: 'bills', changes: pendingBefore }));
+      persistWorkingCopy(listenerApi.getState());
     } catch (error) {
       console.error('Failed to sync bills:', error);
     }
@@ -283,6 +319,7 @@ startAppListening({
 startAppListening({
   matcher: isAnyOf(addIncomeEntry, addIncomeEntries, updateIncomeEntry, deleteIncomeEntry),
   effect: async (action, listenerApi) => {
+    const sheetIdAtChange = listenerApi.getState().settings.sheetId;
     if (addIncomeEntry.match(action)) {
       listenerApi.dispatch(
         recordPendingChange({
@@ -316,12 +353,15 @@ startAppListening({
     listenerApi.cancelActiveListeners();
 
     const { income, settings } = listenerApi.getState();
-    if (!settings.sheetId) return;
+    // Abort a write that raced a Settings sheet change: the store was cleared
+    // for the new sheet, so proceeding would push empty (or the wrong) data.
+    if (!settings.sheetId || settings.sheetId !== sheetIdAtChange) return;
 
     const pendingBefore = listenerApi.getState().pending?.changes?.income ?? {};
     try {
       await googleSheetsService.writeIncome(settings.sheetId, income.items);
       listenerApi.dispatch(dropPendingChanges({ tab: 'income', changes: pendingBefore }));
+      persistWorkingCopy(listenerApi.getState());
     } catch (error) {
       console.error('Failed to sync income:', error);
     }

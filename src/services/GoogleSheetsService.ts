@@ -276,8 +276,17 @@ export class GoogleSheetsService {
    * sheet-metadata call made: the missing tabs are created and the same single
    * read is retried. Any other failure is rethrown, so an offline or auth error
    * never masquerades as a missing tab.
+   *
+   * `verifySchema` defaults to true. When the caller holds a cached Working Copy
+   * stamped as schema-known-good for this sheet and contract, it can pass false
+   * to skip the header checks (and the legacy plan migration) entirely: the
+   * headers are still read with the data, but never rewritten. A missing tab is
+   * still created, because that is driven by the read failing, not by a check.
    */
-  async pullAll(spreadsheetId: string): Promise<SheetData> {
+  async pullAll(
+    spreadsheetId: string,
+    { verifySchema = true }: { verifySchema?: boolean } = {}
+  ): Promise<SheetData> {
     let values: unknown[][][];
     try {
       values = await this.batchGetTabValues(spreadsheetId);
@@ -294,13 +303,15 @@ export class GoogleSheetsService {
       const header: unknown[] = values[i][0] ?? [];
       let body = values[i].slice(1);
 
-      if (key === 'plan') {
-        const migrated = await this.migrateLegacyPlanRows(spreadsheetId, header, body);
-        if (migrated) body = migrated;
+      if (verifySchema) {
+        if (key === 'plan') {
+          const migrated = await this.migrateLegacyPlanRows(spreadsheetId, header, body);
+          if (migrated) body = migrated;
+        }
+        // Reconcile against the header as read, not the migrated one, so a stale
+        // trailing cell from a wider legacy header is cleared in the same pull.
+        await this.reconcileHeader(spreadsheetId, config.name, header, config.columns);
       }
-      // Reconcile against the header as read, not the migrated one, so a stale
-      // trailing cell from a wider legacy header is cleared in the same pull.
-      await this.reconcileHeader(spreadsheetId, config.name, header, config.columns);
       byKey[key] = body;
     }
 

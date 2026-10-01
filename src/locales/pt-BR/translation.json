@@ -2,6 +2,7 @@
   "common": {
     "loading": "Carregando...",
     "syncing": "Sincronizando...",
+    "offline": "offline — mostrando os últimos dados salvos",
     "back": "Voltar",
     "cancel": "Cancelar",
     "previousMonth": "Mês anterior",

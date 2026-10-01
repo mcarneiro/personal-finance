@@ -674,6 +674,40 @@ describe('pullAll', () => {
     ]);
   });
 
+  it('skips the header checks when the caller trusts the cached schema', async () => {
+    // Given a sheet whose bills header drifted to the legacy five columns
+    const rows = tabRows();
+    rows.bills = [
+      ['id', 'month', 'name', 'amount', 'is_paid'],
+      ['b1', '2026-06', 'Luz', 120, 'FALSE'],
+    ];
+    const fetchMock = vi.fn().mockImplementation((url: string) =>
+      Promise.resolve(batchResponse(rows)(decodeURIComponent(String(url))))
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    // When the pull is told the cached schema is known-good
+    const data = await service.pullAll('sheet-1', { verifySchema: false });
+
+    // Then only the single batched read happened, with no header write
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(String(fetchMock.mock.calls[0][0])).toContain('values:batchGet');
+
+    // And the drifted row still decodes against the contract's defaults
+    expect(data.bills).toEqual([
+      {
+        id: 'b1',
+        month: '2026-06',
+        name: 'Luz',
+        amount: 120,
+        isPaid: false,
+        isFinal: false,
+        payerId: '',
+        bankId: '',
+      },
+    ]);
+  });
+
   it('rethrows a non-missing read failure without a metadata call', async () => {
     // Given the batched read fails for a reason other than a missing tab
     const fetchMock = vi.fn().mockResolvedValue({

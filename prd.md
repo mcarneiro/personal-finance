@@ -54,7 +54,7 @@ A React app using Google Sheets as the database (same foundation as Stayoo) that
 
 #### 2. Google Sheets Integration
 - **Authentication**: Google OAuth (same client-ID flow and `.env` as Stayoo)
-- **Data Sync**: read every tab — headers and data — in one batched request on app open and on window focus (throttled ~30 s); write mutations back through the same debounced sync middleware pattern (`useDataSync.ts` + `syncListener.ts` ported from Stayoo)
+- **Data Sync**: startup paints instantly from a per-sheet **Working Copy** cache (keyed by spreadsheet id, stamped with the sheet contract version) instead of gating behind the network; a background pull then reads every tab — headers and data — in one batched request, merging fresh rows and replaying local **Pending Changes**. A pull also runs on window focus (throttled ~30 s). When the cache is stamped against the current sheet contract the header checks are skipped; otherwise they run batched, and a cache stamped for another sheet or contract is never reused. A failed pull keeps the last-saved data and shows an "offline — showing last saved data" hint rather than an empty app; a first-ever connect (no cache) still shows the loading gate. Every successful pull and push refreshes the cache, and writes go back through the same debounced sync middleware pattern (`useDataSync.ts` + `syncListener.ts` ported from Stayoo)
 
 #### 3. Month Navigation
 - Month-scoped routes (`/plan/:month`, `/bills/:month`, `/income/:month`) with prev/next navigation (Stayoo pattern)

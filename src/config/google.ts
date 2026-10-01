@@ -53,3 +53,13 @@ export const SHEET_CONFIGS = {
 } as const;
 
 export type SheetKey = keyof typeof SHEET_CONFIGS;
+
+/**
+ * Sheet contract version: a deterministic signature of the tab definitions
+ * above. A cached Working Copy is stamped with it and only reused while the
+ * stamp still matches, so adding, removing or renaming a column invalidates the
+ * local cache without anyone having to remember to bump a constant.
+ */
+export const SHEET_CONTRACT_VERSION: string = (Object.keys(SHEET_CONFIGS) as SheetKey[])
+  .map((key) => `${SHEET_CONFIGS[key].name}(${SHEET_CONFIGS[key].columns.join(',')})`)
+  .join('|');
