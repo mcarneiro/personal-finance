@@ -54,6 +54,9 @@ export const SHEET_CONFIGS = {
 
 export type SheetKey = keyof typeof SHEET_CONFIGS;
 
+/** Every tab, in the fixed order the batched read and write paths walk them. */
+export const SHEET_KEYS = Object.keys(SHEET_CONFIGS) as SheetKey[];
+
 /**
  * Sheet contract version: a deterministic signature of the tab definitions
  * above. A cached Working Copy is stamped with it and only reused while the

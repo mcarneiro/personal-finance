@@ -4,7 +4,7 @@ import type { Bill } from '../../types';
 import { loadWorkingCopy } from '../../services/workingCopyCache';
 import { googleSheetsService } from '../../services/GoogleSheetsService';
 import { syncListenerMiddleware } from '../middleware/syncListener';
-import { addBill } from '../billsSlice';
+import { addBill, updateBill } from '../billsSlice';
 import billsReducer from '../billsSlice';
 import banksReducer from '../banksSlice';
 import cardsReducer from '../cardsSlice';
@@ -16,11 +16,11 @@ import settingsReducer, { setSheetId } from '../settingsSlice';
 
 vi.mock('../../services/GoogleSheetsService', () => ({
   googleSheetsService: {
-    writeBills: vi.fn().mockResolvedValue(undefined),
+    writePendingChanges: vi.fn().mockResolvedValue(undefined),
   },
 }));
 
-function bill(id: string): Bill {
+function bill(id: string, overrides: Partial<Bill> = {}): Bill {
   return {
     id,
     month: '2026-06',
@@ -30,6 +30,7 @@ function bill(id: string): Bill {
     isFinal: true,
     payerId: 'payer-1',
     bankId: 'bank-1',
+    ...overrides,
   };
 }
 
@@ -74,7 +75,7 @@ describe('Working Copy persistence after a write', () => {
 
     // Then the snapshot is cached for the next startup
     await vi.waitFor(() => {
-      expect(googleSheetsService.writeBills).toHaveBeenCalled();
+      expect(googleSheetsService.writePendingChanges).toHaveBeenCalled();
       expect(loadWorkingCopy('sheet-1')?.bills).toEqual([bill('b1')]);
     }, { timeout: 2500 });
   });
@@ -91,7 +92,31 @@ describe('Working Copy persistence after a write', () => {
 
     // Then the previous sheet's data is never written to the new sheet, nor
     // cached under it
-    expect(googleSheetsService.writeBills).not.toHaveBeenCalled();
+    expect(googleSheetsService.writePendingChanges).not.toHaveBeenCalled();
     expect(loadWorkingCopy('sheet-2')).toBeNull();
+  });
+
+  it('keeps Pending Changes after a failed write and clears them on the retry', async () => {
+    // Given a connected store whose sheet is unreachable for the first write
+    vi.useFakeTimers();
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const store = makeStore();
+    vi.mocked(googleSheetsService.writePendingChanges).mockRejectedValueOnce(
+      new Error('offline')
+    );
+    store.dispatch(addBill(bill('b1')));
+
+    // When the debounced write fails
+    await vi.advanceTimersByTimeAsync(1100);
+
+    // Then the Pending Change is kept for a retry, not lost
+    expect(store.getState().pending.changes.bills?.b1).toBeDefined();
+
+    // When the household edits again and the next save succeeds
+    store.dispatch(updateBill(bill('b1', { amount: 150 })));
+    await vi.advanceTimersByTimeAsync(1100);
+
+    // Then the retried write clears the Pending Change
+    expect(store.getState().pending.changes.bills?.b1).toBeUndefined();
   });
 });

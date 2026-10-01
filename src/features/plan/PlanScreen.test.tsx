@@ -9,8 +9,10 @@ import i18n from '../../config/i18n';
 import { googleSheetsService } from '../../services/GoogleSheetsService';
 import cardsReducer from '../../store/cardsSlice';
 import { syncListenerMiddleware } from '../../store/middleware/syncListener';
+import pendingReducer from '../../store/pendingSlice';
 import planReducer from '../../store/planSlice';
 import settingsReducer from '../../store/settingsSlice';
+import { lastWrittenRecords, writtenRecords } from '../../test/pendingWrites';
 import type { Card, CardSpending, Month, PlanItem } from '../../types';
 import { getCurrentMonth, shiftMonth } from '../../utils/month';
 import PlanScreen from './PlanScreen';
@@ -21,8 +23,7 @@ vi.mock('../../services/GoogleSheetsService', async (importOriginal) => {
     ...actual,
     googleSheetsService: {
       ...actual.googleSheetsService,
-      writePlanItems: vi.fn(),
-      writeCardSpending: vi.fn(),
+      writePendingChanges: vi.fn(),
     },
   };
 });
@@ -88,6 +89,7 @@ function renderPlan(
       cards: cardsReducer,
       plan: planReducer,
       settings: settingsReducer,
+      pending: pendingReducer,
     },
     middleware: (getDefaultMiddleware) =>
       getDefaultMiddleware().prepend(syncListenerMiddleware.middleware),
@@ -193,13 +195,13 @@ describe('Spending Plan composition', () => {
     // And the plan tab is written back with June's copies at zero estimate —
     // never the card totals, which belong to a different tab
     await waitFor(() => {
-      const calls = vi.mocked(googleSheetsService.writePlanItems).mock.calls;
-      const written = calls[calls.length - 1]?.[1] ?? [];
-      const juneItems = written.filter((item) => item.month === JUNE);
+      const juneItems = writtenRecords(googleSheetsService, 'plan').filter(
+        (item) => item.month === JUNE
+      );
       expect(juneItems.map((item) => item.name).sort()).toEqual(['Internet', 'Restaurante']);
       expect(juneItems.every((item) => item.remainingEstimate === 0)).toBe(true);
     }, { timeout: 2500 });
-    expect(googleSheetsService.writeCardSpending).not.toHaveBeenCalled();
+    expect(writtenRecords(googleSheetsService, 'card_spending')).toEqual([]);
   });
 
   it('hides the copy button when last month has no plan', () => {
@@ -307,7 +309,7 @@ describe('Card check-in', () => {
     // Then the card_spending tab is written back with that single entry
     await waitFor(
       () =>
-        expect(googleSheetsService.writeCardSpending).toHaveBeenCalledWith('sheet-1', [
+        expect(lastWrittenRecords(googleSheetsService, 'card_spending')).toEqual([
           expect.objectContaining({ month: CURRENT, cardId: 'c1', total: 2899 }),
         ]),
       { timeout: 2500 }
@@ -329,8 +331,7 @@ describe('Card check-in', () => {
 
     // Then only the latest total is written — one row, no snapshot history
     await waitFor(() => {
-      const calls = vi.mocked(googleSheetsService.writeCardSpending).mock.calls;
-      const written = calls[calls.length - 1]?.[1] ?? [];
+      const written = lastWrittenRecords(googleSheetsService, 'card_spending');
       expect(written).toHaveLength(1);
       expect(written[0]).toMatchObject({ month: CURRENT, cardId: 'c1', total: 250 });
     }, { timeout: 2500 });
@@ -386,13 +387,16 @@ describe('Remaining estimates', () => {
     // Then the projection drops by the estimate in the same render
     expect(headline('Resultado projetado').getByText(/1\.250,00/)).toBeInTheDocument();
 
-    // And the plan tab carries the new estimate
+    // And the plan tab carries the new estimate — only the edited row, not the
+    // untouched Internet bucket
     await waitFor(
-      () =>
-        expect(googleSheetsService.writePlanItems).toHaveBeenCalledWith('sheet-1', [
+      () => {
+        const written = lastWrittenRecords(googleSheetsService, 'plan');
+        expect(written).toEqual([
           expect.objectContaining({ name: 'Restaurante', remainingEstimate: 250 }),
-          expect.objectContaining({ name: 'Internet' }),
-        ]),
+        ]);
+        expect(written.some((item) => item.name === 'Internet')).toBe(false);
+      },
       { timeout: 2500 }
     );
   });

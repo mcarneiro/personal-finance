@@ -11,7 +11,7 @@ Every save used to clear the whole tab and rewrite it from the device's current 
 
 ## Consequences
 
-- Residual and accepted: two members editing the same row at the same moment can still lose one edit (they coordinate verbally), and truly simultaneous copy-last-month taps can duplicate the replicated set. The copy action re-reads the target month first and skips if it is no longer empty, so only the same-instant double tap remains.
+- Residual and accepted: two members editing the same row at the same moment can still lose one edit (they coordinate verbally); the same applies when two brand-new records are saved into the same tab at the same moment — both resolve the same append row — and truly simultaneous copy-last-month taps can duplicate the replicated set. The copy action re-reads the target month first and skips if it is no longer empty, so only the same-instant double tap remains.
 - Deleted rows leave blank holes; there is deliberately no compaction pass — compacting rewrites the whole tab and re-imports the clobber risk.
 - Appended rows land at the tab's tail, so a backfilled old month sits after newer months; screens filter by month, so this is cosmetic.
 - Until every household device runs this protocol, an old build's whole-tab write still clobbers — accepted at household scale.

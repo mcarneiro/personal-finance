@@ -11,8 +11,10 @@ import banksReducer from '../../store/banksSlice';
 import billsReducer from '../../store/billsSlice';
 import incomeReducer from '../../store/incomeSlice';
 import { syncListenerMiddleware } from '../../store/middleware/syncListener';
+import pendingReducer from '../../store/pendingSlice';
 import payersReducer from '../../store/payersSlice';
 import settingsReducer from '../../store/settingsSlice';
+import { writtenRecords } from '../../test/pendingWrites';
 import type { Bank, Bill, IncomeEntry, Payer } from '../../types';
 import { getCurrentMonth, shiftMonth } from '../../utils/month';
 import BillsScreen from './BillsScreen';
@@ -23,8 +25,7 @@ vi.mock('../../services/GoogleSheetsService', async (importOriginal) => {
     ...actual,
     googleSheetsService: {
       ...actual.googleSheetsService,
-      writeBills: vi.fn(),
-      writeIncome: vi.fn(),
+      writePendingChanges: vi.fn(),
     },
   };
 });
@@ -83,6 +84,7 @@ function renderBills(
       payers: payersReducer,
       banks: banksReducer,
       settings: settingsReducer,
+      pending: pendingReducer,
     },
     middleware: (getDefaultMiddleware) =>
       getDefaultMiddleware().prepend(syncListenerMiddleware.middleware),
@@ -151,13 +153,11 @@ async function applyFilter(
 const appearsBefore = (first: HTMLElement, second: HTMLElement) =>
   Boolean(first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING);
 
-/** Wait out the debounced sync and assert some bills write-back satisfies `matches`. */
+/** Wait out the debounced sync and assert the bills written satisfy `matches`. */
 async function expectBillsWritten(matches: (written: Bill[]) => boolean) {
   await waitFor(() => {
-    const snapshots = vi
-      .mocked(googleSheetsService.writeBills)
-      .mock.calls.map(([, written]) => written);
-    expect(snapshots.some(matches)).toBe(true);
+    const written = writtenRecords(googleSheetsService, 'bills');
+    expect(matches(written)).toBe(true);
   }, { timeout: 2500 });
 }
 

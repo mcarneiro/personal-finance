@@ -4,13 +4,23 @@
 
 **Blocked by:** 02 — The pull side of the sync cycle.
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] A save writes only the changed rows' ranges, plus appends for new records and in-place blanks for deletes; untouched rows are never rewritten.
-- [ ] Row addresses are resolved from a fresh id-column read taken as part of that save, not from the loaded snapshot.
-- [ ] Deletes blank the row in place — no row shifts — and blank rows stay invisible to reads and to every list screen.
-- [ ] New records append at the tab's end.
-- [ ] Pending Changes clear only after a successful write and are retained across a failed write; the next pull or save retries them.
-- [ ] Browser-verified via chrome-mcp with two clients on the same sheet: both edit different bills of the same month within the same second and both edits survive; a rename and a delete on different rows interleave without loss; a paid toggle on one row and an amount edit on another both survive.
-- [ ] The PRD risk-table row for concurrent edits is rewritten, and README/CONTEXT/ADRs stay in sync (ADR-0008).
-- [ ] `npm run lint`, `npx tsc --noEmit`, and relevant tests pass.
+- [x] A save writes only the changed rows' ranges, plus appends for new records and in-place blanks for deletes; untouched rows are never rewritten.
+- [x] Row addresses are resolved from a fresh id-column read taken as part of that save, not from the loaded snapshot.
+- [x] Deletes blank the row in place — no row shifts — and blank rows stay invisible to reads and to every list screen.
+- [x] New records append at the tab's end.
+- [x] Pending Changes clear only after a successful write and are retained across a failed write; the next pull or save retries them.
+- [x] Browser-verified via chrome-mcp with two clients on the same sheet: both edit different bills of the same month within the same second and both edits survive; a rename and a delete on different rows interleave without loss; a paid toggle on one row and an amount edit on another both survive.
+- [x] The PRD risk-table row for concurrent edits is rewritten, and README/CONTEXT/ADRs stay in sync (ADR-0008).
+- [x] `npm run lint`, `npx tsc --noEmit`, and relevant tests pass.
+
+## Comments
+
+- `GoogleSheetsService.writePendingChanges` is the row-scoped write side (ADR-0008). It reads the affected tabs' id columns in one `values:batchGet` (`A2:A` per tab), resolves each Pending Change to its row, and writes only those rows in one `values:batchUpdate` (`valueInputOption: RAW`): an id already in the sheet is overwritten (local wins), a create/update whose id is absent appends after the last id-column row, and a delete blanks the row in place. Untouched rows are never rewritten. `toRow` centralizes each tab's column order; the dead whole-tab `write*` methods (and their tests) were removed.
+- `syncListener.ts` no longer writes the store's slice. Each debounced save flushes only that tab's Pending Changes via `flushPendingTab` → `writePendingChanges`, drops the changes the write carried on success (only ones still identical, so a newer in-flight edit survives), and re-caches the Working Copy. A failed write keeps them.
+- `useDataSync` now completes the sync cycle: after the pull merges and paints, it pushes any Pending Changes still unwritten (local wins) and drops them on success; a failed push keeps them for the next save or pull. This is the offline retry ADR-0007/0008 describe.
+- Docs: `prd.md` Data Sync and the concurrent-edit risk row now describe row-scoped writes, local-wins, and pull retries; `CONTEXT.md`'s Pending Change definition is updated; ADR-0008's residual bullet now also names the two-simultaneous-appends case (honest, accepted at household scale — both resolve the same append row).
+- Tests: new `writePendingChanges` suite (id-column read + single update; append at tail; create-collides-with-existing-id overwrites; delete blanks in place; absent-id delete writes nothing; multi-tab batched into one read and one update; no pending = no request; blank rows skipped on read), middleware tests (cache after a successful write; Pending Changes kept on failure and cleared on retry; a write that raced a Settings sheet change is abandoned), and `App.sync` tests (pull pushes pending and drops them on success; keeps them when the push fails). Feature tests were migrated from per-tab whole-list write assertions to the Pending Changes payload via a shared `src/test/pendingWrites.ts` helper. Full suite 291 passed; `npx tsc --noEmit`, `npm run lint`, and `npm run build` pass.
+- Browser-verified via chrome-mcp with two tabs on the same sheet (temporary `persistAuth` migration, restored to session-only afterwards; a far-future empty month so no real month was touched). Both tabs edited different bills and their Save clicks fired 274 ms apart, inside the same second: both edits survived on the sheet. Then a paid toggle on one row and an amount edit on another (229 ms apart) both survived, and a rename on one row and a delete on another (345 ms apart) interleaved with the rename kept and the deleted row blanked. Ground truth read back through the Sheets API showed both changes present each time; all throwaway rows were deleted afterwards (0 test rows remain) and the October list still renders unchanged with no console errors.
+- Known residual (accepted, documented in ADR-0008 and `spec.md`): two brand-new records saved into the same tab in the same moment resolve the same append row, so one can lose the collision — same-row semantics as the existing residual. Fixing it would need an atomic `append`/compaction pass, which the ADR deliberately rejects.

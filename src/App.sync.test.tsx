@@ -28,6 +28,7 @@ vi.mock('./services/GoogleSheetsService', () => ({
     setAccessToken: vi.fn(),
     initializeSheets: vi.fn(),
     pullAll: vi.fn(),
+    writePendingChanges: vi.fn(),
   },
   GoogleSheetsService: { extractSpreadsheetId: vi.fn() },
 }));
@@ -167,6 +168,46 @@ describe('pull sync cycle', () => {
     // Then the local edit wins over the fresh row
     await waitFor(() => expect(store.getState().bills.items).toHaveLength(1));
     expect(store.getState().bills.items[0]).toEqual(local);
+  });
+
+  it('pushes Pending Changes after a pull and drops them once the write succeeds', async () => {
+    // Given an edit whose earlier write failed (still pending on this device)
+    const local = bill('b1', { amount: 120 });
+    const store = createStore({
+      pending: { bills: { b1: { type: 'update', id: 'b1', record: local } } },
+    });
+    pullAll.mockResolvedValue({ ...emptySheet(), bills: [bill('b1', { amount: 999 })] });
+
+    // When the app opens and the pull settles
+    renderApp(store, '/bills/2026-06');
+
+    // Then the pending edit is pushed row-scoped and cleared on success
+    await waitFor(() =>
+      expect(googleSheetsService.writePendingChanges).toHaveBeenCalledWith('test-sheet', {
+        bills: { b1: { type: 'update', id: 'b1', record: local } },
+      })
+    );
+    await waitFor(() => expect(store.getState().pending.changes.bills?.b1).toBeUndefined());
+    expect(store.getState().bills.items[0]).toEqual(local);
+  });
+
+  it('keeps Pending Changes when the post-pull push fails', async () => {
+    // Given a pending edit and a pull that succeeds while the write is offline
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const local = bill('b1', { amount: 120 });
+    const store = createStore({
+      pending: { bills: { b1: { type: 'update', id: 'b1', record: local } } },
+    });
+    pullAll.mockResolvedValue({ ...emptySheet(), bills: [bill('b1', { amount: 999 })] });
+    vi.mocked(googleSheetsService.writePendingChanges).mockRejectedValue(new Error('offline'));
+
+    // When the app opens
+    renderApp(store, '/bills/2026-06');
+
+    // Then the fresh rows are painted with the local edit replayed, and the
+    // Pending Change is kept for the next save or pull
+    await waitFor(() => expect(store.getState().bills.items[0]).toEqual(local));
+    expect(store.getState().pending.changes.bills?.b1).toBeDefined();
   });
 
   it('shows the syncing indicator only while a background pull is in flight, without gating the UI', async () => {

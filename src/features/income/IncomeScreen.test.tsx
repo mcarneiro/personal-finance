@@ -9,7 +9,9 @@ import i18n from '../../config/i18n';
 import { googleSheetsService } from '../../services/GoogleSheetsService';
 import incomeReducer from '../../store/incomeSlice';
 import { syncListenerMiddleware } from '../../store/middleware/syncListener';
+import pendingReducer from '../../store/pendingSlice';
 import settingsReducer from '../../store/settingsSlice';
+import { writtenRecords } from '../../test/pendingWrites';
 import type { IncomeEntry } from '../../types';
 import { getCurrentMonth, shiftMonth } from '../../utils/month';
 import IncomeScreen from './IncomeScreen';
@@ -20,7 +22,7 @@ vi.mock('../../services/GoogleSheetsService', async (importOriginal) => {
     ...actual,
     googleSheetsService: {
       ...actual.googleSheetsService,
-      writeIncome: vi.fn(),
+      writePendingChanges: vi.fn(),
     },
   };
 });
@@ -51,6 +53,7 @@ function renderIncome(initialPath = `/income/${JUNE}`, items: IncomeEntry[] = []
     reducer: {
       income: incomeReducer,
       settings: settingsReducer,
+      pending: pendingReducer,
     },
     middleware: (getDefaultMiddleware) =>
       getDefaultMiddleware().prepend(syncListenerMiddleware.middleware),
@@ -172,9 +175,9 @@ describe('Replicate last month', () => {
 
     // And the income tab is written back with June's copies
     await waitFor(() => {
-      const calls = vi.mocked(googleSheetsService.writeIncome).mock.calls;
-      const written = calls[calls.length - 1]?.[1] ?? [];
-      const juneEntries = written.filter((entry) => entry.month === JUNE);
+      const juneEntries = writtenRecords(googleSheetsService, 'income').filter(
+        (entry) => entry.month === JUNE
+      );
       expect(juneEntries.map((entry) => entry.source).sort()).toEqual(['Freela', 'Salário']);
       expect(juneEntries.every((entry) => entry.amount > 0)).toBe(true);
     }, { timeout: 2500 });
@@ -238,9 +241,9 @@ describe('Month navigation', () => {
     // Then the copy lands in the month I am browsing
     expect(screen.getByText('Salário')).toBeInTheDocument();
     await waitFor(() => {
-      const calls = vi.mocked(googleSheetsService.writeIncome).mock.calls;
-      const written = calls[calls.length - 1]?.[1] ?? [];
-      const copies = written.filter((entry) => entry.month === NEXT);
+      const copies = writtenRecords(googleSheetsService, 'income').filter(
+        (entry) => entry.month === NEXT
+      );
       expect(copies).toHaveLength(1);
       expect(copies[0]).toMatchObject({ amount: 12000, source: 'Salário' });
     }, { timeout: 2500 });

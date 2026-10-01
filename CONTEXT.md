@@ -73,7 +73,7 @@ The snapshot of the household's data one device holds between refreshes, togethe
 _Avoid_: Session, local state, offline copy
 
 **Pending Change**:
-A member's edit not yet written to the sheet. It survives failed writes and is replayed over fresh rows on the next refresh, always winning.
+A member's edit not yet written to the sheet. It survives a failed write and is retried on the next save or refresh, always winning over the sheet's value.
 _Avoid_: Draft, unsaved edit, dirty row
 
 **Lost Update**:

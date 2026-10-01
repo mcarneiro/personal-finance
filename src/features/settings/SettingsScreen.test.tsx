@@ -12,7 +12,9 @@ import cardsReducer from '../../store/cardsSlice';
 import payersReducer from '../../store/payersSlice';
 import planReducer from '../../store/planSlice';
 import { syncListenerMiddleware } from '../../store/middleware/syncListener';
+import pendingReducer from '../../store/pendingSlice';
 import settingsReducer from '../../store/settingsSlice';
+import { lastWrittenRecords, writtenChanges, writtenRecords } from '../../test/pendingWrites';
 import { Bank, Card, CardSpending, Payer } from '../../types';
 import SettingsScreen from './SettingsScreen';
 
@@ -27,10 +29,7 @@ vi.mock('../../services/GoogleSheetsService', async (importOriginal) => {
     googleSheetsService: {
       ...actual.googleSheetsService,
       initializeSheets: vi.fn(),
-      writeCards: vi.fn(),
-      writeCardSpending: vi.fn(),
-      writeBanks: vi.fn(),
-      writePayers: vi.fn(),
+      writePendingChanges: vi.fn(),
     },
   };
 });
@@ -94,6 +93,7 @@ function renderRegistry({
       payers: payersReducer,
       plan: planReducer,
       settings: settingsReducer,
+      pending: pendingReducer,
     },
     middleware: (getDefaultMiddleware) =>
       getDefaultMiddleware().prepend(syncListenerMiddleware.middleware),
@@ -202,7 +202,7 @@ describe('Settings card registry', () => {
     // And the updated registry is persisted to the sheet's cards tab
     await waitFor(
       () =>
-        expect(googleSheetsService.writeCards).toHaveBeenCalledWith('sheet-1', [
+        expect(lastWrittenRecords(googleSheetsService, 'cards')).toEqual([
           expect.objectContaining({ id: expect.any(String), name: 'cc ml' }),
         ]),
       { timeout: 2500 }
@@ -241,7 +241,7 @@ describe('Settings card registry', () => {
     // And the updated registry is persisted to the sheet's cards tab
     await waitFor(
       () =>
-        expect(googleSheetsService.writeCards).toHaveBeenCalledWith('sheet-1', [
+        expect(lastWrittenRecords(googleSheetsService, 'cards')).toEqual([
           expect.objectContaining({ id: 'c1', name: 'cc guta visa' }),
         ]),
       { timeout: 2500 }
@@ -272,12 +272,13 @@ describe('Settings card registry', () => {
     // the historical Total Spent survives untouched
     await waitFor(
       () =>
-        expect(googleSheetsService.writeCards).toHaveBeenCalledWith('sheet-1', [
-          expect.objectContaining({ id: 'c2' }),
-        ]),
+        expect(writtenChanges(googleSheetsService, 'cards')).toContainEqual({
+          type: 'delete',
+          id: 'c1',
+        }),
       { timeout: 2500 }
     );
-    expect(googleSheetsService.writeCardSpending).not.toHaveBeenCalled();
+    expect(writtenRecords(googleSheetsService, 'card_spending')).toEqual([]);
   });
 });
 
@@ -321,7 +322,7 @@ describe('Settings bank and payer registries', () => {
     expect(screen.getByText('Nubank')).toBeInTheDocument();
     await waitFor(
       () =>
-        expect(googleSheetsService.writeBanks).toHaveBeenCalledWith('sheet-1', [
+        expect(lastWrittenRecords(googleSheetsService, 'banks')).toEqual([
           expect.objectContaining({ id: expect.any(String), name: 'Nubank' }),
         ]),
       { timeout: 2500 }
@@ -341,7 +342,7 @@ describe('Settings bank and payer registries', () => {
     expect(screen.getByText('Marcelo')).toBeInTheDocument();
     await waitFor(
       () =>
-        expect(googleSheetsService.writePayers).toHaveBeenCalledWith('sheet-1', [
+        expect(lastWrittenRecords(googleSheetsService, 'payers')).toEqual([
           expect.objectContaining({ id: expect.any(String), name: 'Marcelo' }),
         ]),
       { timeout: 2500 }
@@ -364,7 +365,7 @@ describe('Settings bank and payer registries', () => {
     expect(screen.getByText('Itaú Pessoas')).toBeInTheDocument();
     await waitFor(
       () =>
-        expect(googleSheetsService.writeBanks).toHaveBeenCalledWith('sheet-1', [
+        expect(lastWrittenRecords(googleSheetsService, 'banks')).toEqual([
           expect.objectContaining({ id: 'b1', name: 'Itaú Pessoas' }),
         ]),
       { timeout: 2500 }
@@ -388,9 +389,10 @@ describe('Settings bank and payer registries', () => {
     expect(screen.queryByText('Guta')).not.toBeInTheDocument();
     await waitFor(
       () =>
-        expect(googleSheetsService.writePayers).toHaveBeenCalledWith('sheet-1', [
-          expect.objectContaining({ id: 'p1' }),
-        ]),
+        expect(writtenChanges(googleSheetsService, 'payers')).toContainEqual({
+          type: 'delete',
+          id: 'p2',
+        }),
       { timeout: 2500 }
     );
   });

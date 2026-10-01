@@ -8,8 +8,10 @@ import '../../config/i18n';
 import i18n from '../../config/i18n';
 import { googleSheetsService } from '../../services/GoogleSheetsService';
 import { syncListenerMiddleware } from '../../store/middleware/syncListener';
+import pendingReducer from '../../store/pendingSlice';
 import planReducer from '../../store/planSlice';
 import settingsReducer from '../../store/settingsSlice';
+import { writtenChanges, writtenRecords } from '../../test/pendingWrites';
 import type { PlanItem } from '../../types';
 import BucketEditor from './BucketEditor';
 
@@ -19,7 +21,7 @@ vi.mock('../../services/GoogleSheetsService', async (importOriginal) => {
     ...actual,
     googleSheetsService: {
       ...actual.googleSheetsService,
-      writePlanItems: vi.fn(),
+      writePendingChanges: vi.fn(),
     },
   };
 });
@@ -42,6 +44,7 @@ function renderEditor(initialPath: string, items: PlanItem[] = []) {
     reducer: {
       plan: planReducer,
       settings: settingsReducer,
+      pending: pendingReducer,
     },
     middleware: (getDefaultMiddleware) =>
       getDefaultMiddleware().prepend(syncListenerMiddleware.middleware),
@@ -67,14 +70,12 @@ function renderEditor(initialPath: string, items: PlanItem[] = []) {
   return store;
 }
 
-/** Wait out the debounced sync and assert some plan write-back satisfies `matches`. */
+/** Wait out the debounced sync and assert the plan written satisfies `matches`. */
 async function expectPlanWritten(matches: (written: PlanItem[]) => boolean) {
   await waitFor(
     () => {
-      const snapshots = vi
-        .mocked(googleSheetsService.writePlanItems)
-        .mock.calls.map(([, written]) => written);
-      expect(snapshots.some(matches)).toBe(true);
+      const written = writtenRecords(googleSheetsService, 'plan');
+      expect(matches(written)).toBe(true);
     },
     { timeout: 2500 }
   );
@@ -163,11 +164,16 @@ describe('Bucket editor', () => {
     // Then June's plan is shown again
     expect(screen.getByText('Lista do plano')).toBeInTheDocument();
 
-    // And the plan tab is written back without the removed bucket
-    await expectPlanWritten(
-      (written) =>
-        written.some((entry) => entry.name === 'Gym') &&
-        !written.some((entry) => entry.name === 'Internet')
+    // And the removed bucket's row is blanked, with no other record rewritten
+    await waitFor(
+      () => {
+        expect(writtenChanges(googleSheetsService, 'plan')).toContainEqual({
+          type: 'delete',
+          id: `${JUNE}-Internet`,
+        });
+        expect(writtenRecords(googleSheetsService, 'plan')).toEqual([]);
+      },
+      { timeout: 2500 }
     );
   });
 

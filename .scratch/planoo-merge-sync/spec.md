@@ -18,7 +18,7 @@ Loading Planoo gated the whole app behind ~9 sequential Google Sheets round trip
 
 ## Accepted residuals (documented, not bugs)
 
-- Same-row, same-moment edits can still lose one edit; the members coordinate verbally.
+- Same-row, same-moment edits can still lose one edit — including two brand-new records saved into the same tab at once, which resolve the same append row; the members coordinate verbally.
 - Truly simultaneous copy-last-month taps can double-replicate; the copy action re-reads and guards.
 - Deletes leave blank rows; there is deliberately no compaction pass, because compaction rewrites the whole tab and re-imports the clobber.
 - Appended rows land at the tab's tail, so a backfilled old month is cosmetically out of order; screens filter by month.

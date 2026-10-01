@@ -10,8 +10,10 @@ import { googleSheetsService } from '../../services/GoogleSheetsService';
 import banksReducer from '../../store/banksSlice';
 import billsReducer from '../../store/billsSlice';
 import { syncListenerMiddleware } from '../../store/middleware/syncListener';
+import pendingReducer from '../../store/pendingSlice';
 import payersReducer from '../../store/payersSlice';
 import settingsReducer from '../../store/settingsSlice';
+import { writtenChanges, writtenRecords } from '../../test/pendingWrites';
 import type { Bank, Bill, Payer } from '../../types';
 import BillEditor from './BillEditor';
 
@@ -21,7 +23,7 @@ vi.mock('../../services/GoogleSheetsService', async (importOriginal) => {
     ...actual,
     googleSheetsService: {
       ...actual.googleSheetsService,
-      writeBills: vi.fn(),
+      writePendingChanges: vi.fn(),
     },
   };
 });
@@ -66,6 +68,7 @@ function renderEditor(
       payers: payersReducer,
       banks: banksReducer,
       settings: settingsReducer,
+      pending: pendingReducer,
     },
     middleware: (getDefaultMiddleware) =>
       getDefaultMiddleware().prepend(syncListenerMiddleware.middleware),
@@ -103,14 +106,12 @@ async function choosePayerAndBank(
   await user.selectOptions(screen.getByLabelText('Banco'), bankId);
 }
 
-/** Wait out the debounced sync and assert some bills write-back satisfies `matches`. */
+/** Wait out the debounced sync and assert the bills written satisfy `matches`. */
 async function expectBillsWritten(matches: (written: Bill[]) => boolean) {
   await waitFor(
     () => {
-      const snapshots = vi
-        .mocked(googleSheetsService.writeBills)
-        .mock.calls.map(([, written]) => written);
-      expect(snapshots.some(matches)).toBe(true);
+      const written = writtenRecords(googleSheetsService, 'bills');
+      expect(matches(written)).toBe(true);
     },
     { timeout: 2500 }
   );
@@ -263,11 +264,17 @@ describe('Bill editor', () => {
     // Then June's list is shown again
     expect(screen.getByText('Lista de contas')).toBeInTheDocument();
 
-    // And the bills tab is written back without the removed bill
-    await expectBillsWritten(
-      (written) =>
-        written.some((entry) => entry.name === 'Luz') &&
-        !written.some((entry) => entry.name === 'Internet')
+    // And the removed bill's row is blanked (a delete Pending Change), with no
+    // other record rewritten
+    await waitFor(
+      () => {
+        expect(writtenChanges(googleSheetsService, 'bills')).toContainEqual({
+          type: 'delete',
+          id: `${JUNE}-Internet`,
+        });
+        expect(writtenRecords(googleSheetsService, 'bills')).toEqual([]);
+      },
+      { timeout: 2500 }
     );
   });
 
@@ -289,7 +296,7 @@ describe('Bill editor', () => {
     // Then the modal is gone, the bill is still in the store, and no write happens
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(store.getState().bills.items.some((entry) => entry.name === 'Luz')).toBe(true);
-    expect(googleSheetsService.writeBills).not.toHaveBeenCalled();
+    expect(googleSheetsService.writePendingChanges).not.toHaveBeenCalled();
   });
 
   it('returns to the month list with the header back button', async () => {

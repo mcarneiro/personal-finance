@@ -9,7 +9,9 @@ import i18n from '../../config/i18n';
 import { googleSheetsService } from '../../services/GoogleSheetsService';
 import incomeReducer from '../../store/incomeSlice';
 import { syncListenerMiddleware } from '../../store/middleware/syncListener';
+import pendingReducer from '../../store/pendingSlice';
 import settingsReducer from '../../store/settingsSlice';
+import { writtenChanges, writtenRecords } from '../../test/pendingWrites';
 import type { IncomeEntry } from '../../types';
 import IncomeEditor from './IncomeEditor';
 
@@ -19,7 +21,7 @@ vi.mock('../../services/GoogleSheetsService', async (importOriginal) => {
     ...actual,
     googleSheetsService: {
       ...actual.googleSheetsService,
-      writeIncome: vi.fn(),
+      writePendingChanges: vi.fn(),
     },
   };
 });
@@ -43,6 +45,7 @@ function renderEditor(initialPath: string, items: IncomeEntry[] = []) {
     reducer: {
       income: incomeReducer,
       settings: settingsReducer,
+      pending: pendingReducer,
     },
     middleware: (getDefaultMiddleware) =>
       getDefaultMiddleware().prepend(syncListenerMiddleware.middleware),
@@ -68,14 +71,12 @@ function renderEditor(initialPath: string, items: IncomeEntry[] = []) {
   return store;
 }
 
-/** Wait out the debounced sync and assert some income write-back satisfies `matches`. */
+/** Wait out the debounced sync and assert the income written satisfies `matches`. */
 async function expectIncomeWritten(matches: (written: IncomeEntry[]) => boolean) {
   await waitFor(
     () => {
-      const snapshots = vi
-        .mocked(googleSheetsService.writeIncome)
-        .mock.calls.map(([, written]) => written);
-      expect(snapshots.some(matches)).toBe(true);
+      const written = writtenRecords(googleSheetsService, 'income');
+      expect(matches(written)).toBe(true);
     },
     { timeout: 2500 }
   );
@@ -176,11 +177,16 @@ describe('Income editor', () => {
     // Then June's list is shown again
     expect(screen.getByText('Lista de renda')).toBeInTheDocument();
 
-    // And the income tab is written back without the removed entry
-    await expectIncomeWritten(
-      (written) =>
-        written.some((entry) => entry.source === 'Freela') &&
-        !written.some((entry) => entry.source === 'Salário')
+    // And the removed entry's row is blanked, with no other record rewritten
+    await waitFor(
+      () => {
+        expect(writtenChanges(googleSheetsService, 'income')).toContainEqual({
+          type: 'delete',
+          id: `${JUNE}-Salário`,
+        });
+        expect(writtenRecords(googleSheetsService, 'income')).toEqual([]);
+      },
+      { timeout: 2500 }
     );
   });
 
@@ -202,7 +208,7 @@ describe('Income editor', () => {
     // Then the modal is gone, the entry is still in the store, and no write happens
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(store.getState().income.items.some((entry) => entry.source === 'Salário')).toBe(true);
-    expect(googleSheetsService.writeIncome).not.toHaveBeenCalled();
+    expect(googleSheetsService.writePendingChanges).not.toHaveBeenCalled();
   });
 
   it('returns to the month list with the header back button', async () => {

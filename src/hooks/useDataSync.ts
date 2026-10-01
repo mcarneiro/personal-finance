@@ -11,7 +11,8 @@ import { setPlanItems, setCardSpending } from '../store/planSlice';
 import { setBills } from '../store/billsSlice';
 import { setIncomeEntries } from '../store/incomeSlice';
 import { setDataLoading, setDataLoaded, setSyncing, setOffline } from '../store/appSlice';
-import { clearPendingChanges } from '../store/pendingSlice';
+import { clearPendingChanges, dropPendingChanges } from '../store/pendingSlice';
+import { SHEET_KEYS } from '../config/google';
 import type { SheetData } from '../types';
 
 /**
@@ -34,7 +35,9 @@ const EMPTY_SHEET: SheetData = {
 /**
  * The pull side of the sync cycle (ADR-0007). Reads every tab in a single
  * Sheets request, replays this device's Pending Changes over the fresh rows
- * (local always wins, ADR-0008), and swaps the merged snapshot into the store.
+ * (local always wins, ADR-0008), swaps the merged snapshot into the store, and
+ * then pushes any Pending Changes still unwritten — so an edit whose earlier
+ * write failed retries on the next pull. A successful push drops them.
  *
  * Startup no longer gates behind the network: a cached Working Copy is painted
  * synchronously, and the pull swaps in fresh data seconds later. A cold cache
@@ -172,11 +175,26 @@ export function useDataSync() {
       const merged = mergeSheetData(fresh, pendingRef.current);
 
       applySnapshot(merged);
-      saveWorkingCopy(sheetId, merged);
-
       hasWorkingCopy.current = true;
       dispatch(setDataLoaded(true));
       dispatch(setOffline(false));
+
+      // Retry any Pending Change whose earlier write failed: with fresh rows in
+      // hand, push the local edits (local wins, ADR-0008) and drop the ones the
+      // write carried. A failed push keeps them for the next pull or save.
+      const pendingNow = pendingRef.current;
+      try {
+        await googleSheetsService.writePendingChanges(sheetId, pendingNow);
+        for (const tab of SHEET_KEYS) {
+          const tabChanges = pendingNow[tab];
+          if (tabChanges) dispatch(dropPendingChanges({ tab, changes: tabChanges }));
+        }
+      } catch (error) {
+        handleApiError(error as Error & { code?: string });
+      }
+      if (generation.current !== session) return;
+
+      saveWorkingCopy(sheetId, merged);
     } catch (error) {
       if (generation.current !== session) return;
       handleApiError(error as Error & { code?: string });

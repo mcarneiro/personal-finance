@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { GoogleSheetsService } from '../GoogleSheetsService';
+import type { Bill } from '../../types';
 
 function jsonResponse(body: unknown) {
   return { ok: true, status: 200, json: async () => body };
@@ -45,25 +46,33 @@ describe('GoogleSheetsService schema round-trip', () => {
   });
 
   it('writes plan months raw so Sheets does not coerce them into dates', async () => {
-    // Given a plan item for June 2026
-    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({}));
+    // Given a plan item for June 2026 and an empty plan id column
+    const fetchMock = vi.fn().mockImplementation((url: string) =>
+      String(url).includes('values:batchGet')
+        ? Promise.resolve(jsonResponse({ valueRanges: [{ values: [] }] }))
+        : Promise.resolve(jsonResponse({}))
+    );
     vi.stubGlobal('fetch', fetchMock);
 
-    // When it is written back
-    await service.writePlanItems('sheet-1', [
-      {
-        id: 'p1',
-        month: '2026-06',
-        name: 'Netflix',
-        amount: 42,
-        remainingEstimate: 0,
+    // When it is saved as a new record
+    await service.writePendingChanges('sheet-1', {
+      plan: {
+        p1: {
+          type: 'create',
+          id: 'p1',
+          record: { id: 'p1', month: '2026-06', name: 'Netflix', amount: 42, remainingEstimate: 0 },
+        },
       },
-    ]);
+    });
 
     // Then the write asks Sheets to store values verbatim
-    const urls = fetchMock.mock.calls.map(([url]) => String(url));
-    expect(urls.some((url) => url.includes('valueInputOption=RAW'))).toBe(true);
-    expect(urls.some((url) => url.includes('valueInputOption=USER_ENTERED'))).toBe(false);
+    const update = fetchMock.mock.calls.find(
+      ([url, options]) =>
+        String(url).includes('values:batchUpdate') && (options as RequestInit)?.method === 'POST'
+    );
+    const body = JSON.parse(String((update?.[1] as RequestInit).body));
+    expect(body.valueInputOption).toBe('RAW');
+    expect(body.valueInputOption).not.toBe('USER_ENTERED');
   });
 
   it('parses the bills paid flag from text or boolean cells', async () => {
@@ -141,33 +150,45 @@ describe('GoogleSheetsService schema round-trip', () => {
   });
 
   it('writes bills with their payer, bank and final-value flag', async () => {
-    // Given a final bill assigned to a payer and bank
-    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({}));
+    // Given a final bill assigned to a payer and bank, and an empty id column
+    const fetchMock = vi.fn().mockImplementation((url: string) =>
+      String(url).includes('values:batchGet')
+        ? Promise.resolve(jsonResponse({ valueRanges: [{ values: [] }] }))
+        : Promise.resolve(jsonResponse({}))
+    );
     vi.stubGlobal('fetch', fetchMock);
 
-    // When it is written back
-    await service.writeBills('sheet-1', [
-      {
-        id: 'b1',
-        month: '2026-06',
-        name: 'Luz',
-        amount: 120,
-        isPaid: false,
-        isFinal: true,
-        payerId: 'payer-marcelo',
-        bankId: 'bank-nubank',
+    // When it is saved as a new record
+    await service.writePendingChanges('sheet-1', {
+      bills: {
+        b1: {
+          type: 'create',
+          id: 'b1',
+          record: {
+            id: 'b1',
+            month: '2026-06',
+            name: 'Luz',
+            amount: 120,
+            isPaid: false,
+            isFinal: true,
+            payerId: 'payer-marcelo',
+            bankId: 'bank-nubank',
+          },
+        },
       },
-    ]);
+    });
 
     // Then the row carries all eight columns, in order
-    const put = fetchMock.mock.calls.find(
+    const update = fetchMock.mock.calls.find(
       ([url, options]) =>
-        String(url).includes('/values/bills!A2') &&
-        (options as RequestInit)?.method === 'PUT'
+        String(url).includes('values:batchUpdate') && (options as RequestInit)?.method === 'POST'
     );
-    const body = JSON.parse(String((put?.[1] as RequestInit).body));
-    expect(body.values).toEqual([
-      ['b1', '2026-06', 'Luz', 120, 'FALSE', 'payer-marcelo', 'bank-nubank', 'TRUE'],
+    const body = JSON.parse(String((update?.[1] as RequestInit).body));
+    expect(body.data).toEqual([
+      {
+        range: 'bills!A2:H2',
+        values: [['b1', '2026-06', 'Luz', 120, 'FALSE', 'payer-marcelo', 'bank-nubank', 'TRUE']],
+      },
     ]);
   });
 
@@ -726,5 +747,201 @@ describe('pullAll', () => {
     );
     expect(metadataCalled).toBe(false);
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * The write side of the sync cycle (ADR-0008): a save re-reads the affected
+ * tabs' id column, resolves each Pending Change to a row, and writes only those
+ * rows — never the whole tab — so a save from a stale Working Copy cannot drop
+ * another member's edits.
+ */
+describe('writePendingChanges', () => {
+  let service: GoogleSheetsService;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    service = GoogleSheetsService.getInstance();
+    service.setAccessToken('test-token');
+  });
+
+  /** Serve the id-column batchGet from `columns`, keyed by tab name. */
+  function idColumns(columns: Record<string, unknown[][]>) {
+    return (target: string) => {
+      const ranges = [...target.matchAll(/ranges=([^&]+)/g)].map((match) =>
+        decodeURIComponent(match[1])
+      );
+      return jsonResponse({
+        valueRanges: ranges.map((range) => ({ values: columns[range.split('!')[0]] ?? [] })),
+      });
+    };
+  }
+
+  function mockFetch(columns: Record<string, unknown[][]>) {
+    const fetchMock = vi.fn().mockImplementation((url: string) => {
+      const target = decodeURIComponent(String(url));
+      if (target.includes('values:batchGet')) return Promise.resolve(idColumns(columns)(target));
+      return Promise.resolve(jsonResponse({}));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    return fetchMock;
+  }
+
+  function batchUpdateBody(fetchMock: ReturnType<typeof vi.fn>) {
+    const call = fetchMock.mock.calls.find(
+      ([url, options]) =>
+        String(url).includes('values:batchUpdate') && (options as RequestInit)?.method === 'POST'
+    );
+    return JSON.parse(String((call?.[1] as RequestInit).body));
+  }
+
+  const luz = (overrides: Partial<Bill> = {}): Bill => ({
+    id: 'b1',
+    month: '2026-06',
+    name: 'Luz',
+    amount: 120,
+    isPaid: false,
+    isFinal: true,
+    payerId: 'payer-marcelo',
+    bankId: 'bank-nubank',
+    ...overrides,
+  });
+
+  it('re-reads the id column then writes only the changed row in one update', async () => {
+    // Given the bills tab has three rows and only the second is edited
+    const fetchMock = mockFetch({ bills: [['b1'], ['b2'], ['b3']] });
+
+    // When the save fires
+    await service.writePendingChanges('sheet-1', {
+      bills: { b2: { type: 'update', id: 'b2', record: luz({ id: 'b2', amount: 175 }) } },
+    });
+
+    // Then exactly one id-column read and one update request were made
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(String(fetchMock.mock.calls[0][0])).toContain('values:batchGet');
+    expect(String(fetchMock.mock.calls[0][0])).toContain(encodeURIComponent('bills!A2:A'));
+
+    // And only b2's row (row 3) was written, in contract order
+    expect(batchUpdateBody(fetchMock).data).toEqual([
+      {
+        range: 'bills!A3:H3',
+        values: [['b2', '2026-06', 'Luz', 175, 'FALSE', 'payer-marcelo', 'bank-nubank', 'TRUE']],
+      },
+    ]);
+  });
+
+  it('appends a new record at the end of the tab', async () => {
+    // Given a bills tab with three data rows
+    const fetchMock = mockFetch({ bills: [['b1'], ['b2'], ['b3']] });
+
+    // When a new bill is created
+    await service.writePendingChanges('sheet-1', {
+      bills: { b4: { type: 'create', id: 'b4', record: luz({ id: 'b4', name: 'Água' }) } },
+    });
+
+    // Then it is written to the first row after the last one
+    expect(batchUpdateBody(fetchMock).data[0].range).toBe('bills!A5:H5');
+  });
+
+  it('overwrites the existing row when a create collides with a sheet id', async () => {
+    // Given the id already exists in the sheet
+    const fetchMock = mockFetch({ bills: [['b1'], ['b2']] });
+
+    // When a create arrives for that id (local wins)
+    await service.writePendingChanges('sheet-1', {
+      bills: { b2: { type: 'create', id: 'b2', record: luz({ id: 'b2', amount: 999 }) } },
+    });
+
+    // Then it updates the existing row rather than appending a duplicate
+    expect(batchUpdateBody(fetchMock).data).toEqual([
+      {
+        range: 'bills!A3:H3',
+        values: [['b2', '2026-06', 'Luz', 999, 'FALSE', 'payer-marcelo', 'bank-nubank', 'TRUE']],
+      },
+    ]);
+  });
+
+  it('blanks a deleted record in place so no other row shifts', async () => {
+    // Given the bills tab has three rows and the middle one is deleted
+    const fetchMock = mockFetch({ bills: [['b1'], ['b2'], ['b3']] });
+
+    // When the delete is saved
+    await service.writePendingChanges('sheet-1', {
+      bills: { b2: { type: 'delete', id: 'b2' } },
+    });
+
+    // Then its row is cleared in place
+    expect(batchUpdateBody(fetchMock).data).toEqual([
+      { range: 'bills!A3:H3', values: [['', '', '', '', '', '', '', '']] },
+    ]);
+  });
+
+  it('skips a delete for an id the sheet never had, with no update request', async () => {
+    // Given a locally created record that was deleted before it was ever written
+    const fetchMock = mockFetch({ bills: [['b1']] });
+
+    // When the delete is saved
+    await service.writePendingChanges('sheet-1', {
+      bills: { gone: { type: 'delete', id: 'gone' } },
+    });
+
+    // Then the id column is read but nothing is written
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(String(fetchMock.mock.calls[0][0])).toContain('values:batchGet');
+  });
+
+  it('batches every affected tab into one id read and one update', async () => {
+    // Given edits in two tabs
+    const fetchMock = mockFetch({ bills: [['b1']], cards: [['c1']] });
+
+    // When they are saved together
+    await service.writePendingChanges('sheet-1', {
+      bills: { b1: { type: 'update', id: 'b1', record: luz({ amount: 200 }) } },
+      cards: { c1: { type: 'update', id: 'c1', record: { id: 'c1', name: 'cc guta' } } },
+    });
+
+    // Then both tabs are read in one request and written in one request
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const read = decodeURIComponent(String(fetchMock.mock.calls[0][0]));
+    expect(read).toContain('values:batchGet');
+    expect(read).toContain('bills!A2:A');
+    expect(read).toContain('cards!A2:A');
+    expect(batchUpdateBody(fetchMock).data.map((entry: { range: string }) => entry.range)).toEqual([
+      'cards!A2:B2',
+      'bills!A2:H2',
+    ]);
+  });
+
+  it('makes no request at all with no Pending Changes', async () => {
+    // Given nothing is pending
+    const fetchMock = mockFetch({});
+
+    // When a save fires
+    await service.writePendingChanges('sheet-1', {});
+
+    // Then the sheet is not touched
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('keeps blank rows invisible to a read', async () => {
+    // Given a tab with a blank hole left by a delete
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        jsonResponse({
+          values: [
+            ['b1', '2026-06', 'Luz', 120, 'FALSE', '', '', 'TRUE'],
+            ['', '', '', '', '', '', '', ''],
+            ['b3', '2026-06', 'Água', 80, 'FALSE', '', '', 'FALSE'],
+          ],
+        })
+      )
+    );
+
+    // When the tab is read
+    const bills = await service.readBills('sheet-1');
+
+    // Then the blank row is skipped and the others survive
+    expect(bills.map((bill) => bill.id)).toEqual(['b1', 'b3']);
   });
 });

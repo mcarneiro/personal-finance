@@ -1,5 +1,15 @@
-import { SHEET_CONFIGS, type SheetKey } from '../config/google';
-import { Bank, Bill, Card, CardSpending, IncomeEntry, Payer, PlanItem, SheetData } from '../types';
+import { SHEET_CONFIGS, SHEET_KEYS, type SheetKey } from '../config/google';
+import {
+  Bank,
+  Bill,
+  Card,
+  CardSpending,
+  IncomeEntry,
+  Payer,
+  PendingChanges,
+  PlanItem,
+  SheetData,
+} from '../types';
 
 interface SheetResponse {
   sheets?: Array<{
@@ -18,9 +28,6 @@ interface BatchGetResponse {
     values?: unknown[][];
   }>;
 }
-
-/** Every tab, in the fixed order the batch read and parsing walk them. */
-const SHEET_KEYS = Object.keys(SHEET_CONFIGS) as SheetKey[];
 
 /**
  * Google Sheets plumbing ported from Stayoo (ADR-0001): OAuth token handling,
@@ -375,6 +382,143 @@ export class GoogleSheetsService {
     }
   }
 
+  /** Serialize one record into its tab's row, in the sheet contract's order. */
+  private toRow(key: SheetKey, record: unknown): unknown[] {
+    switch (key) {
+      case 'cards': {
+        const card = record as Card;
+        return [card.id, card.name];
+      }
+      case 'banks': {
+        const bank = record as Bank;
+        return [bank.id, bank.name];
+      }
+      case 'payers': {
+        const payer = record as Payer;
+        return [payer.id, payer.name];
+      }
+      case 'plan': {
+        const item = record as PlanItem;
+        return [item.id, item.month, item.name, item.amount, item.remainingEstimate];
+      }
+      case 'card_spending': {
+        const entry = record as CardSpending;
+        return [entry.id, entry.month, entry.cardId, entry.total];
+      }
+      case 'bills': {
+        const bill = record as Bill;
+        return [
+          bill.id,
+          bill.month,
+          bill.name,
+          bill.amount,
+          bill.isPaid ? 'TRUE' : 'FALSE',
+          bill.payerId,
+          bill.bankId,
+          bill.isFinal ? 'TRUE' : 'FALSE',
+        ];
+      }
+      case 'income': {
+        const entry = record as IncomeEntry;
+        return [entry.id, entry.month, entry.amount, entry.source || ''];
+      }
+    }
+  }
+
+  /**
+   * Read the id column of every affected tab in one `values:batchGet` (A2:A per
+   * tab). The response is aligned to `keys`; an omitted range reads as empty.
+   */
+  private async batchGetIdColumns(
+    spreadsheetId: string,
+    keys: SheetKey[]
+  ): Promise<Partial<Record<SheetKey, unknown[][]>>> {
+    const ranges = keys.map((key) => `${SHEET_CONFIGS[key].name}!A2:A`);
+    const query = ranges.map((range) => `ranges=${encodeURIComponent(range)}`).join('&');
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values:batchGet?${query}&valueRenderOption=UNFORMATTED_VALUE`;
+    const data: BatchGetResponse = await this.apiRequest(url);
+    const returned = data.valueRanges ?? [];
+    const byKey: Partial<Record<SheetKey, unknown[][]>> = {};
+    keys.forEach((key, index) => {
+      byKey[key] = returned[index]?.values ?? [];
+    });
+    return byKey;
+  }
+
+  /** Map each non-blank id in a tab's id column to its 1-based sheet row. */
+  private rowIndexById(idColumn: unknown[][] | undefined): Map<string, number> {
+    const rowById = new Map<string, number>();
+    (idColumn ?? []).forEach((row, index) => {
+      const id = this.parseString(row?.[0]).trim();
+      if (id) rowById.set(id, index + 2);
+    });
+    return rowById;
+  }
+
+  /**
+   * The write side of the sync cycle (ADR-0008): a save re-reads the id column
+   * of every affected tab in one request, maps each Pending Change to its row,
+   * and writes only those rows' ranges in one `values:batchUpdate`. Creates
+   * whose id is absent append at the tab's end; an id already in the sheet is
+   * overwritten (the local Pending Change always wins), and an update for an id
+   * the sheet no longer has appends too — a local edit is never dropped; deletes
+   * blank the row in place so no other row shifts. Untouched rows are never
+   * rewritten, so a save from a stale Working Copy cannot drop another member's
+   * edits.
+   *
+   * Local Pending Changes are the sole source of the written values — the
+   * device's whole copy is never sent.
+   */
+  async writePendingChanges(spreadsheetId: string, pending: PendingChanges): Promise<void> {
+    const keys = SHEET_KEYS.filter((key) => Object.keys(pending[key] ?? {}).length > 0);
+    if (keys.length === 0) return;
+
+    const idColumns = await this.batchGetIdColumns(spreadsheetId, keys);
+    const data: Array<{ range: string; values: unknown[][] }> = [];
+
+    for (const key of keys) {
+      const config = SHEET_CONFIGS[key];
+      const idColumn = idColumns[key] ?? [];
+      const rowById = this.rowIndexById(idColumn);
+      const lastColumn = String.fromCharCode(64 + config.columns.length);
+      // Every tab has fewer than 26 columns, so a single letter always addresses
+      // the last one.
+      const blank = config.columns.map(() => '');
+      // The id column read stops at the last non-blank row, so its length is the
+      // append point; each new record takes the next row after it.
+      let nextRow = idColumn.length + 2;
+
+      for (const change of Object.values(pending[key] ?? {})) {
+        const id = this.parseString(change.id).trim();
+        if (!id) continue;
+        const existing = rowById.get(id);
+
+        if (change.type === 'delete') {
+          // A record never written (e.g. created then deleted locally) has no
+          // row to blank; dropping it from the Pending Changes is enough.
+          if (existing === undefined) continue;
+          data.push({ range: `${config.name}!A${existing}:${lastColumn}${existing}`, values: [blank] });
+          continue;
+        }
+
+        const row = existing ?? nextRow++;
+        rowById.set(id, row);
+        data.push({ range: `${config.name}!A${row}:${lastColumn}${row}`, values: [this.toRow(key, change.record)] });
+      }
+    }
+
+    if (data.length === 0) return;
+
+    // RAW keeps values exactly as sent. Planoo keys rows by a `YYYY-MM` month
+    // string, so Sheets must not coerce `2026-06` into a date and read it back
+    // as a serial number.
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values:batchUpdate`;
+    await this.apiRequest(url, {
+      method: 'POST',
+      body: JSON.stringify({ valueInputOption: 'RAW', data }),
+    });
+  }
+
   private parseNumber(value: unknown): number {
     const parsed = parseFloat(String(value));
     return Number.isNaN(parsed) ? 0 : parsed;
@@ -485,106 +629,28 @@ export class GoogleSheetsService {
     return this.parseCardsRows(await this.readRows(spreadsheetId, 'cards', 'A2:B'));
   }
 
-  async writeCards(spreadsheetId: string, cards: Card[]): Promise<void> {
-    await this.writeRows(
-      spreadsheetId,
-      'cards',
-      'B',
-      cards.map((card) => [card.id, card.name])
-    );
-  }
-
   async readBanks(spreadsheetId: string): Promise<Bank[]> {
     return this.parseBanksRows(await this.readRows(spreadsheetId, 'banks', 'A2:B'));
-  }
-
-  async writeBanks(spreadsheetId: string, banks: Bank[]): Promise<void> {
-    await this.writeRows(
-      spreadsheetId,
-      'banks',
-      'B',
-      banks.map((bank) => [bank.id, bank.name])
-    );
   }
 
   async readPayers(spreadsheetId: string): Promise<Payer[]> {
     return this.parsePayersRows(await this.readRows(spreadsheetId, 'payers', 'A2:B'));
   }
 
-  async writePayers(spreadsheetId: string, payers: Payer[]): Promise<void> {
-    await this.writeRows(
-      spreadsheetId,
-      'payers',
-      'B',
-      payers.map((payer) => [payer.id, payer.name])
-    );
-  }
-
   async readPlanItems(spreadsheetId: string): Promise<PlanItem[]> {
     return this.parsePlanRows(await this.readRows(spreadsheetId, 'plan', 'A2:E'));
-  }
-
-  async writePlanItems(spreadsheetId: string, items: PlanItem[]): Promise<void> {
-    await this.writeRows(
-      spreadsheetId,
-      'plan',
-      'E',
-      items.map((item) => [
-        item.id,
-        item.month,
-        item.name,
-        item.amount,
-        item.remainingEstimate,
-      ])
-    );
   }
 
   async readCardSpending(spreadsheetId: string): Promise<CardSpending[]> {
     return this.parseCardSpendingRows(await this.readRows(spreadsheetId, 'card_spending', 'A2:D'));
   }
 
-  async writeCardSpending(spreadsheetId: string, entries: CardSpending[]): Promise<void> {
-    await this.writeRows(
-      spreadsheetId,
-      'card_spending',
-      'D',
-      entries.map((entry) => [entry.id, entry.month, entry.cardId, entry.total])
-    );
-  }
-
   async readBills(spreadsheetId: string): Promise<Bill[]> {
     return this.parseBillsRows(await this.readRows(spreadsheetId, 'bills', 'A2:H'));
   }
 
-  async writeBills(spreadsheetId: string, bills: Bill[]): Promise<void> {
-    await this.writeRows(
-      spreadsheetId,
-      'bills',
-      'H',
-      bills.map((bill) => [
-        bill.id,
-        bill.month,
-        bill.name,
-        bill.amount,
-        bill.isPaid ? 'TRUE' : 'FALSE',
-        bill.payerId,
-        bill.bankId,
-        bill.isFinal ? 'TRUE' : 'FALSE',
-      ])
-    );
-  }
-
   async readIncome(spreadsheetId: string): Promise<IncomeEntry[]> {
     return this.parseIncomeRows(await this.readRows(spreadsheetId, 'income', 'A2:D'));
-  }
-
-  async writeIncome(spreadsheetId: string, entries: IncomeEntry[]): Promise<void> {
-    await this.writeRows(
-      spreadsheetId,
-      'income',
-      'D',
-      entries.map((entry) => [entry.id, entry.month, entry.amount, entry.source || ''])
-    );
   }
 
   /** Extract the spreadsheet ID from a pasted Google Sheets URL. */
