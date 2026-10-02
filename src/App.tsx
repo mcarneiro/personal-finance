@@ -152,7 +152,9 @@ function App() {
         />
         <Route path="/income/new/:month" element={<IncomeEditor />} />
         <Route path="/income/edit/:id" element={<IncomeEditor />} />
-        {/* The bare `/savings` redirect and the bottom-nav tab land with ticket 06. */}
+        {/* Savings is a month-scoped ledger tab: pots live in Settings, so there
+            are no `/savings/new` or `/savings/edit` routes. */}
+        <Route path="/savings" element={<Navigate to={`/savings/${currentMonth}`} replace />} />
         <Route
           path="/savings/:month"
           element={

@@ -1,5 +1,5 @@
 import { configureStore } from '@reduxjs/toolkit';
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router-dom';
@@ -291,13 +291,98 @@ describe('app shell', () => {
     // Given the app is open on the Savings screen
     renderApp('/savings/2026-06');
 
-    // Then the top bar names it and offers no "+" — pots live in Settings
+    // Then the top bar names it, offers a back button and no "+" — pots live in Settings
     expect(screen.getByRole('heading', { name: 'Poupanças' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Voltar' })).toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: 'Adicionar teto de gastos' })
     ).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Adicionar saída' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Adicionar renda' })).not.toBeInTheDocument();
+  });
+
+  it('lists Savings as the fourth bottom-nav tab, after Income', () => {
+    // Given the app is open on the Spending Plan
+    renderApp('/plan/2026-06');
+
+    // Then the bottom nav holds the four month-to-month ledgers in order
+    const nav = screen.getByRole('navigation');
+    const labels = within(nav)
+      .getAllByRole('button')
+      .map((button) => button.textContent);
+    expect(labels).toEqual(['Plano', 'Saídas', 'Renda', 'Poupanças']);
+  });
+
+  it('highlights the Savings tab while browsing a Savings month', () => {
+    // Given the app is open on the Savings screen for June
+    renderApp('/savings/2026-06');
+
+    // Then the Savings tab is the active one
+    expect(screen.getByRole('button', { name: 'Poupanças' })).toHaveAttribute(
+      'aria-current',
+      'page'
+    );
+  });
+
+  it('opens the Savings screen from the bottom-nav tab', async () => {
+    // Given the app is open on the Spending Plan
+    const user = userEvent.setup();
+    renderApp('/plan/2026-06');
+
+    // When I tap the Savings tab
+    await user.click(screen.getByRole('button', { name: 'Poupanças' }));
+
+    // Then the current month's Savings screen is shown and the tab is active
+    expect(screen.getByRole('heading', { name: 'Poupanças' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Poupanças' })).toHaveAttribute(
+      'aria-current',
+      'page'
+    );
+  });
+
+  it('redirects the bare /savings path to the current month', () => {
+    // Given the app is opened on the bare /savings path in June 2026
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 5, 15));
+
+    // When the route resolves
+    renderApp('/savings');
+
+    // Then it lands on the current month's Savings screen
+    expect(screen.getByRole('heading', { name: 'junho de 2026' })).toBeInTheDocument();
+    vi.useRealTimers();
+  });
+
+  it('shows the Savings tab in en-US as well', async () => {
+    // Given the interface is switched to English
+    await setLanguage('en-US');
+
+    // When the app renders the bottom nav
+    renderApp('/plan/2026-06');
+
+    // Then the Savings tab carries the en-US label
+    expect(screen.getByRole('button', { name: 'Savings' })).toBeInTheDocument();
+  });
+
+  it('has no Savings editor routes: subpaths fall back to the current month', () => {
+    // Given the app is opened on a path under /savings that is not a month
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 5, 15));
+
+    // When /savings/new resolves
+    const first = renderApp('/savings/new');
+
+    // Then there is no editor; the invalid month falls back to the current one
+    expect(screen.getByRole('heading', { name: 'junho de 2026' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Poupanças' })).toBeInTheDocument();
+    first.unmount();
+
+    // When /savings/edit resolves
+    renderApp('/savings/edit');
+
+    // Then it too falls back to the current month rather than an editor
+    expect(screen.getByRole('heading', { name: 'junho de 2026' })).toBeInTheDocument();
+    vi.useRealTimers();
   });
 });
 
