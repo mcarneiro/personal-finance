@@ -5,7 +5,7 @@ import { monthHasRecords } from '../utils/copyGuard';
 import type { Month } from '../types';
 
 /** The list tabs that offer a copy-last-month action. */
-export type CopyTab = 'plan' | 'bills' | 'income';
+export type CopyTab = 'plan' | 'outflows' | 'income';
 
 /**
  * Read one list tab's current rows straight from the sheet. The per-tab readers
@@ -14,7 +14,7 @@ export type CopyTab = 'plan' | 'bills' | 'income';
  */
 const READERS: Record<CopyTab, (sheetId: string) => Promise<Array<{ month: Month }>>> = {
   plan: (sheetId: string) => googleSheetsService.readPlanItems(sheetId),
-  bills: (sheetId: string) => googleSheetsService.readBills(sheetId),
+  outflows: (sheetId: string) => googleSheetsService.readOutflows(sheetId),
   income: (sheetId: string) => googleSheetsService.readIncome(sheetId),
 };
 

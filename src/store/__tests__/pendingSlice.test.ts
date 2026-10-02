@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import type { Bill } from '../../types';
+import type { Outflow } from '../../types';
 import reducer, { clearPendingChanges, dropPendingChanges, recordPendingChange } from '../pendingSlice';
 
-function bill(id: string, overrides: Partial<Bill> = {}): Bill {
+function outflow(id: string, overrides: Partial<Outflow> = {}): Outflow {
   return {
     id,
     month: '2026-06',
-    name: `Bill ${id}`,
+    name: `Outflow ${id}`,
     amount: 100,
     isPaid: false,
     isFinal: true,
@@ -25,15 +25,15 @@ describe('pendingSlice', () => {
     state = reducer(
       state,
       recordPendingChange({
-        tab: 'bills',
-        change: { type: 'create', id: 'luz', record: bill('luz') },
+        tab: 'outflows',
+        change: { type: 'create', id: 'luz', record: outflow('luz') },
       })
     );
     state = reducer(
       state,
       recordPendingChange({
-        tab: 'bills',
-        change: { type: 'update', id: 'agua', record: bill('agua', { amount: 90 }) },
+        tab: 'outflows',
+        change: { type: 'update', id: 'agua', record: outflow('agua', { amount: 90 }) },
       })
     );
     state = reducer(
@@ -42,59 +42,59 @@ describe('pendingSlice', () => {
     );
 
     // Then each tab holds its own changes keyed by id
-    expect(state.changes.bills?.luz).toEqual({ type: 'create', id: 'luz', record: bill('luz') });
-    expect(state.changes.bills?.agua).toEqual({
+    expect(state.changes.outflows?.luz).toEqual({ type: 'create', id: 'luz', record: outflow('luz') });
+    expect(state.changes.outflows?.agua).toEqual({
       type: 'update',
       id: 'agua',
-      record: bill('agua', { amount: 90 }),
+      record: outflow('agua', { amount: 90 }),
     });
     expect(state.changes.cards?.c9).toEqual({ type: 'delete', id: 'c9' });
   });
 
   it('keeps only the latest edit for a record', () => {
-    // Given an edit already recorded for a bill
+    // Given an edit already recorded for a outflow
     let state = reducer(
       undefined,
-      recordPendingChange({ tab: 'bills', change: { type: 'update', id: 'luz', record: bill('luz') } })
+      recordPendingChange({ tab: 'outflows', change: { type: 'update', id: 'luz', record: outflow('luz') } })
     );
 
-    // When the same bill is edited again
+    // When the same outflow is edited again
     state = reducer(
       state,
       recordPendingChange({
-        tab: 'bills',
-        change: { type: 'update', id: 'luz', record: bill('luz', { amount: 250 }) },
+        tab: 'outflows',
+        change: { type: 'update', id: 'luz', record: outflow('luz', { amount: 250 }) },
       })
     );
 
     // Then only the latest value is pending
-    expect(state.changes.bills?.luz).toEqual({
+    expect(state.changes.outflows?.luz).toEqual({
       type: 'update',
       id: 'luz',
-      record: bill('luz', { amount: 250 }),
+      record: outflow('luz', { amount: 250 }),
     });
   });
 
   it('drops a written Pending Change but keeps a newer edit to the same record', () => {
-    // Given two pending bills, one of which was written, and a newer edit to it
+    // Given two pending outflows, one of which was written, and a newer edit to it
     let state = reducer(
       undefined,
-      recordPendingChange({ tab: 'bills', change: { type: 'update', id: 'luz', record: bill('luz') } })
+      recordPendingChange({ tab: 'outflows', change: { type: 'update', id: 'luz', record: outflow('luz') } })
     );
     state = reducer(
       state,
       recordPendingChange({
-        tab: 'bills',
-        change: { type: 'update', id: 'agua', record: bill('agua') },
+        tab: 'outflows',
+        change: { type: 'update', id: 'agua', record: outflow('agua') },
       })
     );
-    const writtenAgua = { type: 'update' as const, id: 'agua', record: bill('agua') };
+    const writtenAgua = { type: 'update' as const, id: 'agua', record: outflow('agua') };
     // The local edit to `luz` lands while the `agua` write is in flight.
     state = reducer(
       state,
       recordPendingChange({
-        tab: 'bills',
-        change: { type: 'update', id: 'luz', record: bill('luz', { amount: 300 }) },
+        tab: 'outflows',
+        change: { type: 'update', id: 'luz', record: outflow('luz', { amount: 300 }) },
       })
     );
 
@@ -102,20 +102,20 @@ describe('pendingSlice', () => {
     state = reducer(
       state,
       dropPendingChanges({
-        tab: 'bills',
+        tab: 'outflows',
         changes: {
-          luz: { type: 'update', id: 'luz', record: bill('luz') },
+          luz: { type: 'update', id: 'luz', record: outflow('luz') },
           agua: writtenAgua,
         },
       })
     );
 
     // Then the written `agua` is gone and the newer `luz` edit is retained
-    expect(state.changes.bills?.agua).toBeUndefined();
-    expect(state.changes.bills?.luz).toEqual({
+    expect(state.changes.outflows?.agua).toBeUndefined();
+    expect(state.changes.outflows?.luz).toEqual({
       type: 'update',
       id: 'luz',
-      record: bill('luz', { amount: 300 }),
+      record: outflow('luz', { amount: 300 }),
     });
   });
 
@@ -123,7 +123,7 @@ describe('pendingSlice', () => {
     // Given edits recorded across two tabs
     let state = reducer(
       undefined,
-      recordPendingChange({ tab: 'bills', change: { type: 'update', id: 'luz', record: bill('luz') } })
+      recordPendingChange({ tab: 'outflows', change: { type: 'update', id: 'luz', record: outflow('luz') } })
     );
     state = reducer(
       state,

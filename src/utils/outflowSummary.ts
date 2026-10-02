@@ -1,21 +1,21 @@
-import type { Bank, Bill, Month, Payer } from '../types';
+import type { Bank, Outflow, Month, Payer } from '../types';
 
 /**
- * How the month's bills split across payer and bank — the "who spends what
+ * How the month's outflows split across payer and bank — the "who spends what
  * where" summary, and how much of it is still to pay. Like every other derived
  * number it is computed here, on the fly, and never stored.
  *
- * Bills are grouped by payer (the top level) and then by bank within each payer.
+ * Outflows are grouped by payer (the top level) and then by bank within each payer.
  * Each group and bank line carries its full `total` and its `remaining` — the
- * part of that total whose bills are still open (not `isPaid`). Registry order
+ * part of that total whose outflows are still open (not `isPaid`). Registry order
  * is preserved so the summary reads in the order the household maintains its
- * lists; any unset or removed reference sorts last. A bill whose registry entry
+ * lists; any unset or removed reference sorts last. A outflow whose registry entry
  * is missing still contributes its amount — removing an entry must never lose
  * money from the totals (mirrors ADR-0002).
  */
 
 export interface BankTotal {
-  /** `''` when the bill's bank is unset or no longer registered. */
+  /** `''` when the outflow's bank is unset or no longer registered. */
   bankId: string;
   /** `''` when unresolved; the screen substitutes a translated fallback. */
   bankName: string;
@@ -25,7 +25,7 @@ export interface BankTotal {
 }
 
 export interface PayerGroup {
-  /** `''` when the bill's payer is unset or no longer registered. */
+  /** `''` when the outflow's payer is unset or no longer registered. */
   payerId: string;
   /** `''` when unresolved; the screen substitutes a translated fallback. */
   payerName: string;
@@ -44,18 +44,18 @@ export function orderKeys(preferred: string[], present: string[]): string[] {
 }
 
 /**
- * The month's bills grouped by payer and then bank, with totals and the part
- * still to pay. Months with no bills yield an empty array (the screen shows its
+ * The month's outflows grouped by payer and then bank, with totals and the part
+ * still to pay. Months with no outflows yield an empty array (the screen shows its
  * empty state).
  */
-export function billsByPayerAndBank(
+export function outflowsByPayerAndBank(
   month: Month,
-  bills: Bill[],
+  outflows: Outflow[],
   banks: Bank[],
   payers: Payer[]
 ): PayerGroup[] {
-  const monthBills = bills.filter((bill) => bill.month === month);
-  if (monthBills.length === 0) return [];
+  const monthOutflows = outflows.filter((outflow) => outflow.month === month);
+  if (monthOutflows.length === 0) return [];
 
   const payerNames = new Map(payers.map((payer) => [payer.id, payer.name]));
   const bankNames = new Map(banks.map((bank) => [bank.id, bank.name]));
@@ -66,13 +66,13 @@ export function billsByPayerAndBank(
     remaining: number;
   }
   const byPayer = new Map<string, Map<string, Line>>();
-  for (const bill of monthBills) {
-    const banksForPayer = byPayer.get(bill.payerId) ?? new Map<string, Line>();
-    const line = banksForPayer.get(bill.bankId) ?? { total: 0, remaining: 0 };
-    line.total += bill.amount;
-    if (!bill.isPaid) line.remaining += bill.amount;
-    banksForPayer.set(bill.bankId, line);
-    byPayer.set(bill.payerId, banksForPayer);
+  for (const outflow of monthOutflows) {
+    const banksForPayer = byPayer.get(outflow.payerId) ?? new Map<string, Line>();
+    const line = banksForPayer.get(outflow.bankId) ?? { total: 0, remaining: 0 };
+    line.total += outflow.amount;
+    if (!outflow.isPaid) line.remaining += outflow.amount;
+    banksForPayer.set(outflow.bankId, line);
+    byPayer.set(outflow.payerId, banksForPayer);
   }
 
   const payerKeys = orderKeys(

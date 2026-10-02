@@ -1,4 +1,4 @@
-import type { Bill, CardSpending, IncomeEntry, Month, PlanItem } from '../types';
+import type { Outflow, CardSpending, IncomeEntry, Month, PlanItem } from '../types';
 
 /**
  * The control-loop derived numbers, as pure functions over month-scoped
@@ -10,8 +10,8 @@ import type { Bill, CardSpending, IncomeEntry, Month, PlanItem } from '../types'
  *   Projected Result  = Plan Total − Total Spent − Σ remaining estimates
  *   Plan Result       = Plan Total − Total Spent
  *   Income Total      = Σ income
- *   Bills Total       = Σ bills
- *   Account Net       = Σ income − Σ bills
+ *   Outflows Total       = Σ outflows
+ *   Account Net       = Σ income − Σ outflows
  *
  * Each function filters by `month`, so callers pass the full arrays from the
  * store; no rendering or store coupling lives here.
@@ -59,14 +59,14 @@ export function incomeTotal(month: Month, income: IncomeEntry[]): number {
     .reduce((total, entry) => total + entry.amount, 0);
 }
 
-/** Σ bills for the month. Bills count regardless of paid status. */
-export function billsTotal(month: Month, bills: Bill[]): number {
-  return bills
-    .filter((bill) => bill.month === month)
-    .reduce((total, bill) => total + bill.amount, 0);
+/** Σ outflows for the month. Outflows count regardless of paid status. */
+export function outflowsTotal(month: Month, outflows: Outflow[]): number {
+  return outflows
+    .filter((outflow) => outflow.month === month)
+    .reduce((total, outflow) => total + outflow.amount, 0);
 }
 
-/** Σ income − Σ bills for the month. */
-export function accountNet(month: Month, income: IncomeEntry[], bills: Bill[]): number {
-  return incomeTotal(month, income) - billsTotal(month, bills);
+/** Σ income − Σ outflows for the month. */
+export function accountNet(month: Month, income: IncomeEntry[], outflows: Outflow[]): number {
+  return incomeTotal(month, income) - outflowsTotal(month, outflows);
 }

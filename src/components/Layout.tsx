@@ -19,8 +19,8 @@ const NAV_ITEMS: NavItem[] = [
     icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2',
   },
   {
-    path: '/bills',
-    labelKey: 'navigation.bills',
+    path: '/outflows',
+    labelKey: 'navigation.outflows',
     icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
   },
   {
@@ -38,7 +38,7 @@ const NAV_ITEMS: NavItem[] = [
  */
 const SCREEN_TITLES: { prefix: string; labelKey: string; addLabelKey?: string }[] = [
   { prefix: '/plan', labelKey: 'plan.title', addLabelKey: 'plan.addBucket' },
-  { prefix: '/bills', labelKey: 'bills.title', addLabelKey: 'bills.addBill' },
+  { prefix: '/outflows', labelKey: 'outflows.title', addLabelKey: 'outflows.addOutflow' },
   { prefix: '/income', labelKey: 'income.title', addLabelKey: 'income.addEntry' },
 ];
 

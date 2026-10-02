@@ -4,8 +4,8 @@ import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { addPayer, deletePayer, updatePayer } from '../../store/payersSlice';
 
 /**
- * The household's payer registry — who pays a Bill. Removing a payer only drops
- * it from the registry (see `payersSlice`); bills that reference it keep their
+ * The household's payer registry — who pays a Outflow. Removing a payer only drops
+ * it from the registry (see `payersSlice`); outflows that reference it keep their
  * amount and fall back to a neutral label.
  */
 export default function PayerRegistry() {

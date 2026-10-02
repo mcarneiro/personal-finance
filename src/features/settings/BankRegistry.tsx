@@ -4,8 +4,8 @@ import { addBank, deleteBank, updateBank } from '../../store/banksSlice';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 
 /**
- * The household's bank registry — the list a Bill can be paid from. Removing a
- * bank only drops it from the registry (see `banksSlice`); bills that reference
+ * The household's bank registry — the list a Outflow can be paid from. Removing a
+ * bank only drops it from the registry (see `banksSlice`); outflows that reference
  * it keep their amount and fall back to a neutral label.
  */
 export default function BankRegistry() {

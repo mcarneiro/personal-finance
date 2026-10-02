@@ -8,7 +8,7 @@ import { setCards } from '../store/cardsSlice';
 import { setBanks } from '../store/banksSlice';
 import { setPayers } from '../store/payersSlice';
 import { setPlanItems, setCardSpending } from '../store/planSlice';
-import { setBills } from '../store/billsSlice';
+import { setOutflows } from '../store/outflowsSlice';
 import { setIncomeEntries } from '../store/incomeSlice';
 import { setDataLoading, setDataLoaded, setSyncing, setOffline } from '../store/appSlice';
 import { clearPendingChanges, dropPendingChanges } from '../store/pendingSlice';
@@ -28,7 +28,7 @@ const EMPTY_SHEET: SheetData = {
   payers: [],
   planItems: [],
   cardSpending: [],
-  bills: [],
+  outflows: [],
   income: [],
 };
 
@@ -84,7 +84,7 @@ export function useDataSync() {
       dispatch(setPayers(data.payers));
       dispatch(setPlanItems(data.planItems));
       dispatch(setCardSpending(data.cardSpending));
-      dispatch(setBills(data.bills));
+      dispatch(setOutflows(data.outflows));
       dispatch(setIncomeEntries(data.income));
     },
     [dispatch]

@@ -12,13 +12,13 @@ export interface Card {
   name: string;
 }
 
-/** A registered bank a Bill can be paid from. */
+/** A registered bank a Outflow can be paid from. */
 export interface Bank {
   id: string;
   name: string;
 }
 
-/** A registered household member who pays a Bill. */
+/** A registered household member who pays a Outflow. */
 export interface Payer {
   id: string;
   name: string;
@@ -45,14 +45,14 @@ export interface CardSpending {
 }
 
 /** A payment obligation tracked for a particular month. */
-export interface Bill {
+export interface Outflow {
   id: string;
   month: Month;
   name: string;
   amount: number;
   isPaid: boolean;
   /**
-   * Whether the amount has been confirmed for this month. A bill starts (and
+   * Whether the amount has been confirmed for this month. A outflow starts (and
    * replicated copies always arrive) not final, so variable amounts are visibly
    * flagged until reviewed; the amount itself is still fully editable.
    */
@@ -101,7 +101,7 @@ export interface SheetRecords {
   payers: Payer;
   plan: PlanItem;
   card_spending: CardSpending;
-  bills: Bill;
+  outflows: Outflow;
   income: IncomeEntry;
 }
 
@@ -121,6 +121,6 @@ export interface SheetData {
   payers: Payer[];
   planItems: PlanItem[];
   cardSpending: CardSpending[];
-  bills: Bill[];
+  outflows: Outflow[];
   income: IncomeEntry[];
 }

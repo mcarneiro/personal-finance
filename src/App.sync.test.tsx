@@ -10,14 +10,14 @@ import { googleSheetsService } from './services/GoogleSheetsService';
 import { loadWorkingCopy, saveWorkingCopy } from './services/workingCopyCache';
 import appReducer from './store/appSlice';
 import banksReducer from './store/banksSlice';
-import billsReducer from './store/billsSlice';
+import outflowsReducer from './store/outflowsSlice';
 import cardsReducer from './store/cardsSlice';
 import incomeReducer from './store/incomeSlice';
 import payersReducer from './store/payersSlice';
 import pendingReducer from './store/pendingSlice';
 import planReducer from './store/planSlice';
 import settingsReducer, { setSheetId } from './store/settingsSlice';
-import type { Bill, PendingChanges, SheetData } from './types';
+import type { Outflow, PendingChanges, SheetData } from './types';
 
 vi.mock('./contexts/GoogleAuthContext', () => ({
   useGoogleAuth: vi.fn(),
@@ -37,14 +37,14 @@ const mockedUseGoogleAuth = vi.mocked(useGoogleAuth);
 const pullAll = vi.mocked(googleSheetsService.pullAll);
 
 function emptySheet(): SheetData {
-  return { cards: [], banks: [], payers: [], planItems: [], cardSpending: [], bills: [], income: [] };
+  return { cards: [], banks: [], payers: [], planItems: [], cardSpending: [], outflows: [], income: [] };
 }
 
-function bill(id: string, overrides: Partial<Bill> = {}): Bill {
+function outflow(id: string, overrides: Partial<Outflow> = {}): Outflow {
   return {
     id,
     month: '2026-06',
-    name: `Bill ${id}`,
+    name: `Outflow ${id}`,
     amount: 100,
     isPaid: false,
     isFinal: true,
@@ -67,7 +67,7 @@ function createStore({ pending = {}, app = {} }: StoreOptions = {}) {
       banks: banksReducer,
       payers: payersReducer,
       plan: planReducer,
-      bills: billsReducer,
+      outflows: outflowsReducer,
       income: incomeReducer,
       settings: settingsReducer,
       pending: pendingReducer,
@@ -155,59 +155,59 @@ describe('pull sync cycle', () => {
 
   it('replays Pending Changes over the pull so an unwritten local edit survives', async () => {
     // Given an edit typed on this device that the sheet has not received yet
-    const local = bill('b1', { amount: 120 });
+    const local = outflow('b1', { amount: 120 });
     const store = createStore({
-      pending: { bills: { b1: { type: 'update', id: 'b1', record: local } } },
+      pending: { outflows: { b1: { type: 'update', id: 'b1', record: local } } },
     });
     // And a pull that brings the sheet's older value for the same row
-    pullAll.mockResolvedValue({ ...emptySheet(), bills: [bill('b1', { amount: 999 })] });
+    pullAll.mockResolvedValue({ ...emptySheet(), outflows: [outflow('b1', { amount: 999 })] });
 
     // When the app opens
-    renderApp(store, '/bills/2026-06');
+    renderApp(store, '/outflows/2026-06');
 
     // Then the local edit wins over the fresh row
-    await waitFor(() => expect(store.getState().bills.items).toHaveLength(1));
-    expect(store.getState().bills.items[0]).toEqual(local);
+    await waitFor(() => expect(store.getState().outflows.items).toHaveLength(1));
+    expect(store.getState().outflows.items[0]).toEqual(local);
   });
 
   it('pushes Pending Changes after a pull and drops them once the write succeeds', async () => {
     // Given an edit whose earlier write failed (still pending on this device)
-    const local = bill('b1', { amount: 120 });
+    const local = outflow('b1', { amount: 120 });
     const store = createStore({
-      pending: { bills: { b1: { type: 'update', id: 'b1', record: local } } },
+      pending: { outflows: { b1: { type: 'update', id: 'b1', record: local } } },
     });
-    pullAll.mockResolvedValue({ ...emptySheet(), bills: [bill('b1', { amount: 999 })] });
+    pullAll.mockResolvedValue({ ...emptySheet(), outflows: [outflow('b1', { amount: 999 })] });
 
     // When the app opens and the pull settles
-    renderApp(store, '/bills/2026-06');
+    renderApp(store, '/outflows/2026-06');
 
     // Then the pending edit is pushed row-scoped and cleared on success
     await waitFor(() =>
       expect(googleSheetsService.writePendingChanges).toHaveBeenCalledWith('test-sheet', {
-        bills: { b1: { type: 'update', id: 'b1', record: local } },
+        outflows: { b1: { type: 'update', id: 'b1', record: local } },
       })
     );
-    await waitFor(() => expect(store.getState().pending.changes.bills?.b1).toBeUndefined());
-    expect(store.getState().bills.items[0]).toEqual(local);
+    await waitFor(() => expect(store.getState().pending.changes.outflows?.b1).toBeUndefined());
+    expect(store.getState().outflows.items[0]).toEqual(local);
   });
 
   it('keeps Pending Changes when the post-pull push fails', async () => {
     // Given a pending edit and a pull that succeeds while the write is offline
     vi.spyOn(console, 'error').mockImplementation(() => {});
-    const local = bill('b1', { amount: 120 });
+    const local = outflow('b1', { amount: 120 });
     const store = createStore({
-      pending: { bills: { b1: { type: 'update', id: 'b1', record: local } } },
+      pending: { outflows: { b1: { type: 'update', id: 'b1', record: local } } },
     });
-    pullAll.mockResolvedValue({ ...emptySheet(), bills: [bill('b1', { amount: 999 })] });
+    pullAll.mockResolvedValue({ ...emptySheet(), outflows: [outflow('b1', { amount: 999 })] });
     vi.mocked(googleSheetsService.writePendingChanges).mockRejectedValue(new Error('offline'));
 
     // When the app opens
-    renderApp(store, '/bills/2026-06');
+    renderApp(store, '/outflows/2026-06');
 
     // Then the fresh rows are painted with the local edit replayed, and the
     // Pending Change is kept for the next save or pull
-    await waitFor(() => expect(store.getState().bills.items[0]).toEqual(local));
-    expect(store.getState().pending.changes.bills?.b1).toBeDefined();
+    await waitFor(() => expect(store.getState().outflows.items[0]).toEqual(local));
+    expect(store.getState().pending.changes.outflows?.b1).toBeDefined();
   });
 
   it('shows the syncing indicator only while a background pull is in flight, without gating the UI', async () => {
@@ -324,8 +324,8 @@ describe('pull sync cycle', () => {
   });
 
   it('paints the cached Working Copy before the pull settles', async () => {
-    // Given the previous session cached a bill
-    saveWorkingCopy('test-sheet', { ...emptySheet(), bills: [bill('cached')] });
+    // Given the previous session cached a outflow
+    saveWorkingCopy('test-sheet', { ...emptySheet(), outflows: [outflow('cached')] });
     let resolvePull!: (data: SheetData) => void;
     pullAll.mockReturnValue(
       new Promise<SheetData>((resolve) => {
@@ -335,19 +335,19 @@ describe('pull sync cycle', () => {
     const store = createStore();
 
     // When the app opens while the fresh pull is still in flight
-    renderApp(store, '/bills/2026-06');
+    renderApp(store, '/outflows/2026-06');
 
     // Then the cached data is already painted, with no loading gate
     expect(screen.queryByText('Carregando...')).not.toBeInTheDocument();
-    expect(store.getState().bills.items).toEqual([bill('cached')]);
+    expect(store.getState().outflows.items).toEqual([outflow('cached')]);
 
     // When the fresh pull lands
     await act(async () => {
-      resolvePull({ ...emptySheet(), bills: [bill('cached', { amount: 999 })] });
+      resolvePull({ ...emptySheet(), outflows: [outflow('cached', { amount: 999 })] });
     });
 
     // Then it swaps the fresh value in
-    expect(store.getState().bills.items[0].amount).toBe(999);
+    expect(store.getState().outflows.items[0].amount).toBe(999);
   });
 
   it('trusts the cached schema and skips the header checks on a warm startup', async () => {
@@ -381,41 +381,41 @@ describe('pull sync cycle', () => {
   it('shows last-saved data with the offline hint when the startup pull fails', async () => {
     // Given a cached Working Copy from the last successful session
     vi.spyOn(console, 'error').mockImplementation(() => {});
-    saveWorkingCopy('test-sheet', { ...emptySheet(), bills: [bill('cached')] });
+    saveWorkingCopy('test-sheet', { ...emptySheet(), outflows: [outflow('cached')] });
     pullAll.mockRejectedValueOnce(new Error('offline'));
     const store = createStore();
 
     // When the app opens offline
-    renderApp(store, '/bills/2026-06');
+    renderApp(store, '/outflows/2026-06');
 
     // Then the last-saved data is still shown, with the offline hint
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('offline'));
-    expect(store.getState().bills.items).toEqual([bill('cached')]);
+    expect(store.getState().outflows.items).toEqual([outflow('cached')]);
     expect(screen.queryByText('Carregando...')).not.toBeInTheDocument();
   });
 
   it('persists the merged snapshot after a successful pull', async () => {
-    // Given a fresh pull with a bill
-    pullAll.mockResolvedValue({ ...emptySheet(), bills: [bill('fresh')] });
+    // Given a fresh pull with a outflow
+    pullAll.mockResolvedValue({ ...emptySheet(), outflows: [outflow('fresh')] });
 
     // When the app opens and the pull settles
-    renderApp(createStore(), '/bills/2026-06');
+    renderApp(createStore(), '/outflows/2026-06');
 
     // Then the snapshot is cached for the next startup
     await waitFor(() =>
-      expect(loadWorkingCopy('test-sheet')?.bills).toEqual([bill('fresh')])
+      expect(loadWorkingCopy('test-sheet')?.outflows).toEqual([outflow('fresh')])
     );
   });
 
   it('never shows the previous sheet data after changing the sheet in Settings', async () => {
-    // Given sheet A loaded with a bill and an unwritten local edit for it
-    const localEdit = bill('a-local', { amount: 777 });
-    pullAll.mockResolvedValueOnce({ ...emptySheet(), bills: [bill('sheet-a')] });
+    // Given sheet A loaded with a outflow and an unwritten local edit for it
+    const localEdit = outflow('a-local', { amount: 777 });
+    pullAll.mockResolvedValueOnce({ ...emptySheet(), outflows: [outflow('sheet-a')] });
     const store = createStore({
-      pending: { bills: { 'a-local': { type: 'update', id: 'a-local', record: localEdit } } },
+      pending: { outflows: { 'a-local': { type: 'update', id: 'a-local', record: localEdit } } },
     });
-    renderApp(store, '/bills/2026-06');
-    await waitFor(() => expect(store.getState().bills.items).toHaveLength(2));
+    renderApp(store, '/outflows/2026-06');
+    await waitFor(() => expect(store.getState().outflows.items).toHaveLength(2));
 
     // When the household connects a different sheet and its data has not arrived
     let resolveOther!: (data: SheetData) => void;
@@ -429,17 +429,17 @@ describe('pull sync cycle', () => {
     });
     await flushPromises();
 
-    // Then the previous sheet's bill and its pending edit are gone, and the app
+    // Then the previous sheet's outflow and its pending edit are gone, and the app
     // waits behind the gate
-    expect(store.getState().bills.items).toEqual([]);
+    expect(store.getState().outflows.items).toEqual([]);
     expect(store.getState().pending.changes).toEqual({});
     expect(screen.getByText('Carregando...')).toBeInTheDocument();
 
     // And the new sheet's fresh rows are not polluted by the old pending edit
     await act(async () => {
-      resolveOther({ ...emptySheet(), bills: [bill('sheet-b')] });
+      resolveOther({ ...emptySheet(), outflows: [outflow('sheet-b')] });
     });
-    expect(store.getState().bills.items.map((item) => item.id)).toEqual(['sheet-b']);
+    expect(store.getState().outflows.items.map((item) => item.id)).toEqual(['sheet-b']);
   });
 
   it('discards a pull that lands after the sheet changed mid-flight', async () => {
@@ -451,7 +451,7 @@ describe('pull sync cycle', () => {
       })
     );
     const store = createStore();
-    renderApp(store, '/bills/2026-06');
+    renderApp(store, '/outflows/2026-06');
     await flushPromises();
 
     // When the household switches to sheet B while A is still loading
@@ -466,14 +466,14 @@ describe('pull sync cycle', () => {
     });
     await flushPromises();
 
-    // And A's pull finally lands with A's bill
+    // And A's pull finally lands with A's outflow
     await act(async () => {
-      resolveA({ ...emptySheet(), bills: [bill('sheet-a')] });
+      resolveA({ ...emptySheet(), outflows: [outflow('sheet-a')] });
     });
     await flushPromises();
 
     // Then A's data is discarded, not painted over sheet B...
-    expect(store.getState().bills.items).toEqual([]);
+    expect(store.getState().outflows.items).toEqual([]);
     // ...and B's pull has been started in its place
     expect(pullAll).toHaveBeenLastCalledWith('other-sheet', { verifySchema: true });
 

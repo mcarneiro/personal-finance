@@ -18,7 +18,7 @@ export function selectSheetData(state: RootState): SheetData {
     payers: state.payers?.items ?? [],
     planItems: state.plan?.items ?? [],
     cardSpending: state.plan?.cardSpending ?? [],
-    bills: state.bills?.items ?? [],
+    outflows: state.outflows?.items ?? [],
     income: state.income?.items ?? [],
   };
 }

@@ -26,7 +26,7 @@ const banksSlice = createSlice({
       }
     },
     /**
-     * Removing a bank only drops it from the registry. Bills that reference it
+     * Removing a bank only drops it from the registry. Outflows that reference it
      * are deliberately left in place: they are the historical record of who paid
      * what, and removing the bank must not corrupt them (mirrors ADR-0002).
      */

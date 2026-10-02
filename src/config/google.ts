@@ -42,8 +42,8 @@ export const SHEET_CONFIGS = {
     name: 'card_spending',
     columns: ['id', 'month', 'card_id', 'total'],
   },
-  bills: {
-    name: 'bills',
+  outflows: {
+    name: 'outflows',
     columns: ['id', 'month', 'name', 'amount', 'is_paid', 'payer_id', 'bank_id', 'is_final'],
   },
   income: {

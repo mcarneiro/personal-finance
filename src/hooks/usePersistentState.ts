@@ -9,7 +9,7 @@ export type PersistentParser<T> = (raw: unknown) => T | null;
 /**
  * A view preference of any JSON-serialisable shape that outlives the session.
  * The value is read from `localStorage` once, on mount, and written back on
- * every change, so a choice like "only show Guta's bills" survives a reload.
+ * every change, so a choice like "only show Guta's outflows" survives a reload.
  *
  * This is presentation state only — never a derived number and never synced to
  * the sheet (ADR-0001). Storage failures (private mode, full quota) and a

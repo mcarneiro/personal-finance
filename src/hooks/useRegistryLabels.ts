@@ -2,9 +2,9 @@ import { useTranslation } from 'react-i18next';
 import { useAppSelector } from '../store/hooks';
 
 /**
- * Resolve a Bill's Payer and Bank references to display names, with the same
+ * Resolve a Outflow's Payer and Bank references to display names, with the same
  * fallbacks for an unset reference and a since-removed registry entry. Shared by
- * the Bills screen and the Dashboard so both label a bill identically.
+ * the Outflows screen and the Dashboard so both label a outflow identically.
  */
 export function useRegistryLabels() {
   const { t } = useTranslation();
@@ -15,9 +15,9 @@ export function useRegistryLabels() {
   const bankNames = new Map(banks.map((bank) => [bank.id, bank.name]));
 
   const payerLabel = (id: string) =>
-    id ? (payerNames.get(id) ?? t('bills.removedPayer')) : t('bills.unassignedPayer');
+    id ? (payerNames.get(id) ?? t('outflows.removedPayer')) : t('outflows.unassignedPayer');
   const bankLabel = (id: string) =>
-    id ? (bankNames.get(id) ?? t('bills.removedBank')) : t('bills.unassignedBank');
+    id ? (bankNames.get(id) ?? t('outflows.removedBank')) : t('outflows.unassignedBank');
 
   return { payerLabel, bankLabel };
 }

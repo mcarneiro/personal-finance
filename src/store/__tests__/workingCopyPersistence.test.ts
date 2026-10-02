@@ -1,11 +1,11 @@
 import { configureStore } from '@reduxjs/toolkit';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Bill } from '../../types';
+import type { Outflow } from '../../types';
 import { loadWorkingCopy } from '../../services/workingCopyCache';
 import { googleSheetsService } from '../../services/GoogleSheetsService';
 import { syncListenerMiddleware } from '../middleware/syncListener';
-import { addBill, updateBill } from '../billsSlice';
-import billsReducer from '../billsSlice';
+import { addOutflow, updateOutflow } from '../outflowsSlice';
+import outflowsReducer from '../outflowsSlice';
 import banksReducer from '../banksSlice';
 import cardsReducer from '../cardsSlice';
 import incomeReducer from '../incomeSlice';
@@ -20,11 +20,11 @@ vi.mock('../../services/GoogleSheetsService', () => ({
   },
 }));
 
-function bill(id: string, overrides: Partial<Bill> = {}): Bill {
+function outflow(id: string, overrides: Partial<Outflow> = {}): Outflow {
   return {
     id,
     month: '2026-06',
-    name: `Bill ${id}`,
+    name: `Outflow ${id}`,
     amount: 100,
     isPaid: false,
     isFinal: true,
@@ -45,7 +45,7 @@ function makeStore() {
       banks: banksReducer,
       payers: payersReducer,
       plan: planReducer,
-      bills: billsReducer,
+      outflows: outflowsReducer,
       income: incomeReducer,
       settings: settingsReducer,
       pending: pendingReducer,
@@ -70,21 +70,21 @@ describe('Working Copy persistence after a write', () => {
     // Given a connected store with the real debounced sync middleware
     const store = makeStore();
 
-    // When a bill is added and the debounced write succeeds
-    store.dispatch(addBill(bill('b1')));
+    // When a outflow is added and the debounced write succeeds
+    store.dispatch(addOutflow(outflow('b1')));
 
     // Then the snapshot is cached for the next startup
     await vi.waitFor(() => {
       expect(googleSheetsService.writePendingChanges).toHaveBeenCalled();
-      expect(loadWorkingCopy('sheet-1')?.bills).toEqual([bill('b1')]);
+      expect(loadWorkingCopy('sheet-1')?.outflows).toEqual([outflow('b1')]);
     }, { timeout: 2500 });
   });
 
   it('abandons a debounced write that raced a Settings sheet change', async () => {
-    // Given a bill edit whose write is still inside the debounce window
+    // Given a outflow edit whose write is still inside the debounce window
     vi.useFakeTimers();
     const store = makeStore();
-    store.dispatch(addBill(bill('b1')));
+    store.dispatch(addOutflow(outflow('b1')));
 
     // When the household changes the connected sheet before the debounce fires
     store.dispatch(setSheetId('sheet-2'));
@@ -104,19 +104,19 @@ describe('Working Copy persistence after a write', () => {
     vi.mocked(googleSheetsService.writePendingChanges).mockRejectedValueOnce(
       new Error('offline')
     );
-    store.dispatch(addBill(bill('b1')));
+    store.dispatch(addOutflow(outflow('b1')));
 
     // When the debounced write fails
     await vi.advanceTimersByTimeAsync(1100);
 
     // Then the Pending Change is kept for a retry, not lost
-    expect(store.getState().pending.changes.bills?.b1).toBeDefined();
+    expect(store.getState().pending.changes.outflows?.b1).toBeDefined();
 
     // When the household edits again and the next save succeeds
-    store.dispatch(updateBill(bill('b1', { amount: 150 })));
+    store.dispatch(updateOutflow(outflow('b1', { amount: 150 })));
     await vi.advanceTimersByTimeAsync(1100);
 
     // Then the retried write clears the Pending Change
-    expect(store.getState().pending.changes.bills?.b1).toBeUndefined();
+    expect(store.getState().pending.changes.outflows?.b1).toBeUndefined();
   });
 });

@@ -26,7 +26,7 @@ const payersSlice = createSlice({
       }
     },
     /**
-     * Removing a payer only drops it from the registry. Bills that reference it
+     * Removing a payer only drops it from the registry. Outflows that reference it
      * are deliberately left in place: they are the historical record of who paid
      * what, and removing the payer must not corrupt them (mirrors ADR-0002).
      */

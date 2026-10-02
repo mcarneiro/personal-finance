@@ -8,17 +8,17 @@ import '../../config/i18n';
 import i18n from '../../config/i18n';
 import { googleSheetsService } from '../../services/GoogleSheetsService';
 import banksReducer from '../../store/banksSlice';
-import billsReducer from '../../store/billsSlice';
+import outflowsReducer from '../../store/outflowsSlice';
 import incomeReducer from '../../store/incomeSlice';
 import { syncListenerMiddleware } from '../../store/middleware/syncListener';
 import pendingReducer from '../../store/pendingSlice';
 import payersReducer from '../../store/payersSlice';
 import settingsReducer from '../../store/settingsSlice';
 import { writtenRecords } from '../../test/pendingWrites';
-import type { Bank, Bill, IncomeEntry, Payer } from '../../types';
+import type { Bank, Outflow, IncomeEntry, Payer } from '../../types';
 import { formatCurrency } from '../../utils/currency';
 import { getCurrentMonth, shiftMonth } from '../../utils/month';
-import BillsScreen from './BillsScreen';
+import OutflowsScreen from './OutflowsScreen';
 
 vi.mock('../../services/GoogleSheetsService', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../services/GoogleSheetsService')>();
@@ -27,7 +27,7 @@ vi.mock('../../services/GoogleSheetsService', async (importOriginal) => {
     googleSheetsService: {
       ...actual.googleSheetsService,
       writePendingChanges: vi.fn(),
-      readBills: vi.fn(),
+      readOutflows: vi.fn(),
       readPlanItems: vi.fn(),
       readIncome: vi.fn(),
     },
@@ -59,9 +59,9 @@ const BANKS: Bank[] = [
   { id: 'bank-nubank', name: 'Nubank' },
 ];
 
-function bill(
-  overrides: Partial<Bill> & Pick<Bill, 'month' | 'name' | 'amount'>
-): Bill {
+function outflow(
+  overrides: Partial<Outflow> & Pick<Outflow, 'month' | 'name' | 'amount'>
+): Outflow {
   return {
     id: `${overrides.month}-${overrides.name}`,
     isPaid: false,
@@ -77,20 +77,20 @@ function incomeEntry(month: string, amount: number, source?: string): IncomeEntr
 }
 
 /**
- * Renders the Bills screen with a real store and the real debounced sync
+ * Renders the Outflows screen with a real store and the real debounced sync
  * middleware: only the sheets service boundary is mocked, so every mutation is
  * verified all the way to the write-back call (Seam B).
  */
-function renderBills(
-  initialPath = `/bills/${JUNE}`,
-  bills: Bill[] = [],
+function renderOutflows(
+  initialPath = `/outflows/${JUNE}`,
+  outflows: Outflow[] = [],
   income: IncomeEntry[] = [],
   payers: Payer[] = PAYERS,
   banks: Bank[] = BANKS
 ) {
   const store = configureStore({
     reducer: {
-      bills: billsReducer,
+      outflows: outflowsReducer,
       income: incomeReducer,
       payers: payersReducer,
       banks: banksReducer,
@@ -100,7 +100,7 @@ function renderBills(
     middleware: (getDefaultMiddleware) =>
       getDefaultMiddleware().prepend(syncListenerMiddleware.middleware),
     preloadedState: {
-      bills: { items: bills },
+      outflows: { items: outflows },
       income: { items: income },
       payers: { items: payers },
       banks: { items: banks },
@@ -112,9 +112,9 @@ function renderBills(
     <Provider store={store}>
       <MemoryRouter initialEntries={[initialPath]}>
         <Routes>
-          <Route path="/bills/:month" element={<BillsScreen />} />
-          <Route path="/bills/edit/:id" element={<p>Editor da conta</p>} />
-          <Route path="/bills/new/:month" element={<p>Nova conta</p>} />
+          <Route path="/outflows/:month" element={<OutflowsScreen />} />
+          <Route path="/outflows/edit/:id" element={<p>Editor da saída</p>} />
+          <Route path="/outflows/new/:month" element={<p>Nova saída</p>} />
           <Route path="/income/:month" element={<p>Página de renda</p>} />
           <Route path="/settings" element={<p>Ajustes</p>} />
         </Routes>
@@ -132,22 +132,22 @@ const summaryRow = (label: string) =>
   within(screen.getByText(label).parentElement as HTMLElement);
 
 /** The by-payer spending summary region. */
-const byPayer = () => within(screen.getByRole('region', { name: 'Gastos por responsável' }));
+const byPayer = () => within(screen.getByRole('region', { name: 'Saídas por responsável' }));
 
 /** The expand/collapse toggle for the by-payer spending summary. */
 const summaryToggle = () =>
-  screen.getByRole('button', { name: 'Gastos por responsável' });
+  screen.getByRole('button', { name: 'Saídas por responsável' });
 
 /** One payer's group inside the by-payer summary, addressed by its name. */
 const payerGroup = (name: string) =>
   within(byPayer().getByText(name).closest('li') as HTMLElement);
 
 /** The small icon that opens the filter drawer. */
-const filterButton = () => screen.getByRole('button', { name: 'Filtrar contas' });
+const filterButton = () => screen.getByRole('button', { name: 'Filtrar saídas' });
 
 /** The filter drawer, addressed once it is open. */
 const filterDrawer = () =>
-  within(screen.getByRole('dialog', { name: 'Filtrar contas' }));
+  within(screen.getByRole('dialog', { name: 'Filtrar saídas' }));
 
 /** Open the drawer, tick the named boxes, and apply. */
 async function applyFilter(
@@ -165,10 +165,10 @@ async function applyFilter(
 const appearsBefore = (first: HTMLElement, second: HTMLElement) =>
   Boolean(first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING);
 
-/** Wait out the debounced sync and assert the bills written satisfy `matches`. */
-async function expectBillsWritten(matches: (written: Bill[]) => boolean) {
+/** Wait out the debounced sync and assert the outflows written satisfy `matches`. */
+async function expectOutflowsWritten(matches: (written: Outflow[]) => boolean) {
   await waitFor(() => {
-    const written = writtenRecords(googleSheetsService, 'bills');
+    const written = writtenRecords(googleSheetsService, 'outflows');
     expect(matches(written)).toBe(true);
   }, { timeout: 2500 });
 }
@@ -180,23 +180,23 @@ beforeEach(async () => {
   localStorage.clear();
   // The copy guard's re-read defaults to an empty sheet; the guard tests below
   // return rows to simulate another member's copy having landed.
-  vi.mocked(googleSheetsService.readBills).mockResolvedValue([]);
+  vi.mocked(googleSheetsService.readOutflows).mockResolvedValue([]);
   // `clearAllMocks` strips the implementation, so every test re-arms the write
   // boundary as a resolved stub; `writtenRecords` reads its call payloads.
   vi.mocked(googleSheetsService.writePendingChanges).mockResolvedValue(undefined);
   await i18n.changeLanguage('pt-BR');
 });
 
-describe('Bills', () => {
-  it("lists the month's bills with amounts and open/paid status", () => {
-    // Given June has an open bill and a paid one
-    renderBills(`/bills/${JUNE}`, [
-      bill({ month: JUNE, name: 'Luz', amount: 150 }),
-      bill({ month: JUNE, name: 'Internet', amount: 110, isPaid: true }),
+describe('Outflows', () => {
+  it("lists the month's outflows with amounts and open/paid status", () => {
+    // Given June has an open outflow and a paid one
+    renderOutflows(`/outflows/${JUNE}`, [
+      outflow({ month: JUNE, name: 'Luz', amount: 150 }),
+      outflow({ month: JUNE, name: 'Internet', amount: 110, isPaid: true }),
     ]);
 
     // When the screen renders
-    // Then both bills and their status are visible
+    // Then both outflows and their status are visible
     expect(screen.getByText('Luz')).toBeInTheDocument();
     expect(screen.getByText('Internet')).toBeInTheDocument();
     expect(screen.getByText(/150,00/)).toBeInTheDocument();
@@ -207,17 +207,17 @@ describe('Bills', () => {
     expect(screen.getByRole('checkbox', { name: 'Marcar como em aberto: Internet' })).toBeChecked();
   });
 
-  it('lists open bills before paid ones, alphabetically within each group', () => {
-    // Given June has open and paid bills listed out of order
-    renderBills(`/bills/${JUNE}`, [
-      bill({ month: JUNE, name: 'Luz', amount: 150 }),
-      bill({ month: JUNE, name: 'Internet', amount: 110, isPaid: true }),
-      bill({ month: JUNE, name: 'Água', amount: 90 }),
-      bill({ month: JUNE, name: 'Gym', amount: 50, isPaid: true }),
+  it('lists open outflows before paid ones, alphabetically within each group', () => {
+    // Given June has open and paid outflows listed out of order
+    renderOutflows(`/outflows/${JUNE}`, [
+      outflow({ month: JUNE, name: 'Luz', amount: 150 }),
+      outflow({ month: JUNE, name: 'Internet', amount: 110, isPaid: true }),
+      outflow({ month: JUNE, name: 'Água', amount: 90 }),
+      outflow({ month: JUNE, name: 'Gym', amount: 50, isPaid: true }),
     ]);
 
     // When the list renders
-    // Then the open bills lead in alphabetical order, then the paid ones
+    // Then the open outflows lead in alphabetical order, then the paid ones
     const rows = screen
       .getAllByRole('checkbox')
       .map((box) => box.getAttribute('aria-label'));
@@ -229,28 +229,28 @@ describe('Bills', () => {
     ]);
   });
 
-  it('flags a bill whose value is not final with a warning before its name', () => {
-    // Given one confirmed bill and one still awaiting its final value
-    renderBills(`/bills/${JUNE}`, [
-      bill({ month: JUNE, name: 'Luz', amount: 150, isFinal: true }),
-      bill({ month: JUNE, name: 'Internet', amount: 110, isFinal: false }),
+  it('flags a outflow whose value is not final with a warning before its name', () => {
+    // Given one confirmed outflow and one still awaiting its final value
+    renderOutflows(`/outflows/${JUNE}`, [
+      outflow({ month: JUNE, name: 'Luz', amount: 150, isFinal: true }),
+      outflow({ month: JUNE, name: 'Internet', amount: 110, isFinal: false }),
     ]);
 
     // When the list renders
     const unconfirmedRow = screen.getByText('Internet').closest('li') as HTMLElement;
     const confirmedRow = screen.getByText('Luz').closest('li') as HTMLElement;
 
-    // Then only the unconfirmed bill carries the warning
+    // Then only the unconfirmed outflow carries the warning
     expect(within(unconfirmedRow).getByText('⚠️')).toBeInTheDocument();
     expect(within(confirmedRow).queryByText('⚠️')).not.toBeInTheDocument();
   });
 
-  it('sinks bills still awaiting a final value below the confirmed ones', () => {
-    // Given a confirmed paid bill and two unconfirmed open bills
-    renderBills(`/bills/${JUNE}`, [
-      bill({ month: JUNE, name: 'Água', amount: 90, isFinal: false }),
-      bill({ month: JUNE, name: 'Internet', amount: 110, isPaid: true, isFinal: true }),
-      bill({ month: JUNE, name: 'Luz', amount: 150, isFinal: false }),
+  it('sinks outflows still awaiting a final value below the confirmed ones', () => {
+    // Given a confirmed paid outflow and two unconfirmed open outflows
+    renderOutflows(`/outflows/${JUNE}`, [
+      outflow({ month: JUNE, name: 'Água', amount: 90, isFinal: false }),
+      outflow({ month: JUNE, name: 'Internet', amount: 110, isPaid: true, isFinal: true }),
+      outflow({ month: JUNE, name: 'Luz', amount: 150, isFinal: false }),
     ]);
 
     // When the list renders
@@ -258,7 +258,7 @@ describe('Bills', () => {
       .getAllByRole('checkbox')
       .map((box) => box.getAttribute('aria-label'));
 
-    // Then the confirmed bill leads and the unconfirmed ones follow, alphabetical
+    // Then the confirmed outflow leads and the unconfirmed ones follow, alphabetical
     expect(rows).toEqual([
       'Marcar como em aberto: Internet',
       'Marcar como paga: Água',
@@ -266,23 +266,23 @@ describe('Bills', () => {
     ]);
   });
 
-  it('shows the by-payer summary below the totals and above the bills list', () => {
-    // Given June has a bill
-    renderBills(`/bills/${JUNE}`, [bill({ month: JUNE, name: 'Luz', amount: 150 })]);
+  it('shows the by-payer summary below the totals and above the outflows list', () => {
+    // Given June has a outflow
+    renderOutflows(`/outflows/${JUNE}`, [outflow({ month: JUNE, name: 'Luz', amount: 150 })]);
 
     // When the screen renders
     const summaryRegion = screen.getByRole('region', { name: 'Resumo do mês' });
-    const byPayerRegion = screen.getByRole('region', { name: 'Gastos por responsável' });
-    const billsRegion = screen.getByRole('region', { name: 'Contas' });
+    const byPayerRegion = screen.getByRole('region', { name: 'Saídas por responsável' });
+    const outflowsRegion = screen.getByRole('region', { name: 'Saídas' });
 
     // Then the totals lead, the by-payer summary follows, then the list
     expect(appearsBefore(summaryRegion, byPayerRegion)).toBe(true);
-    expect(appearsBefore(byPayerRegion, billsRegion)).toBe(true);
+    expect(appearsBefore(byPayerRegion, outflowsRegion)).toBe(true);
   });
 
   it('keeps the by-payer summary collapsed until it is expanded', async () => {
-    // Given June has a bill
-    renderBills(`/bills/${JUNE}`, [bill({ month: JUNE, name: 'Luz', amount: 150 })]);
+    // Given June has a outflow
+    renderOutflows(`/outflows/${JUNE}`, [outflow({ month: JUNE, name: 'Luz', amount: 150 })]);
     const user = userEvent.setup();
 
     // When the screen first renders
@@ -305,10 +305,10 @@ describe('Bills', () => {
     expect(byPayer().queryByText('Marcelo')).not.toBeInTheDocument();
   });
 
-  it('shows the payer and bank each bill was assigned', () => {
-    // Given June has a bill paid by Guta from Itaú
-    renderBills(`/bills/${JUNE}`, [
-      bill({ month: JUNE, name: 'Cartão guta', amount: 2899, payerId: 'payer-guta', bankId: 'bank-itau' }),
+  it('shows the payer and bank each outflow was assigned', () => {
+    // Given June has a outflow paid by Guta from Itaú
+    renderOutflows(`/outflows/${JUNE}`, [
+      outflow({ month: JUNE, name: 'Cartão guta', amount: 2899, payerId: 'payer-guta', bankId: 'bank-itau' }),
     ]);
 
     // When the screen renders
@@ -316,10 +316,10 @@ describe('Bills', () => {
     expect(screen.getByText('Guta · Itaú')).toBeInTheDocument();
   });
 
-  it('shows a fallback label for a bill whose payer or bank is unset', () => {
-    // Given a legacy June bill with no payer or bank recorded
-    renderBills(`/bills/${JUNE}`, [
-      bill({ month: JUNE, name: 'Luz', amount: 150, payerId: '', bankId: '' }),
+  it('shows a fallback label for a outflow whose payer or bank is unset', () => {
+    // Given a legacy June outflow with no payer or bank recorded
+    renderOutflows(`/outflows/${JUNE}`, [
+      outflow({ month: JUNE, name: 'Luz', amount: 150, payerId: '', bankId: '' }),
     ]);
 
     // When the screen renders
@@ -327,27 +327,27 @@ describe('Bills', () => {
     expect(screen.getByText('Sem responsável · Sem banco')).toBeInTheDocument();
   });
 
-  it('shows the bills total, income total and account net for the month', () => {
-    // Given June has 150 + 2.899 in bills and 12.000 of income
-    renderBills(
-      `/bills/${JUNE}`,
-      [bill({ month: JUNE, name: 'Luz', amount: 150 }), bill({ month: JUNE, name: 'Cartão guta', amount: 2899 })],
+  it('shows the outflows total, income total and account net for the month', () => {
+    // Given June has 150 + 2.899 in outflows and 12.000 of income
+    renderOutflows(
+      `/outflows/${JUNE}`,
+      [outflow({ month: JUNE, name: 'Luz', amount: 150 }), outflow({ month: JUNE, name: 'Cartão guta', amount: 2899 })],
       [incomeEntry(JUNE, 12000, 'Salário')]
     );
 
     // When I look at the month summary
-    // Then Account Net is income − bills = 8.951, and each total is its own sum
-    expect(screen.getByText('Total das contas')).toBeInTheDocument();
+    // Then Account Net is income − outflows = 8.951, and each total is its own sum
+    expect(screen.getByText('Total das saídas')).toBeInTheDocument();
     expect(screen.getByText('Total da renda')).toBeInTheDocument();
     expect(screen.getByText('Saldo da conta')).toBeInTheDocument();
-    expect(summaryRow('Total das contas').getByText(/3\.049,00/)).toBeInTheDocument();
+    expect(summaryRow('Total das saídas').getByText(/3\.049,00/)).toBeInTheDocument();
     expect(summaryRow('Total da renda').getByText(/12\.000,00/)).toBeInTheDocument();
     expect(summaryRow('Saldo da conta').getByText(/8\.951,00/)).toBeInTheDocument();
   });
 
   it('opens the same month on the Income screen from the income total', async () => {
     // Given June has income and I am browsing June
-    renderBills(`/bills/${JUNE}`, [], [incomeEntry(JUNE, 12000, 'Salário')]);
+    renderOutflows(`/outflows/${JUNE}`, [], [incomeEntry(JUNE, 12000, 'Salário')]);
     const user = userEvent.setup();
 
     // When I tap the income total
@@ -358,12 +358,12 @@ describe('Bills', () => {
   });
 
   it('groups the month spending by payer and then by bank', async () => {
-    // Given June's bills split across two payers and two banks
-    renderBills(`/bills/${JUNE}`, [
-      bill({ month: JUNE, name: 'Luz', amount: 150 }),
-      bill({ month: JUNE, name: 'Internet', amount: 110 }),
-      bill({ month: JUNE, name: 'Cartão guta', amount: 2899, payerId: 'payer-guta', bankId: 'bank-itau' }),
-      bill({ month: JUNE, name: 'Gym', amount: 200, payerId: 'payer-guta', bankId: 'bank-nubank' }),
+    // Given June's outflows split across two payers and two banks
+    renderOutflows(`/outflows/${JUNE}`, [
+      outflow({ month: JUNE, name: 'Luz', amount: 150 }),
+      outflow({ month: JUNE, name: 'Internet', amount: 110 }),
+      outflow({ month: JUNE, name: 'Cartão guta', amount: 2899, payerId: 'payer-guta', bankId: 'bank-itau' }),
+      outflow({ month: JUNE, name: 'Gym', amount: 200, payerId: 'payer-guta', bankId: 'bank-nubank' }),
     ]);
     const user = userEvent.setup();
 
@@ -379,24 +379,24 @@ describe('Bills', () => {
   });
 
   it('swaps the by-payer and per-bank values to the amount still to pay on request', async () => {
-    // Given Guta has one paid Itaú bill and one open Nubank bill
-    renderBills(`/bills/${JUNE}`, [
-      bill({ month: JUNE, name: 'Cartão guta', amount: 150, isPaid: true, payerId: 'payer-guta', bankId: 'bank-itau' }),
-      bill({ month: JUNE, name: 'Gym', amount: 200, payerId: 'payer-guta', bankId: 'bank-nubank' }),
+    // Given Guta has one paid Itaú outflow and one open Nubank outflow
+    renderOutflows(`/outflows/${JUNE}`, [
+      outflow({ month: JUNE, name: 'Cartão guta', amount: 150, isPaid: true, payerId: 'payer-guta', bankId: 'bank-itau' }),
+      outflow({ month: JUNE, name: 'Gym', amount: 200, payerId: 'payer-guta', bankId: 'bank-nubank' }),
     ]);
     const user = userEvent.setup();
     await user.click(summaryToggle());
     const group = payerGroup('Guta');
 
-    // Then the values start as the full totals (350) including the paid bill
+    // Then the values start as the full totals (350) including the paid outflow
     expect(group.getByText(money(350))).toBeInTheDocument();
     expect(group.getByText(money(150))).toBeInTheDocument();
 
     // When I turn on the remaining toggle
     await user.click(byPayer().getByRole('checkbox', { name: 'Mostrar valor a pagar' }));
 
-    // Then each value becomes what is still to pay — the paid Itaú bill drops
-    // to zero and the group total drops to the open Nubank bill
+    // Then each value becomes what is still to pay — the paid Itaú outflow drops
+    // to zero and the group total drops to the open Nubank outflow
     expect(group.queryByText(money(350))).not.toBeInTheDocument();
     expect(group.queryByText(money(150))).not.toBeInTheDocument();
     expect(group.getAllByText(money(200))).toHaveLength(2);
@@ -404,8 +404,8 @@ describe('Bills', () => {
   });
 
   it('remembers the remaining toggle in local storage', async () => {
-    // Given June has a bill with the by-payer summary open
-    renderBills(`/bills/${JUNE}`, [bill({ month: JUNE, name: 'Luz', amount: 150 })]);
+    // Given June has a outflow with the by-payer summary open
+    renderOutflows(`/outflows/${JUNE}`, [outflow({ month: JUNE, name: 'Luz', amount: 150 })]);
     const user = userEvent.setup();
     await user.click(summaryToggle());
 
@@ -413,25 +413,25 @@ describe('Bills', () => {
     await user.click(byPayer().getByRole('checkbox', { name: 'Mostrar valor a pagar' }));
 
     // Then the preference is persisted for the next visit
-    expect(localStorage.getItem('planyoo:bills:showRemaining')).toBe('true');
+    expect(localStorage.getItem('planyoo:outflows:showRemaining')).toBe('true');
   });
 
   it('remembers whether the by-payer summary is expanded', async () => {
-    // Given June has a bill and the summary starts collapsed
-    renderBills(`/bills/${JUNE}`, [bill({ month: JUNE, name: 'Luz', amount: 150 })]);
+    // Given June has a outflow and the summary starts collapsed
+    renderOutflows(`/outflows/${JUNE}`, [outflow({ month: JUNE, name: 'Luz', amount: 150 })]);
     const user = userEvent.setup();
 
     // When I expand the summary
     await user.click(summaryToggle());
 
     // Then the open state is persisted for the next visit
-    expect(localStorage.getItem('planyoo:bills:summaryOpen')).toBe('true');
+    expect(localStorage.getItem('planyoo:outflows:summaryOpen')).toBe('true');
   });
 
-  it('still counts a bill whose payer and bank were removed from the registries', async () => {
-    // Given a June bill referencing a payer and bank no longer registered
-    renderBills(`/bills/${JUNE}`, [
-      bill({ month: JUNE, name: 'Luz', amount: 150, payerId: 'payer-gone', bankId: 'bank-gone' }),
+  it('still counts a outflow whose payer and bank were removed from the registries', async () => {
+    // Given a June outflow referencing a payer and bank no longer registered
+    renderOutflows(`/outflows/${JUNE}`, [
+      outflow({ month: JUNE, name: 'Luz', amount: 150, payerId: 'payer-gone', bankId: 'bank-gone' }),
     ]);
     const user = userEvent.setup();
 
@@ -446,37 +446,37 @@ describe('Bills', () => {
   });
 
   it('sums only the browsed month, ignoring other months', () => {
-    // Given June holds 150 in bills and May holds another 900
-    renderBills(`/bills/${JUNE}`, [
-      bill({ month: JUNE, name: 'Luz', amount: 150 }),
-      bill({ month: MAY, name: 'Água', amount: 900 }),
+    // Given June holds 150 in outflows and May holds another 900
+    renderOutflows(`/outflows/${JUNE}`, [
+      outflow({ month: JUNE, name: 'Luz', amount: 150 }),
+      outflow({ month: MAY, name: 'Água', amount: 900 }),
     ]);
 
     // When I look at June's summary
-    // Then only June's bills are counted
-    expect(summaryRow('Total das contas').getByText(/150,00/)).toBeInTheDocument();
+    // Then only June's outflows are counted
+    expect(summaryRow('Total das saídas').getByText(/150,00/)).toBeInTheDocument();
     expect(summary().queryByText(/1\.050,00/)).not.toBeInTheDocument();
   });
 
   it('opens the full-screen editor when a row is tapped', async () => {
-    // Given June has a bill
-    renderBills(`/bills/${JUNE}`, [bill({ month: JUNE, name: 'Luz', amount: 150 })]);
+    // Given June has a outflow
+    renderOutflows(`/outflows/${JUNE}`, [outflow({ month: JUNE, name: 'Luz', amount: 150 })]);
     const user = userEvent.setup();
 
-    // When I tap the bill's row
+    // When I tap the outflow's row
     await user.click(screen.getByRole('button', { name: 'Editar Luz' }));
 
-    // Then the full-screen editor for that bill is shown
-    expect(screen.getByText('Editor da conta')).toBeInTheDocument();
+    // Then the full-screen editor for that outflow is shown
+    expect(screen.getByText('Editor da saída')).toBeInTheDocument();
   });
 
   it('no longer offers inline add or remove affordances', () => {
-    // Given June has a bill
-    renderBills(`/bills/${JUNE}`, [bill({ month: JUNE, name: 'Luz', amount: 150 })]);
+    // Given June has a outflow
+    renderOutflows(`/outflows/${JUNE}`, [outflow({ month: JUNE, name: 'Luz', amount: 150 })]);
 
     // When the list renders
     // Then adding and removing happen on the editor page, not inline
-    expect(screen.queryByLabelText('Nome da conta')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Nome da saída')).not.toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: 'Remover Luz' })
     ).not.toBeInTheDocument();
@@ -484,16 +484,16 @@ describe('Bills', () => {
 
   it('highlights the registry guidance and shortcuts to Settings when there are no payers or banks', async () => {
     // Given no payers and no banks are registered
-    renderBills(`/bills/${JUNE}`, [], [], [], []);
+    renderOutflows(`/outflows/${JUNE}`, [], [], [], []);
     const user = userEvent.setup();
 
     // When the screen renders
     // Then the guidance sits in a highlighted callout instead of an unusable add flow
     expect(
-      screen.getByText('Cadastre ao menos um responsável e um banco em Ajustes para adicionar contas.')
+      screen.getByText('Cadastre ao menos um responsável e um banco em Ajustes para adicionar saídas.')
     ).toBeInTheDocument();
     expect(screen.getByRole('note')).toHaveClass('bg-amber-50');
-    expect(screen.queryByRole('button', { name: 'Adicionar conta' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Adicionar saída' })).not.toBeInTheDocument();
 
     // When I tap the callout's shortcut
     await user.click(screen.getByRole('button', { name: 'Ir para Ajustes' }));
@@ -502,9 +502,9 @@ describe('Bills', () => {
     expect(screen.getByText('Ajustes')).toBeInTheDocument();
   });
 
-  it('toggles a bill paid and writes the bills tab back', async () => {
-    // Given June has an open bill
-    renderBills(`/bills/${JUNE}`, [bill({ month: JUNE, name: 'Luz', amount: 150 })]);
+  it('toggles a outflow paid and writes the outflows tab back', async () => {
+    // Given June has an open outflow
+    renderOutflows(`/outflows/${JUNE}`, [outflow({ month: JUNE, name: 'Luz', amount: 150 })]);
     const user = userEvent.setup();
 
     // When I mark it paid
@@ -514,17 +514,17 @@ describe('Bills', () => {
     expect(screen.getByRole('checkbox', { name: 'Marcar como em aberto: Luz' })).toBeChecked();
     expect(screen.getByText('Pago')).toBeInTheDocument();
 
-    // And the bills tab carries the paid status
-    await expectBillsWritten((written) =>
+    // And the outflows tab carries the paid status
+    await expectOutflowsWritten((written) =>
       written.some((entry) => entry.name === 'Luz' && entry.isPaid)
     );
   });
 
-  it('keeps the account net unchanged when a bill is marked paid', async () => {
+  it('keeps the account net unchanged when a outflow is marked paid', async () => {
     // Given June has 12.000 of income and a 2.899 card bill still open
-    renderBills(
-      `/bills/${JUNE}`,
-      [bill({ month: JUNE, name: 'Cartão guta', amount: 2899 })],
+    renderOutflows(
+      `/outflows/${JUNE}`,
+      [outflow({ month: JUNE, name: 'Cartão guta', amount: 2899 })],
       [incomeEntry(JUNE, 12000, 'Salário')]
     );
     const user = userEvent.setup();
@@ -533,52 +533,52 @@ describe('Bills', () => {
     // When I mark the card bill paid
     await user.click(screen.getByRole('checkbox', { name: 'Marcar como paga: Cartão guta' }));
 
-    // Then the net is unchanged — the bill is an obligation either way
+    // Then the net is unchanged — the outflow is an obligation either way
     expect(summaryRow('Saldo da conta').getByText(/9\.101,00/)).toBeInTheDocument();
 
     // And the toggle still reaches the sheet
-    await expectBillsWritten((written) =>
+    await expectOutflowsWritten((written) =>
       written.some((entry) => entry.name === 'Cartão guta' && entry.isPaid)
     );
   });
 
-  it('is empty until bills are added, with zero totals', async () => {
-    // Given July has no bills and no income
+  it('is empty until outflows are added, with zero totals', async () => {
+    // Given July has no outflows and no income
     // When the screen renders
-    renderBills(`/bills/${JULY}`);
+    renderOutflows(`/outflows/${JULY}`);
     const user = userEvent.setup();
 
     // Then the empty state and zero totals are shown
-    expect(screen.getByText('As contas deste mês aparecerão aqui.')).toBeInTheDocument();
+    expect(screen.getByText('As saídas deste mês aparecerão aqui.')).toBeInTheDocument();
     expect(summary().getAllByText(/0,00/)).toHaveLength(3);
 
     // And the by-payer summary reads empty once opened
     await user.click(summaryToggle());
-    expect(byPayer().getByText('Adicione contas para ver o resumo por responsável.')).toBeInTheDocument();
+    expect(byPayer().getByText('Adicione saídas para ver o resumo por responsável.')).toBeInTheDocument();
   });
 });
 
-describe('Bill filter', () => {
-  it('places the filter control between the by-payer summary and the bills list', () => {
-    // Given June has a bill
-    renderBills(`/bills/${JUNE}`, [bill({ month: JUNE, name: 'Luz', amount: 150 })]);
+describe('Outflow filter', () => {
+  it('places the filter control between the by-payer summary and the outflows list', () => {
+    // Given June has a outflow
+    renderOutflows(`/outflows/${JUNE}`, [outflow({ month: JUNE, name: 'Luz', amount: 150 })]);
 
     // When the screen renders
-    const byPayerRegion = screen.getByRole('region', { name: 'Gastos por responsável' });
-    const billsRegion = screen.getByRole('region', { name: 'Contas' });
+    const byPayerRegion = screen.getByRole('region', { name: 'Saídas por responsável' });
+    const outflowsRegion = screen.getByRole('region', { name: 'Saídas' });
 
     // Then the filter icon sits between the summary and the list, closed
     expect(appearsBefore(byPayerRegion, filterButton())).toBe(true);
-    expect(appearsBefore(filterButton(), billsRegion)).toBe(true);
+    expect(appearsBefore(filterButton(), outflowsRegion)).toBe(true);
     expect(filterButton()).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.queryByRole('dialog', { name: 'Filtrar contas' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: 'Filtrar saídas' })).not.toBeInTheDocument();
   });
 
   it('opens a drawer with a checkbox per payer and bank used this month', async () => {
-    // Given June's bills use both payers and both banks
-    renderBills(`/bills/${JUNE}`, [
-      bill({ month: JUNE, name: 'Luz', amount: 150 }),
-      bill({ month: JUNE, name: 'Cartão guta', amount: 2899, payerId: 'payer-guta', bankId: 'bank-itau' }),
+    // Given June's outflows use both payers and both banks
+    renderOutflows(`/outflows/${JUNE}`, [
+      outflow({ month: JUNE, name: 'Luz', amount: 150 }),
+      outflow({ month: JUNE, name: 'Cartão guta', amount: 2899, payerId: 'payer-guta', bankId: 'bank-itau' }),
     ]);
     const user = userEvent.setup();
 
@@ -593,15 +593,15 @@ describe('Bill filter', () => {
     expect(drawer.getByRole('checkbox', { name: 'Nubank' })).not.toBeChecked();
   });
 
-  it('offers only the payers and banks that have bills this month', async () => {
+  it('offers only the payers and banks that have outflows this month', async () => {
     // Given only Marcelo and Nubank appear in June
-    renderBills(`/bills/${JUNE}`, [bill({ month: JUNE, name: 'Luz', amount: 150 })]);
+    renderOutflows(`/outflows/${JUNE}`, [outflow({ month: JUNE, name: 'Luz', amount: 150 })]);
     const user = userEvent.setup();
 
     // When I open the filter
     await user.click(filterButton());
 
-    // Then entries with no bill this month are not offered
+    // Then entries with no outflow this month are not offered
     const drawer = filterDrawer();
     expect(drawer.getByRole('checkbox', { name: 'Marcelo' })).toBeInTheDocument();
     expect(drawer.getByRole('checkbox', { name: 'Nubank' })).toBeInTheDocument();
@@ -610,36 +610,36 @@ describe('Bill filter', () => {
   });
 
   it('narrows the list to the selected payer when the filter is applied', async () => {
-    // Given June has a Marcelo bill and a Guta bill
-    renderBills(`/bills/${JUNE}`, [
-      bill({ month: JUNE, name: 'Luz', amount: 150 }),
-      bill({ month: JUNE, name: 'Cartão guta', amount: 2899, payerId: 'payer-guta', bankId: 'bank-itau' }),
+    // Given June has a Marcelo outflow and a Guta outflow
+    renderOutflows(`/outflows/${JUNE}`, [
+      outflow({ month: JUNE, name: 'Luz', amount: 150 }),
+      outflow({ month: JUNE, name: 'Cartão guta', amount: 2899, payerId: 'payer-guta', bankId: 'bank-itau' }),
     ]);
     const user = userEvent.setup();
 
     // When I filter by Guta
     await applyFilter(user, 'Guta');
 
-    // Then only Guta's bill is listed and the drawer has closed
+    // Then only Guta's outflow is listed and the drawer has closed
     expect(screen.getByText('Cartão guta')).toBeInTheDocument();
     expect(screen.queryByText('Luz')).not.toBeInTheDocument();
-    expect(screen.queryByRole('dialog', { name: 'Filtrar contas' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: 'Filtrar saídas' })).not.toBeInTheDocument();
   });
 
   it('matches any selected payer AND any selected bank together', async () => {
-    // Given June's bills spread across both payers and both banks
-    renderBills(`/bills/${JUNE}`, [
-      bill({ month: JUNE, name: 'Luz', amount: 150 }),
-      bill({ month: JUNE, name: 'Água', amount: 90, bankId: 'bank-itau' }),
-      bill({ month: JUNE, name: 'Cartão guta', amount: 2899, payerId: 'payer-guta', bankId: 'bank-itau' }),
-      bill({ month: JUNE, name: 'Gym', amount: 200, payerId: 'payer-guta' }),
+    // Given June's outflows spread across both payers and both banks
+    renderOutflows(`/outflows/${JUNE}`, [
+      outflow({ month: JUNE, name: 'Luz', amount: 150 }),
+      outflow({ month: JUNE, name: 'Água', amount: 90, bankId: 'bank-itau' }),
+      outflow({ month: JUNE, name: 'Cartão guta', amount: 2899, payerId: 'payer-guta', bankId: 'bank-itau' }),
+      outflow({ month: JUNE, name: 'Gym', amount: 200, payerId: 'payer-guta' }),
     ]);
     const user = userEvent.setup();
 
     // When I pick both payers but only Itaú
     await applyFilter(user, 'Marcelo', 'Guta', 'Itaú');
 
-    // Then only the Itaú bills of the selected payers remain
+    // Then only the Itaú outflows of the selected payers remain
     expect(screen.getByText('Água')).toBeInTheDocument();
     expect(screen.getByText('Cartão guta')).toBeInTheDocument();
     expect(screen.queryByText('Luz')).not.toBeInTheDocument();
@@ -647,18 +647,18 @@ describe('Bill filter', () => {
   });
 
   it('shows a filtered empty state and clears it back to the month', async () => {
-    // Given no bill is both Marcelo's and from Itaú
-    renderBills(`/bills/${JUNE}`, [
-      bill({ month: JUNE, name: 'Luz', amount: 150 }),
-      bill({ month: JUNE, name: 'Cartão guta', amount: 2899, payerId: 'payer-guta', bankId: 'bank-itau' }),
+    // Given no outflow is both Marcelo's and from Itaú
+    renderOutflows(`/outflows/${JUNE}`, [
+      outflow({ month: JUNE, name: 'Luz', amount: 150 }),
+      outflow({ month: JUNE, name: 'Cartão guta', amount: 2899, payerId: 'payer-guta', bankId: 'bank-itau' }),
     ]);
     const user = userEvent.setup();
 
-    // When I filter by a combination no bill satisfies
+    // When I filter by a combination no outflow satisfies
     await applyFilter(user, 'Marcelo', 'Itaú');
 
     // Then the list is empty rather than blank
-    expect(screen.getByText('Nenhuma conta corresponde aos filtros.')).toBeInTheDocument();
+    expect(screen.getByText('Nenhuma saída corresponde aos filtros.')).toBeInTheDocument();
     expect(screen.queryByText('Luz')).not.toBeInTheDocument();
 
     // When I clear the filters from the list
@@ -671,10 +671,10 @@ describe('Bill filter', () => {
   });
 
   it('leaves the month totals and the by-payer summary on the full month', async () => {
-    // Given June has a 150 bill and a 2.899 bill on different payers
-    renderBills(`/bills/${JUNE}`, [
-      bill({ month: JUNE, name: 'Luz', amount: 150 }),
-      bill({ month: JUNE, name: 'Cartão guta', amount: 2899, payerId: 'payer-guta', bankId: 'bank-itau' }),
+    // Given June has a 150 outflow and a 2.899 outflow on different payers
+    renderOutflows(`/outflows/${JUNE}`, [
+      outflow({ month: JUNE, name: 'Luz', amount: 150 }),
+      outflow({ month: JUNE, name: 'Cartão guta', amount: 2899, payerId: 'payer-guta', bankId: 'bank-itau' }),
     ]);
     const user = userEvent.setup();
 
@@ -683,17 +683,17 @@ describe('Bill filter', () => {
 
     // Then the list narrows, but the totals and summary keep the whole month
     expect(screen.queryByText('Luz')).not.toBeInTheDocument();
-    expect(summaryRow('Total das contas').getByText(/3\.049,00/)).toBeInTheDocument();
+    expect(summaryRow('Total das saídas').getByText(/3\.049,00/)).toBeInTheDocument();
     await user.click(summaryToggle());
     expect(byPayer().getByText('Marcelo')).toBeInTheDocument();
     expect(byPayer().getByText('Guta')).toBeInTheDocument();
   });
 
   it('discards an unapplied selection when the drawer is closed', async () => {
-    // Given June has a Marcelo bill and a Guta bill
-    renderBills(`/bills/${JUNE}`, [
-      bill({ month: JUNE, name: 'Luz', amount: 150 }),
-      bill({ month: JUNE, name: 'Cartão guta', amount: 2899, payerId: 'payer-guta', bankId: 'bank-itau' }),
+    // Given June has a Marcelo outflow and a Guta outflow
+    renderOutflows(`/outflows/${JUNE}`, [
+      outflow({ month: JUNE, name: 'Luz', amount: 150 }),
+      outflow({ month: JUNE, name: 'Cartão guta', amount: 2899, payerId: 'payer-guta', bankId: 'bank-itau' }),
     ]);
     const user = userEvent.setup();
 
@@ -703,7 +703,7 @@ describe('Bill filter', () => {
     await user.keyboard('{Escape}');
 
     // Then the drawer closes and nothing changed
-    expect(screen.queryByRole('dialog', { name: 'Filtrar contas' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: 'Filtrar saídas' })).not.toBeInTheDocument();
     expect(screen.getByText('Luz')).toBeInTheDocument();
 
     // And reopening shows an untouched drawer
@@ -712,9 +712,9 @@ describe('Bill filter', () => {
   });
 
   it('offers unset payer and bank as labelled options', async () => {
-    // Given a legacy June bill with no payer or bank recorded
-    renderBills(`/bills/${JUNE}`, [
-      bill({ month: JUNE, name: 'Luz', amount: 150, payerId: '', bankId: '' }),
+    // Given a legacy June outflow with no payer or bank recorded
+    renderOutflows(`/outflows/${JUNE}`, [
+      outflow({ month: JUNE, name: 'Luz', amount: 150, payerId: '', bankId: '' }),
     ]);
     const user = userEvent.setup();
 
@@ -727,10 +727,10 @@ describe('Bill filter', () => {
   });
 
   it('keeps the filter when the browsed month changes', async () => {
-    // Given the current month has a Marcelo bill and a Guta bill
-    renderBills(`/bills/${CURRENT}`, [
-      bill({ month: CURRENT, name: 'Luz', amount: 150 }),
-      bill({ month: CURRENT, name: 'Cartão guta', amount: 2899, payerId: 'payer-guta', bankId: 'bank-itau' }),
+    // Given the current month has a Marcelo outflow and a Guta outflow
+    renderOutflows(`/outflows/${CURRENT}`, [
+      outflow({ month: CURRENT, name: 'Luz', amount: 150 }),
+      outflow({ month: CURRENT, name: 'Cartão guta', amount: 2899, payerId: 'payer-guta', bankId: 'bank-itau' }),
     ]);
     const user = userEvent.setup();
 
@@ -747,10 +747,10 @@ describe('Bill filter', () => {
   });
 
   it('remembers the filter in local storage', async () => {
-    // Given June has a Marcelo bill and a Guta bill
-    renderBills(`/bills/${JUNE}`, [
-      bill({ month: JUNE, name: 'Luz', amount: 150 }),
-      bill({ month: JUNE, name: 'Cartão guta', amount: 2899, payerId: 'payer-guta', bankId: 'bank-itau' }),
+    // Given June has a Marcelo outflow and a Guta outflow
+    renderOutflows(`/outflows/${JUNE}`, [
+      outflow({ month: JUNE, name: 'Luz', amount: 150 }),
+      outflow({ month: JUNE, name: 'Cartão guta', amount: 2899, payerId: 'payer-guta', bankId: 'bank-itau' }),
     ]);
     const user = userEvent.setup();
 
@@ -758,16 +758,16 @@ describe('Bill filter', () => {
     await applyFilter(user, 'Guta', 'Itaú');
 
     // Then the selection is persisted for the next visit
-    expect(localStorage.getItem('planyoo:bills:filter')).toBe(
+    expect(localStorage.getItem('planyoo:outflows:filter')).toBe(
       JSON.stringify({ payerIds: ['payer-guta'], bankIds: ['bank-itau'] })
     );
   });
 
   it('spells out the active filters to the left of the filter control', async () => {
-    // Given June has a Marcelo bill and a Guta/Itaú bill
-    renderBills(`/bills/${JUNE}`, [
-      bill({ month: JUNE, name: 'Luz', amount: 150 }),
-      bill({ month: JUNE, name: 'Cartão guta', amount: 2899, payerId: 'payer-guta', bankId: 'bank-itau' }),
+    // Given June has a Marcelo outflow and a Guta/Itaú outflow
+    renderOutflows(`/outflows/${JUNE}`, [
+      outflow({ month: JUNE, name: 'Luz', amount: 150 }),
+      outflow({ month: JUNE, name: 'Cartão guta', amount: 2899, payerId: 'payer-guta', bankId: 'bank-itau' }),
     ]);
     const user = userEvent.setup();
 
@@ -787,10 +787,10 @@ describe('Bill filter', () => {
   });
 
   it('lists several selected payers in one label', async () => {
-    // Given June has a bill for each payer
-    renderBills(`/bills/${JUNE}`, [
-      bill({ month: JUNE, name: 'Luz', amount: 150 }),
-      bill({ month: JUNE, name: 'Cartão guta', amount: 2899, payerId: 'payer-guta', bankId: 'bank-itau' }),
+    // Given June has a outflow for each payer
+    renderOutflows(`/outflows/${JUNE}`, [
+      outflow({ month: JUNE, name: 'Luz', amount: 150 }),
+      outflow({ month: JUNE, name: 'Cartão guta', amount: 2899, payerId: 'payer-guta', bankId: 'bank-itau' }),
     ]);
     const user = userEvent.setup();
 
@@ -803,11 +803,11 @@ describe('Bill filter', () => {
 });
 
 describe('Replicate last month', () => {
-  it("copies last month's bills into an empty month, unpaid, and persists them", async () => {
-    // Given May has an open bill and a paid one, and June is still empty
-    renderBills(`/bills/${JUNE}`, [
-      bill({ month: MAY, name: 'Luz', amount: 150 }),
-      bill({
+  it("copies last month's outflows into an empty month, unpaid, and persists them", async () => {
+    // Given May has an open outflow and a paid one, and June is still empty
+    renderOutflows(`/outflows/${JUNE}`, [
+      outflow({ month: MAY, name: 'Luz', amount: 150 }),
+      outflow({
         month: MAY,
         name: 'Cartão guta',
         amount: 2899,
@@ -819,144 +819,144 @@ describe('Replicate last month', () => {
     const user = userEvent.setup();
 
     // When I tap replicate
-    await user.click(screen.getByRole('button', { name: 'Replicar contas do mês anterior' }));
+    await user.click(screen.getByRole('button', { name: 'Replicar saídas do mês anterior' }));
 
     // Then June shows copies of both and the total
     expect(screen.getByText('Luz')).toBeInTheDocument();
     expect(screen.getByText('Cartão guta')).toBeInTheDocument();
     expect(screen.getByText('Guta · Itaú')).toBeInTheDocument();
-    expect(summaryRow('Total das contas').getByText(/3\.049,00/)).toBeInTheDocument();
+    expect(summaryRow('Total das saídas').getByText(/3\.049,00/)).toBeInTheDocument();
 
     // And last month's paid status never leaks: every copy arrives open
     expect(screen.getAllByText('Em aberto')).toHaveLength(2);
     expect(screen.queryByText('Pago')).not.toBeInTheDocument();
     expect(screen.getByRole('checkbox', { name: 'Marcar como paga: Cartão guta' })).not.toBeChecked();
 
-    // And the bills tab is written back with June's copies and their references
-    await expectBillsWritten((written) => {
-      const juneBills = written.filter((entry) => entry.month === JUNE);
+    // And the outflows tab is written back with June's copies and their references
+    await expectOutflowsWritten((written) => {
+      const juneOutflows = written.filter((entry) => entry.month === JUNE);
       return (
-        juneBills.map((entry) => entry.name).sort().join(',') === 'Cartão guta,Luz' &&
-        juneBills.every((entry) => !entry.isPaid) &&
-        juneBills.some((entry) => entry.payerId === 'payer-guta' && entry.bankId === 'bank-itau')
+        juneOutflows.map((entry) => entry.name).sort().join(',') === 'Cartão guta,Luz' &&
+        juneOutflows.every((entry) => !entry.isPaid) &&
+        juneOutflows.some((entry) => entry.payerId === 'payer-guta' && entry.bankId === 'bank-itau')
       );
     });
   });
 
-  it('hides the replicate button when last month has no bills', () => {
-    // Given May had no bills at all
+  it('hides the replicate button when last month has no outflows', () => {
+    // Given May had no outflows at all
     // When June renders
-    renderBills(`/bills/${JUNE}`);
+    renderOutflows(`/outflows/${JUNE}`);
 
     // Then there is nothing to replicate
     expect(
-      screen.queryByRole('button', { name: 'Replicar contas do mês anterior' })
+      screen.queryByRole('button', { name: 'Replicar saídas do mês anterior' })
     ).not.toBeInTheDocument();
   });
 
-  it('hides the replicate button once the month already has bills, so it can never duplicate', () => {
-    // Given June already has a bill and May has one too
-    renderBills(`/bills/${JUNE}`, [
-      bill({ month: MAY, name: 'Luz', amount: 150 }),
-      bill({ month: JUNE, name: 'Internet', amount: 110 }),
+  it('hides the replicate button once the month already has outflows, so it can never duplicate', () => {
+    // Given June already has a outflow and May has one too
+    renderOutflows(`/outflows/${JUNE}`, [
+      outflow({ month: MAY, name: 'Luz', amount: 150 }),
+      outflow({ month: JUNE, name: 'Internet', amount: 110 }),
     ]);
 
     // When June renders
     // Then there is no replicate affordance that could duplicate the list
     expect(
-      screen.queryByRole('button', { name: 'Replicar contas do mês anterior' })
+      screen.queryByRole('button', { name: 'Replicar saídas do mês anterior' })
     ).not.toBeInTheDocument();
   });
 
   it('re-reads the target month and blocks the copy when another member already replicated', async () => {
-    // Given I see June as empty, but the sheet now holds a June bill (another
+    // Given I see June as empty, but the sheet now holds a June outflow (another
     // member copied while my Working Copy was stale)
-    renderBills(`/bills/${JUNE}`, [bill({ month: MAY, name: 'Luz', amount: 150 })]);
-    vi.mocked(googleSheetsService.readBills).mockResolvedValue([
-      bill({ month: JUNE, name: 'Internet', amount: 110 }),
+    renderOutflows(`/outflows/${JUNE}`, [outflow({ month: MAY, name: 'Luz', amount: 150 })]);
+    vi.mocked(googleSheetsService.readOutflows).mockResolvedValue([
+      outflow({ month: JUNE, name: 'Internet', amount: 110 }),
     ]);
     const user = userEvent.setup();
 
     // When I tap replicate
-    await user.click(screen.getByRole('button', { name: 'Replicar contas do mês anterior' }));
+    await user.click(screen.getByRole('button', { name: 'Replicar saídas do mês anterior' }));
 
     // Then the sheet was re-read for this month, nothing was copied, and a
     // message explains why
-    expect(googleSheetsService.readBills).toHaveBeenCalledWith('sheet-1');
+    expect(googleSheetsService.readOutflows).toHaveBeenCalledWith('sheet-1');
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Este mês já tem registros. Nada foi copiado para não duplicar.'
     );
     expect(screen.queryByText('Luz')).not.toBeInTheDocument();
-    expect(writtenRecords(googleSheetsService, 'bills')).toEqual([]);
+    expect(writtenRecords(googleSheetsService, 'outflows')).toEqual([]);
   });
 
   it('blocks the copy and says so when the target month cannot be checked', async () => {
     // Given the re-read fails (offline or expired session)
-    renderBills(`/bills/${JUNE}`, [bill({ month: MAY, name: 'Luz', amount: 150 })]);
-    vi.mocked(googleSheetsService.readBills).mockRejectedValue(new Error('offline'));
+    renderOutflows(`/outflows/${JUNE}`, [outflow({ month: MAY, name: 'Luz', amount: 150 })]);
+    vi.mocked(googleSheetsService.readOutflows).mockRejectedValue(new Error('offline'));
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const user = userEvent.setup();
 
     // When I tap replicate
-    await user.click(screen.getByRole('button', { name: 'Replicar contas do mês anterior' }));
+    await user.click(screen.getByRole('button', { name: 'Replicar saídas do mês anterior' }));
 
     // Then nothing is copied and a message explains that the check failed
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Não foi possível verificar o mês antes de copiar. Nada foi copiado.'
     );
     expect(screen.queryByText('Luz')).not.toBeInTheDocument();
-    expect(writtenRecords(googleSheetsService, 'bills')).toEqual([]);
+    expect(writtenRecords(googleSheetsService, 'outflows')).toEqual([]);
     errorSpy.mockRestore();
   });
 
   it('cannot double-replicate when the copy button is tapped twice before the re-read settles', async () => {
-    // Given an empty target month, a source bill that is a duplicate by name, and
+    // Given an empty target month, a source outflow that is a duplicate by name, and
     // a re-read slow enough for a second tap to land inside the first
-    const store = renderBills(`/bills/${JUNE}`, [
-      bill({ month: MAY, name: 'Luz', amount: 150 }),
-      bill({ month: MAY, name: 'Luz', amount: 150 }),
+    const store = renderOutflows(`/outflows/${JUNE}`, [
+      outflow({ month: MAY, name: 'Luz', amount: 150 }),
+      outflow({ month: MAY, name: 'Luz', amount: 150 }),
     ]);
-    let resolveRead: (value: Bill[]) => void = () => {};
-    vi.mocked(googleSheetsService.readBills).mockReturnValue(
-      new Promise<Bill[]>((resolve) => {
+    let resolveRead: (value: Outflow[]) => void = () => {};
+    vi.mocked(googleSheetsService.readOutflows).mockReturnValue(
+      new Promise<Outflow[]>((resolve) => {
         resolveRead = resolve;
       })
     );
     const user = userEvent.setup();
 
     // When I tap replicate twice, both taps landing inside the same in-flight read
-    const button = screen.getByRole('button', { name: 'Replicar contas do mês anterior' });
+    const button = screen.getByRole('button', { name: 'Replicar saídas do mês anterior' });
     await user.click(button);
     await user.click(button);
     resolveRead([]);
 
     // Then the month was read once and exactly one set of copies was added; the
-    // list settles on the two copied bills (duplicates by name both survive)
+    // list settles on the two copied outflows (duplicates by name both survive)
     await waitFor(() => {
-      expect(store.getState().bills.items.filter((entry) => entry.month === JUNE)).toHaveLength(2);
+      expect(store.getState().outflows.items.filter((entry) => entry.month === JUNE)).toHaveLength(2);
     }, { timeout: 2500 });
-    expect(googleSheetsService.readBills).toHaveBeenCalledTimes(1);
+    expect(googleSheetsService.readOutflows).toHaveBeenCalledTimes(1);
     expect(screen.getAllByText('Luz')).toHaveLength(2);
     // Drain the debounced write this copy scheduled so it cannot leak into the
     // next test's write assertions.
     await waitFor(() => {
-      expect(writtenRecords(googleSheetsService, 'bills')).toHaveLength(2);
+      expect(writtenRecords(googleSheetsService, 'outflows')).toHaveLength(2);
     }, { timeout: 2500 });
   });
 
   it('replicates from the currently browsed month, not the calendar month', async () => {
-    // Given the current month has a bill and the next month is empty
-    renderBills(`/bills/${CURRENT}`, [bill({ month: CURRENT, name: 'Luz', amount: 150 })]);
+    // Given the current month has a outflow and the next month is empty
+    renderOutflows(`/outflows/${CURRENT}`, [outflow({ month: CURRENT, name: 'Luz', amount: 150 })]);
     const user = userEvent.setup();
 
     // When I move to the next month and tap replicate
     await user.click(screen.getByRole('button', { name: 'Próximo mês' }));
     expect(screen.queryByText('Luz')).not.toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Replicar contas do mês anterior' }));
+    await user.click(screen.getByRole('button', { name: 'Replicar saídas do mês anterior' }));
 
     // Then the copy lands in the month I am browsing
     expect(screen.getByText('Luz')).toBeInTheDocument();
-    await expectBillsWritten((written) =>
+    await expectOutflowsWritten((written) =>
       written.some(
         (entry) => entry.month === NEXT && entry.name === 'Luz' && entry.amount === 150 && !entry.isPaid
       )
@@ -965,16 +965,16 @@ describe('Replicate last month', () => {
 });
 
 describe('Month navigation', () => {
-  it("shows each month's own bills when navigating months", async () => {
-    // Given June has a bill and July is still empty
-    renderBills(`/bills/${JUNE}`, [bill({ month: JUNE, name: 'Luz', amount: 150 })]);
+  it("shows each month's own outflows when navigating months", async () => {
+    // Given June has a outflow and July is still empty
+    renderOutflows(`/outflows/${JUNE}`, [outflow({ month: JUNE, name: 'Luz', amount: 150 })]);
     const user = userEvent.setup();
     expect(screen.getByText('Luz')).toBeInTheDocument();
 
     // When I go to the next month
     await user.click(screen.getByRole('button', { name: 'Próximo mês' }));
 
-    // Then July shows its own (empty) bills
+    // Then July shows its own (empty) outflows
     expect(screen.getByRole('heading', { name: 'julho de 2026' })).toBeInTheDocument();
     expect(screen.queryByText('Luz')).not.toBeInTheDocument();
     expect(summary().getAllByText(/0,00/)).toHaveLength(3);

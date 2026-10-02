@@ -62,7 +62,7 @@ export function mergeSheetData(data: SheetData, pending: PendingChanges): SheetD
     payers: mergePendingChanges(data.payers, pending.payers),
     planItems: mergePendingChanges(data.planItems, pending.plan),
     cardSpending: mergePendingChanges(data.cardSpending, pending.card_spending),
-    bills: mergePendingChanges(data.bills, pending.bills),
+    outflows: mergePendingChanges(data.outflows, pending.outflows),
     income: mergePendingChanges(data.income, pending.income),
   };
 }

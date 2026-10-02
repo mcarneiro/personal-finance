@@ -8,7 +8,7 @@ import '../../config/i18n';
 import i18n from '../../config/i18n';
 import { googleSheetsService } from '../../services/GoogleSheetsService';
 import banksReducer from '../../store/banksSlice';
-import billsReducer from '../../store/billsSlice';
+import outflowsReducer from '../../store/outflowsSlice';
 import cardsReducer from '../../store/cardsSlice';
 import incomeReducer from '../../store/incomeSlice';
 import { syncListenerMiddleware } from '../../store/middleware/syncListener';
@@ -17,7 +17,7 @@ import pendingReducer from '../../store/pendingSlice';
 import planReducer from '../../store/planSlice';
 import settingsReducer from '../../store/settingsSlice';
 import { writtenRecords } from '../../test/pendingWrites';
-import type { Bill, CardSpending, IncomeEntry, PlanItem } from '../../types';
+import type { Outflow, CardSpending, IncomeEntry, PlanItem } from '../../types';
 import DashboardScreen from './DashboardScreen';
 
 vi.mock('../../services/GoogleSheetsService', async (importOriginal) => {
@@ -44,7 +44,7 @@ function cardTotal(cardId: string, total: number, month = JUNE): CardSpending {
   return { id: `${month}-${cardId}`, month, cardId, total };
 }
 
-function bill(overrides: Partial<Bill> & Pick<Bill, 'id' | 'name' | 'amount'>): Bill {
+function outflow(overrides: Partial<Outflow> & Pick<Outflow, 'id' | 'name' | 'amount'>): Outflow {
   return { month: JUNE, isPaid: false, isFinal: true, payerId: '', bankId: '', ...overrides };
 }
 
@@ -55,14 +55,14 @@ function incomeEntry(amount: number, source?: string, month = JUNE): IncomeEntry
 interface DashboardData {
   planItems?: PlanItem[];
   cardSpending?: CardSpending[];
-  bills?: Bill[];
+  outflows?: Outflow[];
   income?: IncomeEntry[];
 }
 
 /**
  * Renders the Dashboard with a real store and the real debounced sync
- * middleware; only the Sheets boundary is mocked, so toggling a bill paid is
- * verified all the way to the write-back (as on the Bills screen).
+ * middleware; only the Sheets boundary is mocked, so toggling a outflow paid is
+ * verified all the way to the write-back (as on the Outflows screen).
  */
 function renderDashboard(data: DashboardData = {}) {
   const store = configureStore({
@@ -71,7 +71,7 @@ function renderDashboard(data: DashboardData = {}) {
       banks: banksReducer,
       payers: payersReducer,
       plan: planReducer,
-      bills: billsReducer,
+      outflows: outflowsReducer,
       income: incomeReducer,
       settings: settingsReducer,
       pending: pendingReducer,
@@ -80,7 +80,7 @@ function renderDashboard(data: DashboardData = {}) {
       getDefaultMiddleware().prepend(syncListenerMiddleware.middleware),
     preloadedState: {
       plan: { items: data.planItems ?? [], cardSpending: data.cardSpending ?? [] },
-      bills: { items: data.bills ?? [] },
+      outflows: { items: data.outflows ?? [] },
       income: { items: data.income ?? [] },
       settings: { sheetId: 'sheet-1' },
     },
@@ -92,9 +92,9 @@ function renderDashboard(data: DashboardData = {}) {
         <Routes>
           <Route path="/" element={<DashboardScreen now={NOW} />} />
           <Route path="/income/:month" element={<p>Tela da renda</p>} />
-          <Route path="/bills/:month" element={<p>Tela de contas</p>} />
+          <Route path="/outflows/:month" element={<p>Tela de saídas</p>} />
           <Route path="/plan/:month" element={<p>Tela do plano</p>} />
-          <Route path="/bills/edit/:id" element={<p>Editor da conta</p>} />
+          <Route path="/outflows/edit/:id" element={<p>Editor da saída</p>} />
         </Routes>
       </MemoryRouter>
     </Provider>
@@ -125,28 +125,28 @@ describe('Dashboard — month', () => {
 });
 
 describe('Dashboard — income / outcome', () => {
-  it('hides the block when the month has neither income nor bills', () => {
+  it('hides the block when the month has neither income nor outflows', () => {
     // Given an empty month
     renderDashboard();
 
-    // Then there is no cash-flow picture to show, only the good-news bills block
-    expect(screen.queryByRole('region', { name: 'Renda e contas' })).not.toBeInTheDocument();
+    // Then there is no cash-flow picture to show, only the good-news outflows block
+    expect(screen.queryByRole('region', { name: 'Renda e saídas' })).not.toBeInTheDocument();
   });
 
-  it('shows income and bills as bars on a shared scale with the account net', () => {
-    // Given 12.000 of income and 3.000 of bills
+  it('shows income and outflows as bars on a shared scale with the account net', () => {
+    // Given 12.000 of income and 3.000 of outflows
     renderDashboard({
       income: [incomeEntry(12000, 'Salário')],
-      bills: [bill({ id: 'b1', name: 'Luz', amount: 3000 })],
+      outflows: [outflow({ id: 'b1', name: 'Luz', amount: 3000 })],
     });
 
     // Then both bars, their amounts and the net are shown, income filling the scale
-    expect(screen.getByRole('region', { name: 'Renda e contas' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Renda e saídas' })).toBeInTheDocument();
     expect(screen.getByRole('progressbar', { name: 'Total da renda' })).toHaveAttribute(
       'aria-valuenow',
       '100'
     );
-    expect(screen.getByRole('progressbar', { name: 'Total das contas' })).toHaveAttribute(
+    expect(screen.getByRole('progressbar', { name: 'Total das saídas' })).toHaveAttribute(
       'aria-valuenow',
       '25'
     );
@@ -154,12 +154,12 @@ describe('Dashboard — income / outcome', () => {
     expect(screen.getByText(/9\.000,00/)).toBeInTheDocument();
   });
 
-  it('opens the income and bills screens from their bars', async () => {
-    // Given a month with income and bills
+  it('opens the income and outflows screens from their bars', async () => {
+    // Given a month with income and outflows
     const user = userEvent.setup();
     renderDashboard({
       income: [incomeEntry(12000, 'Salário')],
-      bills: [bill({ id: 'b1', name: 'Luz', amount: 3000 })],
+      outflows: [outflow({ id: 'b1', name: 'Luz', amount: 3000 })],
     });
 
     // When I tap the income bar
@@ -239,20 +239,20 @@ describe('Dashboard — Spending Plan', () => {
   });
 });
 
-describe('Dashboard — open bills', () => {
-  it('lists only the current month\'s open bills, final first then alphabetical', () => {
-    // Given a paid bill, a not-final bill, two final bills and an open bill last month
+describe('Dashboard — open outflows', () => {
+  it('lists only the current month\'s open outflows, final first then alphabetical', () => {
+    // Given a paid outflow, a not-final outflow, two final outflows and an open outflow last month
     renderDashboard({
-      bills: [
-        bill({ id: 'paid', name: 'Internet', amount: 100, isPaid: true }),
-        bill({ id: 'nofinal', name: 'Zulu', amount: 10, isFinal: false }),
-        bill({ id: 'agua', name: 'Água', amount: 90 }),
-        bill({ id: 'luz', name: 'Luz', amount: 100 }),
-        bill({ id: 'may', name: 'Conta de maio', amount: 50, month: MAY }),
+      outflows: [
+        outflow({ id: 'paid', name: 'Internet', amount: 100, isPaid: true }),
+        outflow({ id: 'nofinal', name: 'Zulu', amount: 10, isFinal: false }),
+        outflow({ id: 'agua', name: 'Água', amount: 90 }),
+        outflow({ id: 'luz', name: 'Luz', amount: 100 }),
+        outflow({ id: 'may', name: 'Conta de maio', amount: 50, month: MAY }),
       ],
     });
 
-    // Then only the open June bills remain, final ones first and alphabetical
+    // Then only the open June outflows remain, final ones first and alphabetical
     const rows = screen
       .getAllByRole('button', { name: /^Editar / })
       .map((row) => row.getAttribute('aria-label'));
@@ -261,10 +261,10 @@ describe('Dashboard — open bills', () => {
     expect(screen.queryByText('Conta de maio')).not.toBeInTheDocument();
   });
 
-  it('marks a bill paid and removes it from the Dashboard', async () => {
-    // Given June has one open bill
+  it('marks a outflow paid and removes it from the Dashboard', async () => {
+    // Given June has one open outflow
     const user = userEvent.setup();
-    renderDashboard({ bills: [bill({ id: 'luz', name: 'Luz', amount: 100 })] });
+    renderDashboard({ outflows: [outflow({ id: 'luz', name: 'Luz', amount: 100 })] });
 
     // When I tick it as paid
     await user.click(screen.getByRole('checkbox', { name: 'Marcar como paga: Luz' }));
@@ -272,10 +272,10 @@ describe('Dashboard — open bills', () => {
     // Then the row leaves the Dashboard immediately
     expect(screen.queryByText('Luz')).not.toBeInTheDocument();
 
-    // And the change is written back to the bills tab
+    // And the change is written back to the outflows tab
     await waitFor(
       () => {
-        const toggled = writtenRecords(googleSheetsService, 'bills').find(
+        const toggled = writtenRecords(googleSheetsService, 'outflows').find(
           (record) => record.id === 'luz'
         );
         expect(toggled?.isPaid).toBe(true);
@@ -284,44 +284,44 @@ describe('Dashboard — open bills', () => {
     );
   });
 
-  it('opens the bill editor when a row is tapped', async () => {
-    // Given June has an open bill
+  it('opens the outflow editor when a row is tapped', async () => {
+    // Given June has an open outflow
     const user = userEvent.setup();
-    renderDashboard({ bills: [bill({ id: 'luz', name: 'Luz', amount: 100 })] });
+    renderDashboard({ outflows: [outflow({ id: 'luz', name: 'Luz', amount: 100 })] });
 
     // When I tap the row
     await user.click(screen.getByRole('button', { name: 'Editar Luz' }));
 
     // Then its full-screen editor opens
-    expect(screen.getByText('Editor da conta')).toBeInTheDocument();
+    expect(screen.getByText('Editor da saída')).toBeInTheDocument();
   });
 
   it('always shows the block, celebrating when nothing is left to pay', () => {
-    // Given June has no open bills (a paid one only)
+    // Given June has no open outflows (a paid one only)
     renderDashboard({
-      bills: [bill({ id: 'paid', name: 'Internet', amount: 100, isPaid: true })],
+      outflows: [outflow({ id: 'paid', name: 'Internet', amount: 100, isPaid: true })],
     });
 
     // Then the block is present with the good-news message
-    expect(screen.getByRole('region', { name: 'Contas em aberto' })).toBeInTheDocument();
-    expect(screen.getByText('Uau! Não há mais contas para pagar! 🎉')).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Saídas em aberto' })).toBeInTheDocument();
+    expect(screen.getByText('Uau! Nada mais para pagar! 🎉')).toBeInTheDocument();
   });
 
-  it('opens the full bills screen from the block header', async () => {
-    // Given June has an open bill
+  it('opens the full outflows screen from the block header', async () => {
+    // Given June has an open outflow
     const user = userEvent.setup();
-    renderDashboard({ bills: [bill({ id: 'luz', name: 'Luz', amount: 100 })] });
+    renderDashboard({ outflows: [outflow({ id: 'luz', name: 'Luz', amount: 100 })] });
 
     // When I tap the block header
-    await user.click(screen.getByRole('button', { name: 'Contas em aberto' }));
+    await user.click(screen.getByRole('button', { name: 'Saídas em aberto' }));
 
-    // Then the Bills screen opens
-    expect(screen.getByText('Tela de contas')).toBeInTheDocument();
+    // Then the Outflows screen opens
+    expect(screen.getByText('Tela de saídas')).toBeInTheDocument();
   });
 
   it('shows payer and bank with fallbacks for unset references', () => {
-    // Given an open bill with no payer or bank
-    renderDashboard({ bills: [bill({ id: 'luz', name: 'Luz', amount: 100 })] });
+    // Given an open outflow with no payer or bank
+    renderDashboard({ outflows: [outflow({ id: 'luz', name: 'Luz', amount: 100 })] });
 
     // Then the reference line reads the unassigned fallbacks
     expect(screen.getByText('Sem responsável · Sem banco')).toBeInTheDocument();
@@ -330,18 +330,18 @@ describe('Dashboard — open bills', () => {
 
 describe('Dashboard — full picture', () => {
   it('shows the month with all three blocks together', () => {
-    // Given a month with income, a plan, card spending and open bills
+    // Given a month with income, a plan, card spending and open outflows
     renderDashboard({
       income: [incomeEntry(12000, 'Salário')],
       planItems: [planItem('Mercado', 1000)],
       cardSpending: [cardTotal('card-1', 800)],
-      bills: [bill({ id: 'luz', name: 'Luz', amount: 300 })],
+      outflows: [outflow({ id: 'luz', name: 'Luz', amount: 300 })],
     });
 
     // Then each block's region is present
-    expect(screen.getByRole('region', { name: 'Renda e contas' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Renda e saídas' })).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Plano de Gastos' })).toBeInTheDocument();
-    expect(screen.getByRole('region', { name: 'Contas em aberto' })).toBeInTheDocument();
-    expect(within(screen.getByRole('region', { name: 'Contas em aberto' })).getByText('Luz')).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Saídas em aberto' })).toBeInTheDocument();
+    expect(within(screen.getByRole('region', { name: 'Saídas em aberto' })).getByText('Luz')).toBeInTheDocument();
   });
 });

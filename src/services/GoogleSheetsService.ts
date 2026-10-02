@@ -1,7 +1,7 @@
 import { SHEET_CONFIGS, SHEET_KEYS, type SheetKey } from '../config/google';
 import {
   Bank,
-  Bill,
+  Outflow,
   Card,
   CardSpending,
   IncomeEntry,
@@ -328,7 +328,7 @@ export class GoogleSheetsService {
       payers: this.parsePayersRows(byKey.payers ?? []),
       planItems: this.parsePlanRows(byKey.plan ?? []),
       cardSpending: this.parseCardSpendingRows(byKey.card_spending ?? []),
-      bills: this.parseBillsRows(byKey.bills ?? []),
+      outflows: this.parseOutflowsRows(byKey.outflows ?? []),
       income: this.parseIncomeRows(byKey.income ?? []),
     };
   }
@@ -405,17 +405,17 @@ export class GoogleSheetsService {
         const entry = record as CardSpending;
         return [entry.id, entry.month, entry.cardId, entry.total];
       }
-      case 'bills': {
-        const bill = record as Bill;
+      case 'outflows': {
+        const outflow = record as Outflow;
         return [
-          bill.id,
-          bill.month,
-          bill.name,
-          bill.amount,
-          bill.isPaid ? 'TRUE' : 'FALSE',
-          bill.payerId,
-          bill.bankId,
-          bill.isFinal ? 'TRUE' : 'FALSE',
+          outflow.id,
+          outflow.month,
+          outflow.name,
+          outflow.amount,
+          outflow.isPaid ? 'TRUE' : 'FALSE',
+          outflow.payerId,
+          outflow.bankId,
+          outflow.isFinal ? 'TRUE' : 'FALSE',
         ];
       }
       case 'income': {
@@ -594,16 +594,16 @@ export class GoogleSheetsService {
     });
   }
 
-  private parseBillsRows(rows: unknown[][]): Bill[] {
+  private parseOutflowsRows(rows: unknown[][]): Outflow[] {
     return rows.filter((row) => !this.isBlankRow(row)).map((row, index) => {
       const [id, month, name, amount, isPaid, payerId, bankId, isFinal] = row;
       return {
-        id: this.parseString(id, `bill-${index}`),
+        id: this.parseString(id, `outflow-${index}`),
         month: this.parseString(month),
         name: this.parseString(name),
         amount: this.parseNumber(amount),
         isPaid: this.parseBoolean(isPaid),
-        // Blank cells are the legacy default: bills written before these
+        // Blank cells are the legacy default: outflows written before these
         // columns existed read back as unset, and an absent is_final reads as
         // not final so the value is flagged for review.
         isFinal: this.parseBoolean(isFinal),
@@ -645,8 +645,8 @@ export class GoogleSheetsService {
     return this.parseCardSpendingRows(await this.readRows(spreadsheetId, 'card_spending', 'A2:D'));
   }
 
-  async readBills(spreadsheetId: string): Promise<Bill[]> {
-    return this.parseBillsRows(await this.readRows(spreadsheetId, 'bills', 'A2:H'));
+  async readOutflows(spreadsheetId: string): Promise<Outflow[]> {
+    return this.parseOutflowsRows(await this.readRows(spreadsheetId, 'outflows', 'A2:H'));
   }
 
   async readIncome(spreadsheetId: string): Promise<IncomeEntry[]> {

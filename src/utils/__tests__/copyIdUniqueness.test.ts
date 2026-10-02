@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { copyBills } from '../billCopy';
+import { copyOutflows } from '../outflowCopy';
 import { copyPlanItems } from '../planCopy';
 import { copyIncomeEntries } from '../incomeCopy';
-import type { Bill, IncomeEntry, PlanItem } from '../../types';
+import type { Outflow, IncomeEntry, PlanItem } from '../../types';
 
 const JUNE = '2026-06';
 const MAY = '2026-05';
@@ -20,9 +20,9 @@ function planItem(name: string): PlanItem {
   return { id: `plan-May-${name}`, month: MAY, name, amount: 100, remainingEstimate: 0 };
 }
 
-function bill(name: string): Bill {
+function outflow(name: string): Outflow {
   return {
-    id: `bill-May-${name}`,
+    id: `outflow-May-${name}`,
     month: MAY,
     name,
     amount: 50,
@@ -49,12 +49,12 @@ describe('copy id uniqueness', () => {
     expectUniqueIds(copies.map((item) => item.id));
   });
 
-  it('gives every copied bill its own id', () => {
-    // Given last month's bills include duplicate names and a whole list
-    const source = [bill('Luz'), bill('Luz'), bill('Internet'), bill('Cartão')];
+  it('gives every copied outflow its own id', () => {
+    // Given last month's outflows include duplicate names and a whole list
+    const source = [outflow('Luz'), outflow('Luz'), outflow('Internet'), outflow('Cartão')];
 
-    // When I replicate the bills
-    const copies = copyBills(source, JUNE);
+    // When I replicate the outflows
+    const copies = copyOutflows(source, JUNE);
 
     // Then each copy is a distinct record
     expectUniqueIds(copies.map((item) => item.id));

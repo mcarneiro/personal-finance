@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { Bank, Payer } from '../../types';
 import { parseAmount } from '../../utils/currency';
 
-export interface BillDraft {
+export interface OutflowDraft {
   name: string;
   amount: number;
   isFinal: boolean;
@@ -11,7 +11,7 @@ export interface BillDraft {
   bankId: string;
 }
 
-interface BillFormProps {
+interface OutflowFormProps {
   /** Unique prefix so co-existing add/edit forms keep distinct labels and inputs. */
   formId: string;
   payers: Payer[];
@@ -25,20 +25,20 @@ interface BillFormProps {
   initialPayerId?: string;
   initialBankId?: string;
   autoFocusName?: boolean;
-  onSubmit: (draft: BillDraft) => void;
-  /** Render a Cancel action (editing an existing bill); label and handler are paired. */
+  onSubmit: (draft: OutflowDraft) => void;
+  /** Render a Cancel action (editing an existing outflow); label and handler are paired. */
   onCancel?: { label: string; onClick: () => void };
 }
 
 /**
- * The bill form: name, amount, payer and bank — all four required, so a bill can
+ * The outflow form: name, amount, payer and bank — all four required, so a outflow can
  * never be saved without knowing who pays it and from where. Amounts are typed
  * as loose text (pt-BR comma or en-US dot) and only become submittable once they
  * parse. Payer/bank are chosen from the registries maintained in Settings. The
  * final-value checkbox is optional and unset by default, marking the amount as
  * confirmed for the month.
  */
-export default function BillForm({
+export default function OutflowForm({
   formId,
   payers,
   banks,
@@ -53,7 +53,7 @@ export default function BillForm({
   autoFocusName = false,
   onSubmit,
   onCancel,
-}: BillFormProps) {
+}: OutflowFormProps) {
   const { t } = useTranslation();
   const [name, setName] = useState(initialName);
   const [amount, setAmount] = useState(initialAmount === undefined ? '' : String(initialAmount));
@@ -119,7 +119,7 @@ export default function BillForm({
       <div className="flex gap-2">
         <div className="min-w-0 flex-1">
           <label htmlFor={payerIdField} className="block text-sm font-medium text-gray-700">
-            {t('bills.payerLabel')}
+            {t('outflows.payerLabel')}
           </label>
           <select
             id={payerIdField}
@@ -127,7 +127,7 @@ export default function BillForm({
             onChange={(event) => setPayerId(event.target.value)}
             className={inputClass}
           >
-            <option value="">{t('bills.selectPayer')}</option>
+            <option value="">{t('outflows.selectPayer')}</option>
             {payers.map((payer) => (
               <option key={payer.id} value={payer.id}>
                 {payer.name}
@@ -137,7 +137,7 @@ export default function BillForm({
         </div>
         <div className="min-w-0 flex-1">
           <label htmlFor={bankIdField} className="block text-sm font-medium text-gray-700">
-            {t('bills.bankLabel')}
+            {t('outflows.bankLabel')}
           </label>
           <select
             id={bankIdField}
@@ -145,7 +145,7 @@ export default function BillForm({
             onChange={(event) => setBankId(event.target.value)}
             className={inputClass}
           >
-            <option value="">{t('bills.selectBank')}</option>
+            <option value="">{t('outflows.selectBank')}</option>
             {banks.map((bank) => (
               <option key={bank.id} value={bank.id}>
                 {bank.name}
@@ -164,7 +164,7 @@ export default function BillForm({
           className="h-4 w-4 rounded border-gray-300"
         />
         <label htmlFor={finalId} className="text-sm text-gray-700">
-          {t('bills.finalValueLabel')}
+          {t('outflows.finalValueLabel')}
         </label>
       </div>
 

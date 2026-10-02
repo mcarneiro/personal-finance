@@ -1,6 +1,6 @@
 # Planyoo
 
-Planyoo plans and controls household card spending and tracks monthly payment obligations.
+Planyoo plans and controls household card spending and tracks monthly income and outflows.
 
 ## Language
 
@@ -44,30 +44,30 @@ _Avoid_: Variance, balance, forecast
 An amount of money expected to arrive during a month, recorded with an optional source note. It represents expectation, not receipt.
 _Avoid_: Salary, revenue, income record
 
-**Bill**:
-A payment obligation tracked for a particular month, including its amount, whether its value is **Final Value**, who pays it (**Payer**), which **Bank** it is paid from, and whether it has been paid. It includes the card bill, a single value originating from the previous month's card spending. It does not belong to a spending bucket.
-_Avoid_: Spending bucket, expense
+**Outflow**:
+A single expected payment out of a household account during a month — a utility bill, an investment contribution or a maintenance cost — including its amount, whether its value is **Final Value**, who pays it (**Payer**), which **Bank** it is paid from, and whether it has been paid. It includes the card bill, a single value originating from the previous month's card spending. It does not belong to a spending bucket, and it is never **Card Spending**.
+_Avoid_: Bill, expense, payment, obligation, spending bucket
 
 **Final Value**:
-The flag marking a Bill's amount as confirmed for the month. A Bill starts — and every replicated copy arrives — without it, so variable amounts are flagged for review until someone confirms them. Bills without it are shown with a warning and grouped at the end of the list. It is a workflow marker only and never changes a total.
+The flag marking an Outflow's amount as confirmed for the month. An Outflow starts — and every replicated copy arrives — without it, so variable amounts are flagged for review until someone confirms them. Outflows without it are shown with a warning and grouped at the end of the list. It is a workflow marker only and never changes a total.
 _Avoid_: Confirmed value, locked, settled, paid
 
 **Payer**:
-A named household member responsible for paying a Bill. Payers form a registry the household maintains in Settings; a Bill references one by id, so renaming a payer flows through to its bills.
+A named household member responsible for paying an Outflow. Payers form a registry the household maintains in Settings; an Outflow references one by id, so renaming a payer flows through to its outflows.
 _Avoid_: Owner, user, cardholder, responsible
 
 **Bank**:
-A named account a Bill is paid from. Banks form a registry the household maintains in Settings; a Bill references one by id, so renaming a bank flows through to its bills.
+A named account an Outflow is paid from. Banks form a registry the household maintains in Settings; an Outflow references one by id, so renaming a bank flows through to its outflows.
 _Avoid_: Account, card, credit card
 
 **Remaining to Pay**:
-The part of a month's Bills that is still open (not paid), shown per Payer and Bank in the by-payer summary. It is a display view only — a device-remembered toggle that swaps the summary's values between the full total and this remainder — and never changes a Bill or a total.
+The part of a month's Outflows that is still open (not paid), shown per Payer and Bank in the by-payer summary. It is a display view only — a device-remembered toggle that swaps the summary's values between the full total and this remainder — and never changes an Outflow or a total.
 _Avoid_: Outstanding balance, amount due, debt
 
 ### Months
 
 **Month**:
-The YYYY-MM period every Spending Plan, Card Spending, Bill, and Income Entry belongs to. It is the unit of navigation and the period a Plan Result is computed over.
+The YYYY-MM period every Spending Plan, Card Spending, Outflow, and Income Entry belongs to. It is the unit of navigation and the period a Plan Result is computed over.
 _Avoid_: Billing cycle, period, month key
 
 ### Household collaboration

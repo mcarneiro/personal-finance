@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { monthHasRecords } from '../copyGuard';
-import type { Bill } from '../../types';
+import type { Outflow } from '../../types';
 
 const JUNE = '2026-06';
 const MAY = '2026-05';
 
-function bill(month: string, name: string): Bill {
+function outflow(month: string, name: string): Outflow {
   return {
     id: `${month}-${name}`,
     month,
@@ -21,7 +21,7 @@ function bill(month: string, name: string): Bill {
 describe('monthHasRecords', () => {
   it('is true when the freshly-read rows include the target month', () => {
     // Given fresh rows for May and June
-    const rows = [bill(MAY, 'Luz'), bill(JUNE, 'Internet')];
+    const rows = [outflow(MAY, 'Luz'), outflow(JUNE, 'Internet')];
 
     // When checking the month being replicated into
     // Then it is reported as already populated, so the copy is blocked
@@ -30,7 +30,7 @@ describe('monthHasRecords', () => {
 
   it('is false when no fresh row belongs to the target month', () => {
     // Given fresh rows for May only
-    const rows = [bill(MAY, 'Luz')];
+    const rows = [outflow(MAY, 'Luz')];
 
     // When checking the empty target month
     // Then the copy may proceed

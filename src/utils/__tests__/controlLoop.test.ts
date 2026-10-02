@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import type { Bill, CardSpending, IncomeEntry, Month, PlanItem } from '../../types';
+import type { Outflow, CardSpending, IncomeEntry, Month, PlanItem } from '../../types';
 import {
   accountNet,
-  billsTotal,
+  outflowsTotal,
   incomeTotal,
   planResult,
   planTotal,
@@ -28,8 +28,8 @@ function cardTotal(month: Month, cardId: string, total: number): CardSpending {
   return { id: `${month}-${cardId}`, month, cardId, total };
 }
 
-/** Build a bill pinned to a month. */
-function bill(month: Month, name: string, amount: number, isPaid = false): Bill {
+/** Build a outflow pinned to a month. */
+function outflow(month: Month, name: string, amount: number, isPaid = false): Outflow {
   return {
     id: `${month}-${name}`,
     month,
@@ -194,62 +194,62 @@ describe('incomeTotal', () => {
   });
 });
 
-describe('billsTotal', () => {
-  // Given a set of bills
-  // When computing the month's bills total
-  // Then only that month's bills are summed, paid or not
+describe('outflowsTotal', () => {
+  // Given a set of outflows
+  // When computing the month's outflows total
+  // Then only that month's outflows are summed, paid or not
   it.each([
-    ['no bills at all', [], 0],
-    ['bills only in other months', [bill(OTHER_MONTH, 'Luz', 150)], 0],
-    ['a single bill', [bill(MONTH, 'Luz', 150)], 150],
+    ['no outflows at all', [], 0],
+    ['outflows only in other months', [outflow(OTHER_MONTH, 'Luz', 150)], 0],
+    ['a single outflow', [outflow(MONTH, 'Luz', 150)], 150],
     [
-      'open and paid bills, including the card bill statement value',
+      'open and paid outflows, including the card bill statement value',
       [
-        bill(MONTH, 'Luz', 150),
-        bill(MONTH, 'Cartão guta', 2899, true),
+        outflow(MONTH, 'Luz', 150),
+        outflow(MONTH, 'Cartão guta', 2899, true),
       ],
       3049,
     ],
     [
       'data from other months is ignored',
-      [bill(OTHER_MONTH, 'Luz', 99999), bill(MONTH, 'Internet', 110)],
+      [outflow(OTHER_MONTH, 'Luz', 99999), outflow(MONTH, 'Internet', 110)],
       110,
     ],
-  ])('Given %s the bills total is %s', (_name, bills, expected) => {
-    expect(billsTotal(MONTH, bills)).toBe(expected);
+  ])('Given %s the outflows total is %s', (_name, outflows, expected) => {
+    expect(outflowsTotal(MONTH, outflows)).toBe(expected);
   });
 });
 
 describe('accountNet', () => {
-  // Given income entries and bills
+  // Given income entries and outflows
   // When computing the Account Net for a month
-  // Then it is Σ income − Σ bills
+  // Then it is Σ income − Σ outflows
   it.each([
     ['an empty month', [], [], 0],
     ['income only', [incomeEntry(MONTH, 12000, 'Salário')], [], 12000],
-    ['bills only', [], [bill(MONTH, 'Luz', 150)], -150],
-    // Paid status does not change the account net: the bill is an obligation
+    ['outflows only', [], [outflow(MONTH, 'Luz', 150)], -150],
+    // Paid status does not change the account net: the outflow is an obligation
     // either way.
     [
-      'income minus bills',
+      'income minus outflows',
       [incomeEntry(MONTH, 12000, 'Salário')],
-      [bill(MONTH, 'Luz', 150), bill(MONTH, 'Cartão guta', 2899, true)],
+      [outflow(MONTH, 'Luz', 150), outflow(MONTH, 'Cartão guta', 2899, true)],
       8951,
     ],
     [
-      'bills exceed income',
+      'outflows exceed income',
       [incomeEntry(MONTH, 1000, 'Salário')],
-      [bill(MONTH, 'Cartão guta', 2899)],
+      [outflow(MONTH, 'Cartão guta', 2899)],
       -1899,
     ],
     [
       'data from other months is ignored',
       [incomeEntry(OTHER_MONTH, 99999, 'Salário')],
-      [bill(OTHER_MONTH, 'Luz', 150)],
+      [outflow(OTHER_MONTH, 'Luz', 150)],
       0,
     ],
-  ])('Given %s the Account Net is %s', (_name, incomeEntries, bills, expected) => {
-    expect(accountNet(MONTH, incomeEntries, bills)).toBe(expected);
+  ])('Given %s the Account Net is %s', (_name, incomeEntries, outflows, expected) => {
+    expect(accountNet(MONTH, incomeEntries, outflows)).toBe(expected);
   });
 });
 

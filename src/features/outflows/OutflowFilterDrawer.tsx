@@ -1,16 +1,16 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { BillFilter, BillFilterOptions } from '../../utils/billFilter';
+import type { OutflowFilter, OutflowFilterOptions } from '../../utils/outflowFilter';
 
-interface BillFilterDrawerProps {
-  options: BillFilterOptions;
+interface OutflowFilterDrawerProps {
+  options: OutflowFilterOptions;
   /** The filter currently applied to the list; seeds the drawer's draft. */
-  value: BillFilter;
+  value: OutflowFilter;
   /** Resolve a payer id to its display name (with unset/removed fallbacks). */
   payerLabel: (id: string) => string;
   /** Resolve a bank id to its display name (with unset/removed fallbacks). */
   bankLabel: (id: string) => string;
-  onApply: (filter: BillFilter) => void;
+  onApply: (filter: OutflowFilter) => void;
   onClose: () => void;
 }
 
@@ -20,22 +20,22 @@ function toggle(ids: string[], id: string): string[] {
 }
 
 /**
- * The Bills list filter, on a right-side drawer over a dimmed backdrop. It edits
+ * The Outflows list filter, on a right-side drawer over a dimmed backdrop. It edits
  * a draft so half-made selections never reorder the list behind it: Apply
  * commits the draft and closes, while tapping the backdrop (or Escape) discards
  * it. The checkboxes are the payers and banks that actually appear on the
- * month's bills, so every one of them changes the list.
+ * month's outflows, so every one of them changes the list.
  */
-export default function BillFilterDrawer({
+export default function OutflowFilterDrawer({
   options,
   value,
   payerLabel,
   bankLabel,
   onApply,
   onClose,
-}: BillFilterDrawerProps) {
+}: OutflowFilterDrawerProps) {
   const { t } = useTranslation();
-  const [draft, setDraft] = useState<BillFilter>(value);
+  const [draft, setDraft] = useState<OutflowFilter>(value);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -52,20 +52,20 @@ export default function BillFilterDrawer({
     >
       <div
         role="dialog"
-        id="bill-filter"
+        id="outflow-filter"
         aria-modal="true"
-        aria-label={t('bills.filterTitle')}
+        aria-label={t('outflows.filterTitle')}
         className="flex h-full w-80 max-w-full flex-col bg-white shadow-xl"
         onClick={(event) => event.stopPropagation()}
       >
         <h2 className="border-b border-gray-200 px-4 py-3 text-lg font-bold text-gray-900">
-          {t('bills.filterTitle')}
+          {t('outflows.filterTitle')}
         </h2>
 
         <div className="flex-1 overflow-y-auto px-4 py-3">
           <fieldset>
             <legend className="text-sm font-semibold text-gray-700">
-              {t('bills.payerLabel')}
+              {t('outflows.payerLabel')}
             </legend>
             <ul className="mt-2 space-y-2">
               {options.payerIds.map((id) => (
@@ -88,7 +88,7 @@ export default function BillFilterDrawer({
 
           <fieldset className="mt-5">
             <legend className="text-sm font-semibold text-gray-700">
-              {t('bills.bankLabel')}
+              {t('outflows.bankLabel')}
             </legend>
             <ul className="mt-2 space-y-2">
               {options.bankIds.map((id) => (
@@ -116,14 +116,14 @@ export default function BillFilterDrawer({
             onClick={() => setDraft({ payerIds: [], bankIds: [] })}
             className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
           >
-            {t('bills.filterClear')}
+            {t('outflows.filterClear')}
           </button>
           <button
             type="button"
             onClick={() => onApply(draft)}
             className="flex-1 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
           >
-            {t('bills.filterApply')}
+            {t('outflows.filterApply')}
           </button>
         </div>
       </div>

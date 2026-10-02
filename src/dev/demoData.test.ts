@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   accountNet,
-  billsTotal,
+  outflowsTotal,
   incomeTotal,
   planResult,
   planTotal,
@@ -14,18 +14,18 @@ describe('demo data — the real-data verification run (ticket 09)', () => {
   // Given the seeded demo months (the real June trace plus simulated
   // July/August/September on the same plan)
   // When each month's control-loop numbers are computed
-  // Then Plan Total, Total Spent, Projected Result, Plan Result, bills total,
+  // Then Plan Total, Total Spent, Projected Result, Plan Result, outflows total,
   // income total and account net all match the values recorded in the sheet
   it.each(DEMO_MONTHS)('reproduces every recorded value for $month', (entry) => {
-    const { month, planItems, cardSpending, bills, income, expected } = entry;
+    const { month, planItems, cardSpending, outflows, income, expected } = entry;
 
     expect(planTotal(month, planItems)).toBe(expected.planTotal);
     expect(totalSpent(month, cardSpending)).toBe(expected.totalSpent);
     expect(projectedResult(month, planItems, cardSpending)).toBe(expected.projectedResult);
     expect(planResult(month, planItems, cardSpending)).toBe(expected.planResult);
-    expect(billsTotal(month, bills)).toBe(expected.billsTotal);
+    expect(outflowsTotal(month, outflows)).toBe(expected.outflowsTotal);
     expect(incomeTotal(month, income)).toBe(expected.incomeTotal);
-    expect(accountNet(month, income, bills)).toBe(expected.accountNet);
+    expect(accountNet(month, income, outflows)).toBe(expected.accountNet);
   });
 
   // Given August is fully closed (estimates zeroed)

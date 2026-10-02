@@ -2,7 +2,7 @@ import { createListenerMiddleware, isAnyOf } from '@reduxjs/toolkit';
 import { addCard, deleteCard, updateCard } from '../cardsSlice';
 import { addBank, deleteBank, updateBank } from '../banksSlice';
 import { addPayer, deletePayer, updatePayer } from '../payersSlice';
-import { addBill, addBills, deleteBill, toggleBillPaid, updateBill } from '../billsSlice';
+import { addOutflow, addOutflows, deleteOutflow, toggleOutflowPaid, updateOutflow } from '../outflowsSlice';
 import { addIncomeEntries, addIncomeEntry, deleteIncomeEntry, updateIncomeEntry } from '../incomeSlice';
 import {
   addPlanItem,
@@ -251,40 +251,40 @@ startAppListening({
 });
 
 startAppListening({
-  matcher: isAnyOf(addBill, addBills, updateBill, deleteBill, toggleBillPaid),
+  matcher: isAnyOf(addOutflow, addOutflows, updateOutflow, deleteOutflow, toggleOutflowPaid),
   effect: async (action, listenerApi) => {
     const sheetIdAtChange = listenerApi.getState().settings.sheetId;
-    if (addBill.match(action)) {
+    if (addOutflow.match(action)) {
       listenerApi.dispatch(
         recordPendingChange({
-          tab: 'bills',
+          tab: 'outflows',
           change: { type: 'create', id: action.payload.id, record: action.payload },
         })
       );
-    } else if (addBills.match(action)) {
-      for (const bill of action.payload) {
+    } else if (addOutflows.match(action)) {
+      for (const outflow of action.payload) {
         listenerApi.dispatch(
-          recordPendingChange({ tab: 'bills', change: { type: 'create', id: bill.id, record: bill } })
+          recordPendingChange({ tab: 'outflows', change: { type: 'create', id: outflow.id, record: outflow } })
         );
       }
-    } else if (updateBill.match(action)) {
+    } else if (updateOutflow.match(action)) {
       listenerApi.dispatch(
         recordPendingChange({
-          tab: 'bills',
+          tab: 'outflows',
           change: { type: 'update', id: action.payload.id, record: action.payload },
         })
       );
-    } else if (deleteBill.match(action)) {
+    } else if (deleteOutflow.match(action)) {
       listenerApi.dispatch(
-        recordPendingChange({ tab: 'bills', change: { type: 'delete', id: action.payload } })
+        recordPendingChange({ tab: 'outflows', change: { type: 'delete', id: action.payload } })
       );
-    } else if (toggleBillPaid.match(action)) {
-      const bill = listenerApi.getState().bills.items.find((item) => item.id === action.payload);
-      if (bill) {
+    } else if (toggleOutflowPaid.match(action)) {
+      const outflow = listenerApi.getState().outflows.items.find((item) => item.id === action.payload);
+      if (outflow) {
         listenerApi.dispatch(
           recordPendingChange({
-            tab: 'bills',
-            change: { type: 'update', id: bill.id, record: bill },
+            tab: 'outflows',
+            change: { type: 'update', id: outflow.id, record: outflow },
           })
         );
       }
@@ -298,7 +298,7 @@ startAppListening({
     // for the new sheet, so proceeding would push empty (or the wrong) data.
     if (!settings.sheetId || settings.sheetId !== sheetIdAtChange) return;
 
-    await flushPendingTab(listenerApi, 'bills', settings.sheetId);
+    await flushPendingTab(listenerApi, 'outflows', settings.sheetId);
   },
 });
 

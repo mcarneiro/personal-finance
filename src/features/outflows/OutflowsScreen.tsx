@@ -3,20 +3,20 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 import MonthScaffold from '../../components/MonthScaffold';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
-import { addBills, toggleBillPaid } from '../../store/billsSlice';
-import { accountNet, billsTotal, incomeTotal } from '../../utils/controlLoop';
-import { billsByPayerAndBank, type BankTotal, type PayerGroup } from '../../utils/billSummary';
-import { orderBills } from '../../utils/billOrder';
+import { addOutflows, toggleOutflowPaid } from '../../store/outflowsSlice';
+import { accountNet, outflowsTotal, incomeTotal } from '../../utils/controlLoop';
+import { outflowsByPayerAndBank, type BankTotal, type PayerGroup } from '../../utils/outflowSummary';
+import { orderOutflows } from '../../utils/outflowOrder';
 import {
-  EMPTY_BILL_FILTER,
-  billFilterCount,
-  billFilterOptions,
-  filterBills,
-  isBillFilterEmpty,
-  parseBillFilter,
-  type BillFilter,
-} from '../../utils/billFilter';
-import { copyBills } from '../../utils/billCopy';
+  EMPTY_OUTFLOW_FILTER,
+  outflowFilterCount,
+  outflowFilterOptions,
+  filterOutflows,
+  isOutflowFilterEmpty,
+  parseOutflowFilter,
+  type OutflowFilter,
+} from '../../utils/outflowFilter';
+import { copyOutflows } from '../../utils/outflowCopy';
 import { formatCurrency } from '../../utils/currency';
 import { isValidMonth, shiftMonth } from '../../utils/month';
 import { useCopyGuard } from '../../hooks/useCopyGuard';
@@ -24,17 +24,17 @@ import { usePersistentState } from '../../hooks/usePersistentState';
 import { usePersistentToggle } from '../../hooks/usePersistentToggle';
 import { useRegistryLabels } from '../../hooks/useRegistryLabels';
 import NeedsRegistryNotice from './NeedsRegistryNotice';
-import BillFilterDrawer from './BillFilterDrawer';
-import BillRow from './BillRow';
+import OutflowFilterDrawer from './OutflowFilterDrawer';
+import OutflowRow from './OutflowRow';
 
 /**
- * The Bills screen for one month: payment obligations added by hand (name,
- * amount, payer, bank — the card bill is just another bill with its real
- * statement value), each with a paid toggle, plus the month's bills total,
- * income total and the account net (income − bills). The income total is a
+ * The Outflows screen for one month: payment obligations added by hand (name,
+ * amount, payer, bank — the card bill is just another outflow with its real
+ * statement value), each with a paid toggle, plus the month's outflows total,
+ * income total and the account net (income − outflows). The income total is a
  * shortcut to the same month on the Income screen. Below the totals sits the
- * by-payer spending summary, collapsed by default, then the month's bills
- * ordered final-first, open-first and alphabetically. A bill whose value is not
+ * by-payer spending summary, collapsed by default, then the month's outflows
+ * ordered final-first, open-first and alphabetically. A outflow whose value is not
  * final is flagged with a warning before its name and sinks to the bottom, so a
  * replicated month gathers the variable amounts still needing review. A small
  * filter icon between the summary and the list opens a right-side drawer that
@@ -45,44 +45,44 @@ import BillRow from './BillRow';
  * the icon so the list is never silently narrowed. The by-payer summary's
  * expanded state and its swap of each payer's and bank's value to what is still
  * to pay are both remembered locally. The replicate-last-month button copies
- * last month's obligations so recurring bills need no retyping; the copies
+ * last month's obligations so recurring outflows need no retyping; the copies
  * arrive open and not final (never pre-paid or pre-confirmed) and can be edited
  * freely. The derived numbers come from the control-loop utilities and the
- * bill-summary utility and are never stored; every mutation syncs through the
- * debounced middleware onto the bills tab.
+ * outflow-summary utility and are never stored; every mutation syncs through the
+ * debounced middleware onto the outflows tab.
  */
-export default function BillsScreen() {
+export default function OutflowsScreen() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { month } = useParams<{ month: string }>();
   const dispatch = useAppDispatch();
-  const bills = useAppSelector((state) => state.bills.items);
+  const outflows = useAppSelector((state) => state.outflows.items);
   const income = useAppSelector((state) => state.income.items);
   const banks = useAppSelector((state) => state.banks.items);
   const payers = useAppSelector((state) => state.payers.items);
-  // The by-payer summary starts folded so the month's bills — the thing being
+  // The by-payer summary starts folded so the month's outflows — the thing being
   // checked off — lead the page; the totals stay visible as the section header.
   // Whether it is open is a device preference, so it is remembered locally.
-  const [summaryOpen, toggleSummaryOpen] = usePersistentToggle('planyoo:bills:summaryOpen');
+  const [summaryOpen, toggleSummaryOpen] = usePersistentToggle('planyoo:outflows:summaryOpen');
   // The payer/bank filter is pure view state: it never reaches Redux or the
   // sheet. It is a device preference remembered locally, so a selection made in
   // one visit — or one month — is restored on the next.
-  const [filter, setFilter] = usePersistentState<BillFilter>(
-    'planyoo:bills:filter',
-    EMPTY_BILL_FILTER,
-    parseBillFilter
+  const [filter, setFilter] = usePersistentState<OutflowFilter>(
+    'planyoo:outflows:filter',
+    EMPTY_OUTFLOW_FILTER,
+    parseOutflowFilter
   );
   const [filterOpen, setFilterOpen] = useState(false);
   // Whether the by-payer summary also shows what is still to pay per payer and
   // bank. A local display preference, not a derived number, so it is remembered
   // on this device only.
   const [showRemaining, toggleShowRemaining] = usePersistentToggle(
-    'planyoo:bills:showRemaining'
+    'planyoo:outflows:showRemaining'
   );
   // Re-read the target month right before replicating so a copy another member
   // already made is never duplicated (ADR-0008).
   const { blocked: copyBlocked, checkFailed: copyCheckFailed, canCopy } = useCopyGuard(
-    'bills',
+    'outflows',
     month
   );
   // Resolve payer/bank names the same way the Dashboard does.
@@ -90,78 +90,78 @@ export default function BillsScreen() {
 
   if (!isValidMonth(month)) {
     // MonthScaffold owns the redirect; nothing to list until it settles.
-    return <MonthScaffold basePath="/bills" />;
+    return <MonthScaffold basePath="/outflows" />;
   }
 
-  const monthBills = bills.filter((bill) => bill.month === month);
-  const lastMonthBills = bills.filter((bill) => bill.month === shiftMonth(month, -1));
-  const net = accountNet(month, income, bills);
-  const spending = billsByPayerAndBank(month, bills, banks, payers);
-  const filterOptions = billFilterOptions(monthBills, banks, payers);
-  const filterActive = !isBillFilterEmpty(filter);
-  const visibleBills = orderBills(filterBills(monthBills, filter), i18n.language);
+  const monthOutflows = outflows.filter((outflow) => outflow.month === month);
+  const lastMonthOutflows = outflows.filter((outflow) => outflow.month === shiftMonth(month, -1));
+  const net = accountNet(month, income, outflows);
+  const spending = outflowsByPayerAndBank(month, outflows, banks, payers);
+  const filterOptions = outflowFilterOptions(monthOutflows, banks, payers);
+  const filterActive = !isOutflowFilterEmpty(filter);
+  const visibleOutflows = orderOutflows(filterOutflows(monthOutflows, filter), i18n.language);
 
   // One line per active facet, naming every selected reference. Kept short and
   // stacked so the block stays no taller than the filter button beside it.
   const activeFilterLines: string[] = [];
   if (filter.payerIds.length > 0) {
     activeFilterLines.push(
-      t('bills.filterActivePayer', { names: filter.payerIds.map(payerLabel).join(', ') })
+      t('outflows.filterActivePayer', { names: filter.payerIds.map(payerLabel).join(', ') })
     );
   }
   if (filter.bankIds.length > 0) {
     activeFilterLines.push(
-      t('bills.filterActiveBank', { names: filter.bankIds.map(bankLabel).join(', ') })
+      t('outflows.filterActiveBank', { names: filter.bankIds.map(bankLabel).join(', ') })
     );
   }
 
   const registryReady = payers.length > 0 && banks.length > 0;
 
   return (
-    <MonthScaffold basePath="/bills">
+    <MonthScaffold basePath="/outflows">
       <section
-        aria-label={t('bills.summary')}
+        aria-label={t('outflows.summary')}
         className="mt-4 rounded-lg bg-white p-4 shadow-sm"
       >
         <div className="flex items-center justify-between">
-          <span className="text-sm font-medium text-gray-700">{t('bills.billsTotal')}</span>
+          <span className="text-sm font-medium text-gray-700">{t('outflows.outflowsTotal')}</span>
           <span className="text-sm font-medium text-gray-900">
-            {formatCurrency(billsTotal(month, bills), i18n.language)}
+            {formatCurrency(outflowsTotal(month, outflows), i18n.language)}
           </span>
         </div>
         <button
           type="button"
           onClick={() => navigate(`/income/${month}`)}
-          aria-label={t('bills.viewIncome')}
+          aria-label={t('outflows.viewIncome')}
           className="mt-2 flex w-full items-center justify-between rounded-md text-left transition-colors hover:bg-gray-50"
         >
-          <span className="text-sm text-gray-700">{t('bills.incomeTotal')}</span>
+          <span className="text-sm text-gray-700">{t('outflows.incomeTotal')}</span>
           <span className="text-sm font-medium text-blue-600">
             {formatCurrency(incomeTotal(month, income), i18n.language)}
           </span>
         </button>
         <div className="mt-3 flex items-center justify-between border-t border-gray-100 pt-3">
-          <span className="text-sm font-medium text-gray-700">{t('bills.accountNet')}</span>
+          <span className="text-sm font-medium text-gray-700">{t('outflows.accountNet')}</span>
           <span className="text-lg font-bold text-gray-900">
             {formatCurrency(net, i18n.language)}
           </span>
         </div>
         {/* Replicate only into an empty month: on a month that already has
-            bills it would silently duplicate the whole list. The re-read below
+            outflows it would silently duplicate the whole list. The re-read below
             guards against another member's copy landing first. */}
-        {lastMonthBills.length > 0 && monthBills.length === 0 && (
+        {lastMonthOutflows.length > 0 && monthOutflows.length === 0 && (
           <button
             type="button"
             onClick={async () => {
               // Work out what would be copied BEFORE the await: a pull or a
               // re-render during the re-read must not change this list under us.
-              const toCopy = copyBills(lastMonthBills, month);
+              const toCopy = copyOutflows(lastMonthOutflows, month);
               if (!(await canCopy())) return;
-              dispatch(addBills(toCopy));
+              dispatch(addOutflows(toCopy));
             }}
             className="mt-3 w-full rounded-lg border border-blue-600 py-2 text-sm font-semibold text-blue-600 transition-colors hover:bg-blue-50"
           >
-            {t('bills.copyLastMonth')}
+            {t('outflows.copyLastMonth')}
           </button>
         )}
         {copyBlocked && (
@@ -177,7 +177,7 @@ export default function BillsScreen() {
       </section>
 
       <section
-        aria-label={t('bills.byPayerSummary')}
+        aria-label={t('outflows.byPayerSummary')}
         className="mt-4 rounded-lg bg-white p-4 shadow-sm"
       >
         <h2>
@@ -189,7 +189,7 @@ export default function BillsScreen() {
             className="flex w-full items-center justify-between gap-2 text-left"
           >
             <span className="text-sm font-semibold text-gray-900">
-              {t('bills.byPayerSummary')}
+              {t('outflows.byPayerSummary')}
             </span>
             <svg
               aria-hidden="true"
@@ -211,7 +211,7 @@ export default function BillsScreen() {
         {summaryOpen && (
           <div id="by-payer-summary">
             {spending.length === 0 ? (
-              <p className="mt-1 text-sm text-gray-600">{t('bills.byPayerEmpty')}</p>
+              <p className="mt-1 text-sm text-gray-600">{t('outflows.byPayerEmpty')}</p>
             ) : (
               <>
                 <ul className="mt-2 divide-y divide-gray-100">
@@ -234,7 +234,7 @@ export default function BillsScreen() {
                     onChange={toggleShowRemaining}
                     className="h-4 w-4 rounded border-gray-300"
                   />
-                  {t('bills.showRemaining')}
+                  {t('outflows.showRemaining')}
                 </label>
               </>
             )}
@@ -242,11 +242,11 @@ export default function BillsScreen() {
         )}
       </section>
 
-      {monthBills.length === 0 && (
-        <p className="mt-4 text-sm text-gray-500">{t('bills.empty')}</p>
+      {monthOutflows.length === 0 && (
+        <p className="mt-4 text-sm text-gray-500">{t('outflows.empty')}</p>
       )}
 
-      {monthBills.length > 0 && (
+      {monthOutflows.length > 0 && (
         <div className="mt-4 flex items-center justify-between gap-2">
           {/* The active filters sit on the left, stacked and small, so the row
               never grows past the filter button beside it. */}
@@ -261,18 +261,18 @@ export default function BillsScreen() {
             {filterActive && (
               <button
                 type="button"
-                onClick={() => setFilter(EMPTY_BILL_FILTER)}
+                onClick={() => setFilter(EMPTY_OUTFLOW_FILTER)}
                 className="text-xs font-semibold text-blue-600 transition-colors hover:text-blue-700"
               >
-                {t('bills.filterClearAll')}
+                {t('outflows.filterClearAll')}
               </button>
             )}
             <button
               type="button"
               onClick={() => setFilterOpen(true)}
-              aria-label={t('bills.filterOpen')}
+              aria-label={t('outflows.filterOpen')}
               aria-expanded={filterOpen}
-              aria-controls="bill-filter"
+              aria-controls="outflow-filter"
               className="relative rounded-lg border border-gray-300 bg-white p-2 text-gray-600 transition-colors hover:bg-gray-50"
             >
               <svg
@@ -294,7 +294,7 @@ export default function BillsScreen() {
                   aria-hidden="true"
                   className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-[10px] font-semibold text-white"
                 >
-                  {billFilterCount(filter)}
+                  {outflowFilterCount(filter)}
                 </span>
               )}
             </button>
@@ -302,21 +302,21 @@ export default function BillsScreen() {
         </div>
       )}
 
-      {monthBills.length > 0 && (
-        <section aria-label={t('bills.title')} className="mt-4 rounded-lg bg-white p-4 shadow-sm">
-          {visibleBills.length === 0 ? (
-            <p className="text-sm text-gray-500">{t('bills.filterEmpty')}</p>
+      {monthOutflows.length > 0 && (
+        <section aria-label={t('outflows.title')} className="mt-4 rounded-lg bg-white p-4 shadow-sm">
+          {visibleOutflows.length === 0 ? (
+            <p className="text-sm text-gray-500">{t('outflows.filterEmpty')}</p>
           ) : (
             <ul className="divide-y divide-gray-100">
-              {visibleBills.map((bill) => (
-                <BillRow
-                  key={bill.id}
-                  bill={bill}
+              {visibleOutflows.map((outflow) => (
+                <OutflowRow
+                  key={outflow.id}
+                  outflow={outflow}
                   locale={i18n.language}
                   payerLabel={payerLabel}
                   bankLabel={bankLabel}
-                  onTogglePaid={(id) => dispatch(toggleBillPaid(id))}
-                  onEdit={(id) => navigate(`/bills/edit/${id}`)}
+                  onTogglePaid={(id) => dispatch(toggleOutflowPaid(id))}
+                  onEdit={(id) => navigate(`/outflows/edit/${id}`)}
                 />
               ))}
             </ul>
@@ -331,7 +331,7 @@ export default function BillsScreen() {
       )}
 
       {filterOpen && (
-        <BillFilterDrawer
+        <OutflowFilterDrawer
           options={filterOptions}
           value={filter}
           payerLabel={payerLabel}

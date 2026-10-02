@@ -6,8 +6,8 @@ import LoadingScreen from './components/LoadingScreen';
 import DashboardScreen from './features/dashboard/DashboardScreen';
 import PlanScreen from './features/plan/PlanScreen';
 import BucketEditor from './features/plan/BucketEditor';
-import BillsScreen from './features/bills/BillsScreen';
-import BillEditor from './features/bills/BillEditor';
+import OutflowsScreen from './features/outflows/OutflowsScreen';
+import OutflowEditor from './features/outflows/OutflowEditor';
 import IncomeScreen from './features/income/IncomeScreen';
 import IncomeEditor from './features/income/IncomeEditor';
 import SettingsScreen from './features/settings/SettingsScreen';
@@ -129,17 +129,17 @@ function App() {
         {/* Record editors are full-screen pages: their own header, no bottom nav. */}
         <Route path="/plan/new/:month" element={<BucketEditor />} />
         <Route path="/plan/edit/:id" element={<BucketEditor />} />
-        <Route path="/bills" element={<Navigate to={`/bills/${currentMonth}`} replace />} />
+        <Route path="/outflows" element={<Navigate to={`/outflows/${currentMonth}`} replace />} />
         <Route
-          path="/bills/:month"
+          path="/outflows/:month"
           element={
             <Layout>
-              <BillsScreen />
+              <OutflowsScreen />
             </Layout>
           }
         />
-        <Route path="/bills/new/:month" element={<BillEditor />} />
-        <Route path="/bills/edit/:id" element={<BillEditor />} />
+        <Route path="/outflows/new/:month" element={<OutflowEditor />} />
+        <Route path="/outflows/edit/:id" element={<OutflowEditor />} />
         <Route path="/income" element={<Navigate to={`/income/${currentMonth}`} replace />} />
         <Route
           path="/income/:month"

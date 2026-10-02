@@ -12,7 +12,7 @@ Currently planning household card spending in a Google Sheets spreadsheet with ~
 While the sheet works, it has limitations:
 
 - The sobra arithmetic is manual and repeated every check-in
-- No paid-status tracking for monthly obligations (bills)
+- No paid-status tracking for monthly outflows
 - No income view, so account-level net is invisible
 - Poor UX for the weekly control loop on mobile
 
@@ -22,14 +22,14 @@ A React app using Google Sheets as the database (same foundation as Stayoo) that
 - Spending Plan: spending buckets with caps
 - Weekly card check-ins: per-card running totals → Total Spent
 - Remaining Estimates per bucket → live Projected Result (the sobra)
-- Bills with paid control, payer and bank, income entries, and the account net
+- Outflows with paid control, payer and bank, income entries, and the account net
 
 ## Goals
 
 ### Primary Goals
 1. Digitize the card-spending control loop — check-in, re-estimate, see the sobra
 2. Show the Projected Result live: over-plan warnings mid-month, final Plan Result month-by-month
-3. Track bills (including card bills) with paid status, payer and bank, and see spending by payer
+3. Track outflows (including card bills) with paid status, payer and bank, and see outflows by payer
 4. Track expected income and the account net
 
 ### Secondary Goals
@@ -57,23 +57,23 @@ A React app using Google Sheets as the database (same foundation as Stayoo) that
 - **Data Sync**: startup paints instantly from a per-sheet **Working Copy** cache (keyed by spreadsheet id, stamped with the sheet contract version) instead of gating behind the network; a background pull then reads every tab — headers and data — in one batched request, merging fresh rows and replaying local **Pending Changes**. A pull also runs on window focus (throttled ~30 s). When the cache is stamped against the current sheet contract the header checks are skipped; otherwise they run batched, and a cache stamped for another sheet or contract is never reused. A failed pull keeps the last-saved data and shows an "offline — showing last saved data" hint rather than an empty app; a first-ever connect (no cache) still shows the loading gate. Writes are **row-scoped by id** (ADR-0008): a save re-reads the affected tabs' id column in one request and updates only the changed rows in one batched request — new records append at the tab's end, deletes blank their row in place, and untouched rows are never rewritten. On a same-row collision the local Pending Change wins; a save whose write fails keeps its Pending Changes, which retry on the next save or pull. Every successful pull and push refreshes the cache, and writes go back through the same debounced sync middleware pattern (`useDataSync.ts` + `syncListener.ts` ported from Stayoo)
 
 #### 3. Month Navigation
-- Month-scoped routes (`/plan/:month`, `/bills/:month`, `/income/:month`) with prev/next navigation (Stayoo pattern)
+- Month-scoped routes (`/plan/:month`, `/outflows/:month`, `/income/:month`) with prev/next navigation (Stayoo pattern)
 
 #### 4. Income Management
 **Route:** `/income/:month`
 - Income entries: amount + optional source note. Receipt is not tracked.
 - Add via the top-bar "+" and tap a row to edit both on a **full-screen editor** (`/income/new/:month`, `/income/edit/:id`); delete lives on the editor behind a confirmation modal, never inline in the list
 - Total shown; replicate-last-month button for the recurring salary (it re-reads the target month first and refuses with a message when it is no longer empty, so two members cannot double-replicate — ADR-0008)
-- Account net (income − bills) is surfaced on the Bills screen
+- Account net (income − outflows) is surfaced on the Outflows screen
 
-#### 5. Bills Management
-**Route:** `/bills/:month`
-- Bills: add (name, amount, payer, bank, final value), toggle paid, edit, delete — no auto-generation (the card bill is entered by hand). Add via the top-bar "+" and tap a row to edit both on a **full-screen editor** (`/bills/new/:month`, `/bills/edit/:id`); delete lives on the editor behind a confirmation modal, never inline in the list. The list reads **final values first, then bills still awaiting one**; within each group **open bills first, then paid**, each group **alphabetical by name**. A **replicate-last-month button** seeds an empty month from last month's bills; copies carry name, amount, payer and bank, but always arrive **unpaid and not final** (ADR-0003). The copy re-reads the target month from the sheet first and, if it is no longer empty, copies nothing and says so — so two members cannot double-replicate (ADR-0008)
-- **Final value**: each bill carries a **Final value** flag, set on the editor (unset by default). It marks the amount as confirmed for the month. Bills whose value is not final are flagged with a ⚠️ before their name and grouped at the end of the list, so the variable amounts that still need updating after a replicate are gathered together and easy to find. The flag is a workflow marker only — it never changes a total (ADR-0006)
-- **Payer and bank are required**: every bill records who pays it and which registered bank it is paid from; unset or since-removed references still render and still count. When the payer or bank registry is empty, the Bills list and the editor show a highlighted callout with a shortcut straight to Settings instead of an unusable form
-- **Card bill**: entered by hand as a regular bill when the statement arrives; its amount is the real statement value (covers the previous month's card spending). Installments, fees and refunds are absorbed by the statement value — never modeled
-- Shows: bills total, a clickable **income total** that opens the same month on the Income screen, **account net** = income − bills, and a **by-payer spending summary** (per payer, broken down by bank). The summary sits below the totals and above the bills and is **collapsed by default**, expanding on tap — its expanded/collapsed state is remembered on the device. A small toggle inside the summary — remembered on the device — swaps each payer's and each bank's value from the full total to the **amount still to pay** (that payer's or bank's open bills)
-- **Filter by payer and bank (front-end only)**: a small filter icon sits between the by-payer summary and the bills list and opens a **right-side drawer** of checkboxes — one per payer and per bank that has bills in the browsed month. Selections are OR-ed within a facet and AND-ed across facets (e.g. Guta + Itaú, Nubank), so any combination is expressible. The filter narrows **only the bill list**; the totals, account net and by-payer summary always keep the full month. The applied filters are spelled out in small stacked lines to the left of the icon (one per facet) so the list is never silently narrowed, with an active-count badge, a clear action, and an empty-match message. The selection is a device preference remembered on the device, so it is restored on the next visit (including after switching months); only an explicit clear removes it
+#### 5. Outflows Management
+**Route:** `/outflows/:month`
+- Outflows: add (name, amount, payer, bank, final value), toggle paid, edit, delete — no auto-generation (the card bill is entered by hand). Add via the top-bar "+" and tap a row to edit both on a **full-screen editor** (`/outflows/new/:month`, `/outflows/edit/:id`); delete lives on the editor behind a confirmation modal, never inline in the list. The list reads **final values first, then outflows still awaiting one**; within each group **open outflows first, then paid**, each group **alphabetical by name**. A **replicate-last-month button** seeds an empty month from last month's outflows; copies carry name, amount, payer and bank, but always arrive **unpaid and not final** (ADR-0003). The copy re-reads the target month from the sheet first and, if it is no longer empty, copies nothing and says so — so two members cannot double-replicate (ADR-0008)
+- **Final value**: each outflow carries a **Final value** flag, set on the editor (unset by default). It marks the amount as confirmed for the month. Outflows whose value is not final are flagged with a ⚠️ before their name and grouped at the end of the list, so the variable amounts that still need updating after a replicate are gathered together and easy to find. The flag is a workflow marker only — it never changes a total (ADR-0006)
+- **Payer and bank are required**: every outflow records who pays it and which registered bank it is paid from; unset or since-removed references still render and still count. When the payer or bank registry is empty, the Outflows list and the editor show a highlighted callout with a shortcut straight to Settings instead of an unusable form
+- **Card bill**: entered by hand as a regular outflow when the statement arrives; its amount is the real statement value (covers the previous month's card spending). Installments, fees and refunds are absorbed by the statement value — never modeled
+- Shows: outflows total, a clickable **income total** that opens the same month on the Income screen, **account net** = income − outflows, and a **by-payer summary** (per payer, broken down by bank). The summary sits below the totals and above the outflows and is **collapsed by default**, expanding on tap — its expanded/collapsed state is remembered on the device. A small toggle inside the summary — remembered on the device — swaps each payer's and each bank's value from the full total to the **amount still to pay** (that payer's or bank's open outflows)
+- **Filter by payer and bank (front-end only)**: a small filter icon sits between the by-payer summary and the outflows list and opens a **right-side drawer** of checkboxes — one per payer and per bank that has outflows in the browsed month. Selections are OR-ed within a facet and AND-ed across facets (e.g. Guta + Itaú, Nubank), so any combination is expressible. The filter narrows **only the outflow list**; the totals, account net and by-payer summary always keep the full month. The applied filters are spelled out in small stacked lines to the left of the icon (one per facet) so the list is never silently narrowed, with an active-count badge, a clear action, and an empty-match message. The selection is a device preference remembered on the device, so it is restored on the next visit (including after switching months); only an explicit clear removes it
 
 #### 6. Spending Plan (the core)
 **Route:** `/plan/:month`
@@ -87,10 +87,10 @@ A React app using Google Sheets as the database (same foundation as Stayoo) that
 #### 7. Dashboard (home)
 **Route:** `/`
 - The **current month only**, with no month navigation — history review stays on the month-scoped screens. A month label (e.g. "Outubro 2026") makes this explicit.
-- **Income/outcome block**: Income Total vs Bills Total as two horizontal bars on a shared scale, with Account Net. The Income bar opens `/income/:month`, the Bills bar `/bills/:month`. Hidden when both totals are zero.
+- **Income/Outflows block**: Income Total vs Outflows Total as two horizontal bars on a shared scale, with Account Net. The Income bar opens `/income/:month`, the Outflows bar `/outflows/:month`. Hidden when both totals are zero.
 - **Spending Plan block**: Plan Total and Total Spent with a bar filled to `Total Spent / Plan Total` (capped at 100%, never overshooting) and a marker for how far through the month we are. Green normally; **yellow** when spend runs more than 25 percentage points ahead of the month (callout names the headroom still available before the ceiling); **red** once Total Spent passes Plan Total (callout names the overage). Both callouts and the block header open `/plan/:month`. Hidden when Plan Total is zero. It deliberately shows the raw Plan Result, not the Projected Result — see ADR-0009.
-- **Open bills block**: the month's **open** Bills (unpaid) only, in the Bills screen's order (final values first, then alphabetical), each with a paid toggle that removes the row immediately (no animation) and a tap that opens its editor; the block header opens `/bills/:month`. Always shown; when nothing is open it celebrates ("Hooray! No more bills to pay!").
-- Reuses the Bills screen's wording and the control-loop derived numbers; everything is computed on the fly and nothing new is stored.
+- **Open outflows block**: the month's **open** Outflows (unpaid) only, in the Outflows screen's order (final values first, then alphabetical), each with a paid toggle that removes the row immediately (no animation) and a tap that opens its editor; the block header opens `/outflows/:month`. Always shown; when nothing is open it celebrates ("Hooray! Nothing left to pay!").
+- Reuses the Outflows screen's wording and the control-loop derived numbers; everything is computed on the fly and nothing new is stored.
 
 ## Technical Requirements
 
@@ -99,7 +99,7 @@ Same as Stayoo: React 19, Vite, Redux Toolkit, react-router-dom, react-i18next (
 
 ### Architecture Principles
 - Port `GoogleSheetsService.ts`, `useDataSync.ts`, `syncListener.ts`, onboarding, and month navigation from Stayoo — no new integration patterns
-- Redux Toolkit slices: `incomeSlice`, `billsSlice`, `planSlice` (plan items + card spending), `cardsSlice`
+- Redux Toolkit slices: `incomeSlice`, `outflowsSlice`, `planSlice` (plan items + card spending), `cardsSlice`
 - All derived numbers are computed in pure utilities/selectors — **never stored**: Plan Total, Total Spent, Projected Result, Plan Result, Account Net live in `planCalculations.ts`-style pure functions, fully unit-tested
 - No purchase entities anywhere in the data model (ADR-0002)
 
@@ -136,7 +136,7 @@ export interface CardSpending {
   total: number;                // current total so far; overwritten at check-in
 }
 
-export interface Bill {
+export interface Outflow {
   id: string;
   month: string;                // YYYY-MM
   name: string;                 // "Luz", "Cartão guta"
@@ -166,7 +166,7 @@ export interface IncomeEntry {
 | `payers` | id, name |
 | `plan` | id, month, name, amount, remaining_estimate |
 | `card_spending` | id, month, card_id, total |
-| `bills` | id, month, name, amount, is_paid, payer_id, bank_id, is_final |
+| `outflows` | id, month, name, amount, is_paid, payer_id, bank_id, is_final |
 | `income` | id, month, amount, source |
 
 #### Sheet Initialization
@@ -180,14 +180,14 @@ Onboarding validates the connected sheet and creates any missing tabs with the h
 - Check-in friction below 30 seconds: N card inputs + estimate tweaks
 
 ### Key Screens
-1. **Dashboard** (`/`) — the app entry point and the household's current-month home: the income/outcome bars with Account Net, the Spending Plan's progress with its pace bar and over-plan callout, and the Bills still open to pay. It is current-month only (no month navigation) — history lives on the month-scoped screens. Its top bar shows the title "Dashboard" and the Settings shortcut; every other screen's top bar shows a back button and that screen's name.
+1. **Dashboard** (`/`) — the app entry point and the household's current-month home: the income/outflows bars with Account Net, the Spending Plan's progress with its pace bar and over-plan callout, and the Outflows still open to pay. It is current-month only (no month navigation) — history lives on the month-scoped screens. Its top bar shows the title "Dashboard" and the Settings shortcut; every other screen's top bar shows a back button and that screen's name.
 2. **Spending Plan** (`/plan/:month`) — spending buckets, check-in inputs, remaining estimates, Projected Result headline. Tap a bucket to edit on `/plan/edit/:id`; add via the top-bar "+" (`/plan/new/:month`)
-3. **Bills** (`/bills/:month`) — bill list with paid toggles, income total, account net, the by-payer spending summary, and the replicate-last-month button. Bills awaiting a final value are flagged with a ⚠️ and sink to the end of the list. Tap a row to edit on `/bills/edit/:id`; add via the top-bar "+" (`/bills/new/:month`)
+3. **Outflows** (`/outflows/:month`) — outflow list with paid toggles, income total, account net, the by-payer summary, and the replicate-last-month button. Outflows awaiting a final value are flagged with a ⚠️ and sink to the end of the list. Tap a row to edit on `/outflows/edit/:id`; add via the top-bar "+" (`/outflows/new/:month`)
 4. **Income** (`/income/:month`) — entries, total, replicate button. Tap a row to edit on `/income/edit/:id`; add via the top-bar "+" (`/income/new/:month`)
 5. **Settings** — card, bank and payer registries + connected sheet. Opened only from the Dashboard top bar; it is a full-screen page with a back button and no bottom navigation.
 6. **Onboarding** — Stayoo flow
 
-The app shell is a mobile-first Layout: a contextual top bar (with an optional screen-declared "+" for adding a record to the browsed month), the scrollable content column, and a fixed bottom navigation with three tabs (Plan, Bills, Income). Creating and editing a bill, spending bucket or income entry happens on a full-screen record editor with its own header and no bottom nav, like Settings. The shell and navigation conventions are recorded in ADR-0004.
+The app shell is a mobile-first Layout: a contextual top bar (with an optional screen-declared "+" for adding a record to the browsed month), the scrollable content column, and a fixed bottom navigation with three tabs (Plan, Outflows, Income). Creating and editing an outflow, spending bucket or income entry happens on a full-screen record editor with its own header and no bottom nav, like Settings. The shell and navigation conventions are recorded in ADR-0004.
 
 ## Control Loop Specification
 
@@ -196,7 +196,7 @@ Plan Total        = Σ bucket caps                            (month)
 Total Spent       = Σ card totals                             (month)
 Projected Result  = Plan Total − Total Spent − Σ remaining estimates
 Plan Result       = Plan Total − Total Spent                  (final; estimates zeroed)
-Account Net       = Σ income − Σ bills                        (month)
+Account Net       = Σ income − Σ outflows                      (month)
 ```
 
 **Worked example** (June, from the current sheet):
@@ -223,8 +223,8 @@ Account Net       = Σ income − Σ bills                        (month)
 - Purchase-level tracking and per-bucket actuals (ADR-0002 — deliberate non-goal, not a missing feature)
 - Charts, YoY, analytics of any kind
 - Installment modeling (the card bill is the real statement value)
-- Account balances, savings or investment tracking
-- Bill auto-generation (the card bill is entered by hand)
+- Account balances, savings or investment tracking (an investment contribution is recorded as an ordinary outflow; its balance and returns are not)
+- Outflow auto-generation (the card bill is entered by hand)
 - Check-in snapshot history (totals are overwritten)
 - Multi-currency, native mobile app, multiple users/roles
 

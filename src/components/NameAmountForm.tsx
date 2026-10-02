@@ -17,7 +17,7 @@ interface NameAmountFormProps {
 
 /**
  * The shared name + amount form, used both to add a plan item (fixed charge or
- * spending bucket) or a bill and to edit one in place. Amounts are typed as
+ * spending bucket) or a outflow and to edit one in place. Amounts are typed as
  * loose text (pt-BR comma or en-US dot) and only become submittable once they
  * parse — a bad amount can never be recorded.
  */

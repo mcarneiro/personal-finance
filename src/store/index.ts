@@ -4,7 +4,7 @@ import cardsReducer from './cardsSlice';
 import banksReducer from './banksSlice';
 import payersReducer from './payersSlice';
 import planReducer from './planSlice';
-import billsReducer from './billsSlice';
+import outflowsReducer from './outflowsSlice';
 import incomeReducer from './incomeSlice';
 import settingsReducer from './settingsSlice';
 import pendingReducer from './pendingSlice';
@@ -17,7 +17,7 @@ export const store = configureStore({
     banks: banksReducer,
     payers: payersReducer,
     plan: planReducer,
-    bills: billsReducer,
+    outflows: outflowsReducer,
     income: incomeReducer,
     settings: settingsReducer,
     pending: pendingReducer,

@@ -30,7 +30,7 @@ const SHEET_DATA_KEYS = [
   'payers',
   'planItems',
   'cardSpending',
-  'bills',
+  'outflows',
   'income',
 ] as const;
 

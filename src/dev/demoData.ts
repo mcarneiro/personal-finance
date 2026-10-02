@@ -1,4 +1,4 @@
-import type { Bank, Bill, Card, CardSpending, IncomeEntry, Month, Payer, PlanItem } from '../types';
+import type { Bank, Outflow, Card, CardSpending, IncomeEntry, Month, Payer, PlanItem } from '../types';
 
 /**
  * A realistic demo dataset for the real-data verification run (ticket 09) and
@@ -54,8 +54,8 @@ function cardTotal(month: Month, cardId: string, total: number): CardSpending {
   return { id: `${month}-${cardId}`, month, cardId, total };
 }
 
-/** Build a bill pinned to a month, assigned to a payer and paid from a bank. */
-function bill(
+/** Build a outflow pinned to a month, assigned to a payer and paid from a bank. */
+function outflow(
   month: Month,
   name: string,
   amount: number,
@@ -63,14 +63,14 @@ function bill(
   bankId: string,
   isPaid = false,
   isFinal = true
-): Bill {
+): Outflow {
   const slug = name
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/(^-|-$)/g, '');
-  return { id: `bill-${month}-${slug}`, month, name, amount, isPaid, isFinal, payerId, bankId };
+  return { id: `outflow-${month}-${slug}`, month, name, amount, isPaid, isFinal, payerId, bankId };
 }
 
 /** Build an income entry pinned to a month. */
@@ -108,7 +108,7 @@ export interface DemoExpected {
   totalSpent: number;
   projectedResult: number;
   planResult: number;
-  billsTotal: number;
+  outflowsTotal: number;
   incomeTotal: number;
   accountNet: number;
 }
@@ -117,7 +117,7 @@ export interface DemoMonth {
   month: Month;
   planItems: PlanItem[];
   cardSpending: CardSpending[];
-  bills: Bill[];
+  outflows: Outflow[];
   income: IncomeEntry[];
   /** The sheet's recorded sobra values — hardcoded targets, never derived. */
   expected: DemoExpected;
@@ -137,14 +137,14 @@ export const JUNE_CHECKIN: DemoMonth = {
     cardTotal('2026-06', 'card-uv', 9432),
     cardTotal('2026-06', 'card-ml', 473),
   ],
-  bills: [],
+  outflows: [],
   income: [],
   expected: {
     planTotal: 10750,
     totalSpent: 12804,
     projectedResult: -2304,
     planResult: -2054,
-    billsTotal: 0,
+    outflowsTotal: 0,
     incomeTotal: 0,
     accountNet: 0,
   },
@@ -159,10 +159,10 @@ const JUNE: DemoMonth = {
     cardTotal('2026-06', 'card-uv', 9432),
     cardTotal('2026-06', 'card-ml', 473),
   ],
-  bills: [
-    bill('2026-06', 'Cartão guta', 2899, 'payer-guta', 'bank-itau', true),
-    bill('2026-06', 'Luz', 180, 'payer-marcelo', 'bank-nubank', true),
-    bill('2026-06', 'Internet', 110, 'payer-marcelo', 'bank-nubank', true),
+  outflows: [
+    outflow('2026-06', 'Cartão guta', 2899, 'payer-guta', 'bank-itau', true),
+    outflow('2026-06', 'Luz', 180, 'payer-marcelo', 'bank-nubank', true),
+    outflow('2026-06', 'Internet', 110, 'payer-marcelo', 'bank-nubank', true),
   ],
   income: [income('2026-06', 12000, 'Salário')],
   expected: {
@@ -170,7 +170,7 @@ const JUNE: DemoMonth = {
     totalSpent: 12804,
     projectedResult: -2054,
     planResult: -2054,
-    billsTotal: 3189,
+    outflowsTotal: 3189,
     incomeTotal: 12000,
     accountNet: 8811,
   },
@@ -184,11 +184,11 @@ const JULY: DemoMonth = {
     cardTotal('2026-07', 'card-uv', 8600),
     cardTotal('2026-07', 'card-ml', 620),
   ],
-  bills: [
-    bill('2026-07', 'Cartão guta', 3100, 'payer-guta', 'bank-itau', true),
-    bill('2026-07', 'Luz', 190, 'payer-marcelo', 'bank-nubank', false, false),
-    bill('2026-07', 'Internet', 110, 'payer-marcelo', 'bank-nubank', true),
-    bill('2026-07', 'Gym', 200, 'payer-guta', 'bank-inter'),
+  outflows: [
+    outflow('2026-07', 'Cartão guta', 3100, 'payer-guta', 'bank-itau', true),
+    outflow('2026-07', 'Luz', 190, 'payer-marcelo', 'bank-nubank', false, false),
+    outflow('2026-07', 'Internet', 110, 'payer-marcelo', 'bank-nubank', true),
+    outflow('2026-07', 'Gym', 200, 'payer-guta', 'bank-inter'),
   ],
   income: [income('2026-07', 12000, 'Salário'), income('2026-07', 800, 'Freela')],
   expected: {
@@ -196,7 +196,7 @@ const JULY: DemoMonth = {
     totalSpent: 12320,
     projectedResult: -1570,
     planResult: -1570,
-    billsTotal: 3600,
+    outflowsTotal: 3600,
     incomeTotal: 12800,
     accountNet: 9200,
   },
@@ -211,10 +211,10 @@ const AUGUST: DemoMonth = {
     cardTotal('2026-08', 'card-uv', 7300),
     cardTotal('2026-08', 'card-ml', 537),
   ],
-  bills: [
-    bill('2026-08', 'Cartão guta', 3200, 'payer-guta', 'bank-itau', true),
-    bill('2026-08', 'Luz', 175, 'payer-marcelo', 'bank-nubank', true),
-    bill('2026-08', 'Internet', 110, 'payer-marcelo', 'bank-nubank', true),
+  outflows: [
+    outflow('2026-08', 'Cartão guta', 3200, 'payer-guta', 'bank-itau', true),
+    outflow('2026-08', 'Luz', 175, 'payer-marcelo', 'bank-nubank', true),
+    outflow('2026-08', 'Internet', 110, 'payer-marcelo', 'bank-nubank', true),
   ],
   income: [income('2026-08', 12000, 'Salário')],
   expected: {
@@ -222,7 +222,7 @@ const AUGUST: DemoMonth = {
     totalSpent: 11037,
     projectedResult: -287,
     planResult: -287,
-    billsTotal: 3485,
+    outflowsTotal: 3485,
     incomeTotal: 12000,
     accountNet: 8515,
   },
@@ -246,12 +246,12 @@ const SEPTEMBER: DemoMonth = {
     cardTotal('2026-09', 'card-uv', 2200),
     cardTotal('2026-09', 'card-ml', 0),
   ],
-  bills: [
+  outflows: [
     // The card bill and Internet await this month's real values, so they show
     // the not-final warning and sink below the confirmed Luz.
-    bill('2026-09', 'Cartão guta', 3200, 'payer-guta', 'bank-itau', false, false),
-    bill('2026-09', 'Luz', 185, 'payer-marcelo', 'bank-nubank', true),
-    bill('2026-09', 'Internet', 110, 'payer-marcelo', 'bank-nubank', false, false),
+    outflow('2026-09', 'Cartão guta', 3200, 'payer-guta', 'bank-itau', false, false),
+    outflow('2026-09', 'Luz', 185, 'payer-marcelo', 'bank-nubank', true),
+    outflow('2026-09', 'Internet', 110, 'payer-marcelo', 'bank-nubank', false, false),
   ],
   income: [income('2026-09', 12000, 'Salário')],
   expected: {
@@ -259,7 +259,7 @@ const SEPTEMBER: DemoMonth = {
     totalSpent: 3700,
     projectedResult: 4750,
     planResult: 7050,
-    billsTotal: 3495,
+    outflowsTotal: 3495,
     incomeTotal: 12000,
     accountNet: 8505,
   },
@@ -275,8 +275,8 @@ export const DEMO_CARD_SPENDING: CardSpending[] = DEMO_MONTHS.flatMap(
   (entry) => entry.cardSpending
 );
 
-/** Flattened rows for the sheet's `bills` tab. */
-export const DEMO_BILLS: Bill[] = DEMO_MONTHS.flatMap((entry) => entry.bills);
+/** Flattened rows for the sheet's `outflows` tab. */
+export const DEMO_OUTFLOWS: Outflow[] = DEMO_MONTHS.flatMap((entry) => entry.outflows);
 
 /** Flattened rows for the sheet's `income` tab. */
 export const DEMO_INCOME: IncomeEntry[] = DEMO_MONTHS.flatMap((entry) => entry.income);

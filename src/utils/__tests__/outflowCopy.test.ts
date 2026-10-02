@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import type { Bill } from '../../types';
-import { copyBills } from '../billCopy';
+import type { Outflow } from '../../types';
+import { copyOutflows } from '../outflowCopy';
 
 const MAY = '2026-05';
 const JUNE = '2026-06';
 
-function bill(overrides: Partial<Bill>): Bill {
+function outflow(overrides: Partial<Outflow>): Outflow {
   return {
     id: 'source',
     month: MAY,
@@ -19,16 +19,16 @@ function bill(overrides: Partial<Bill>): Bill {
   };
 }
 
-describe('copyBills', () => {
+describe('copyOutflows', () => {
   it('copies names, amounts, payers and banks into the target month', () => {
-    // Given last month's bills: one paid from a bank, one assigned to another payer
+    // Given last month's outflows: one paid from a bank, one assigned to another payer
     const source = [
-      bill({ id: 'a', name: 'Luz', amount: 150 }),
-      bill({ id: 'b', name: 'Cartão guta', amount: 2899, payerId: 'payer-guta', bankId: 'bank-itau' }),
+      outflow({ id: 'a', name: 'Luz', amount: 150 }),
+      outflow({ id: 'b', name: 'Cartão guta', amount: 2899, payerId: 'payer-guta', bankId: 'bank-itau' }),
     ];
 
     // When I replicate them into the target month
-    const copies = copyBills(source, JUNE);
+    const copies = copyOutflows(source, JUNE);
 
     // Then both carry over their amount, payer and bank
     expect(copies).toEqual([
@@ -49,34 +49,34 @@ describe('copyBills', () => {
     ]);
   });
 
-  it('starts every copied bill unpaid, so last month payment never leaks', () => {
-    // Given last month's bill was already paid
-    const source = [bill({ id: 'a', isPaid: true })];
+  it('starts every copied outflow unpaid, so last month payment never leaks', () => {
+    // Given last month's outflow was already paid
+    const source = [outflow({ id: 'a', isPaid: true })];
 
     // When I replicate it
-    const copies = copyBills(source, JUNE);
+    const copies = copyOutflows(source, JUNE);
 
     // Then the new month's obligation starts open
     expect(copies[0].isPaid).toBe(false);
   });
 
-  it("starts every copied bill not final, so last month's confirmed value never leaks", () => {
-    // Given last month's bill had its value confirmed as final
-    const source = [bill({ id: 'a', isFinal: true })];
+  it("starts every copied outflow not final, so last month's confirmed value never leaks", () => {
+    // Given last month's outflow had its value confirmed as final
+    const source = [outflow({ id: 'a', isFinal: true })];
 
     // When I replicate it
-    const copies = copyBills(source, JUNE);
+    const copies = copyOutflows(source, JUNE);
 
     // Then the new month's copy is flagged as still awaiting review
     expect(copies[0].isFinal).toBe(false);
   });
 
   it('gives every copy a fresh id so it cannot collide with its source', () => {
-    // Given last month's bills carry their own ids
-    const source = [bill({ id: 'a', name: 'Luz' }), bill({ id: 'b', name: 'Internet' })];
+    // Given last month's outflows carry their own ids
+    const source = [outflow({ id: 'a', name: 'Luz' }), outflow({ id: 'b', name: 'Internet' })];
 
     // When I replicate them
-    const copies = copyBills(source, JUNE);
+    const copies = copyOutflows(source, JUNE);
 
     // Then every copy is keyed by a new, distinct id
     const ids = copies.map((copy) => copy.id);
@@ -86,21 +86,21 @@ describe('copyBills', () => {
   });
 
   it('preserves unset payer and bank references on legacy rows', () => {
-    // Given a legacy bill with no payer or bank recorded
-    const source = [bill({ id: 'a', payerId: '', bankId: '' })];
+    // Given a legacy outflow with no payer or bank recorded
+    const source = [outflow({ id: 'a', payerId: '', bankId: '' })];
 
     // When I replicate it
-    const copies = copyBills(source, JUNE);
+    const copies = copyOutflows(source, JUNE);
 
     // Then the copy keeps the blanks rather than inventing a registry entry
     expect(copies[0].payerId).toBe('');
     expect(copies[0].bankId).toBe('');
   });
 
-  it('copies nothing when last month had no bills', () => {
-    // Given last month had no bills
+  it('copies nothing when last month had no outflows', () => {
+    // Given last month had no outflows
     // When I replicate it
     // Then the target month stays empty
-    expect(copyBills([], JUNE)).toEqual([]);
+    expect(copyOutflows([], JUNE)).toEqual([]);
   });
 });

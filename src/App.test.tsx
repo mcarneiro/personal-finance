@@ -9,7 +9,7 @@ import i18n from './config/i18n';
 import { useGoogleAuth } from './contexts/GoogleAuthContext';
 import appReducer from './store/appSlice';
 import banksReducer from './store/banksSlice';
-import billsReducer from './store/billsSlice';
+import outflowsReducer from './store/outflowsSlice';
 import cardsReducer from './store/cardsSlice';
 import incomeReducer from './store/incomeSlice';
 import payersReducer from './store/payersSlice';
@@ -60,7 +60,7 @@ function appStore({ dataLoading = false, dataLoaded = true } = {}) {
       banks: banksReducer,
       payers: payersReducer,
       plan: planReducer,
-      bills: billsReducer,
+      outflows: outflowsReducer,
       income: incomeReducer,
       settings: settingsReducer,
     },
@@ -108,15 +108,15 @@ describe('month navigation', () => {
     expect(screen.getByRole('heading', { name: 'maio de 2026' })).toBeInTheDocument();
   });
 
-  it('crosses the year boundary on the Bills screen', async () => {
-    // Given the app is open on the bills for January 2026
+  it('crosses the year boundary on the Outflows screen', async () => {
+    // Given the app is open on the outflows for January 2026
     const user = userEvent.setup();
-    renderApp('/bills/2026-01');
+    renderApp('/outflows/2026-01');
 
     // When I go to the previous month
     await user.click(screen.getByRole('button', { name: 'Mês anterior' }));
 
-    // Then the bills show December 2025
+    // Then the outflows show December 2025
     expect(screen.getByRole('heading', { name: 'dezembro de 2025' })).toBeInTheDocument();
   });
 
@@ -178,7 +178,7 @@ describe('app shell', () => {
 
     // Then the Dashboard is shown
     expect(screen.getByRole('heading', { name: 'Dashboard' })).toBeInTheDocument();
-    expect(screen.getByText('Uau! Não há mais contas para pagar! 🎉')).toBeInTheDocument();
+    expect(screen.getByText('Uau! Nada mais para pagar! 🎉')).toBeInTheDocument();
   });
 
   it('moves Settings out of the bottom bar and into the home top bar', async () => {
@@ -228,16 +228,16 @@ describe('app shell', () => {
     expect(screen.queryByRole('button', { name: 'Plano' })).not.toBeInTheDocument();
   });
 
-  it('adds a bill from the top-bar "+" on the bills screen', async () => {
-    // Given the app is open on the June Bills
+  it('adds a outflow from the top-bar "+" on the outflows screen', async () => {
+    // Given the app is open on the June Outflows
     const user = userEvent.setup();
-    renderApp('/bills/2026-06');
+    renderApp('/outflows/2026-06');
 
     // When I tap the top-bar add action
-    await user.click(screen.getByRole('button', { name: 'Adicionar conta' }));
+    await user.click(screen.getByRole('button', { name: 'Adicionar saída' }));
 
-    // Then the full-screen bill editor is shown
-    expect(screen.getByRole('heading', { name: 'Nova conta' })).toBeInTheDocument();
+    // Then the full-screen outflow editor is shown
+    expect(screen.getByRole('heading', { name: 'Nova saída' })).toBeInTheDocument();
   });
 
   it('adds an income entry from the top-bar "+" on the income screen', async () => {
@@ -245,12 +245,12 @@ describe('app shell', () => {
     const user = userEvent.setup();
     renderApp('/income/2026-06');
 
-    // Then the income add action is offered, and not the plan or bills ones
+    // Then the income add action is offered, and not the plan or outflows ones
     expect(screen.getByRole('button', { name: 'Adicionar renda' })).toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: 'Adicionar teto de gastos' })
     ).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Adicionar conta' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Adicionar saída' })).not.toBeInTheDocument();
 
     // When I tap the top-bar add action
     await user.click(screen.getByRole('button', { name: 'Adicionar renda' }));
@@ -268,7 +268,7 @@ describe('app shell', () => {
     expect(
       screen.queryByRole('button', { name: 'Adicionar teto de gastos' })
     ).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Adicionar conta' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Adicionar saída' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Adicionar renda' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Ajustes' })).toBeInTheDocument();
   });

@@ -12,7 +12,7 @@ function snapshot(overrides: Partial<SheetData> = {}): SheetData {
       { id: 'pl1', month: '2026-06', name: 'Mercado', amount: 500, remainingEstimate: 250 },
     ],
     cardSpending: [{ id: 'cs1', month: '2026-06', cardId: 'c1', total: 100 }],
-    bills: [
+    outflows: [
       {
         id: 'b1',
         month: '2026-06',
@@ -68,14 +68,14 @@ describe('Working Copy cache', () => {
 
   it('does not reuse a cache across a Settings sheet change', () => {
     // Given sheet-1 has a cached snapshot
-    saveWorkingCopy('sheet-1', snapshot({ bills: [] }));
+    saveWorkingCopy('sheet-1', snapshot({ outflows: [] }));
 
     // When the household connects a different sheet with different data
     saveWorkingCopy('sheet-2', snapshot());
 
     // Then each sheet reads only its own snapshot
-    expect(loadWorkingCopy('sheet-1')?.bills).toEqual([]);
-    expect(loadWorkingCopy('sheet-2')?.bills).toHaveLength(1);
+    expect(loadWorkingCopy('sheet-1')?.outflows).toEqual([]);
+    expect(loadWorkingCopy('sheet-2')?.outflows).toHaveLength(1);
   });
 
   it('discards a cache stamped with a different sheet contract version', () => {

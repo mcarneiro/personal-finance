@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import type { Bill, PendingChanges, SheetData, TabPendingChanges } from '../../types';
+import type { Outflow, PendingChanges, SheetData, TabPendingChanges } from '../../types';
 import { mergePendingChanges, mergeSheetData } from '../mergePendingChanges';
 
-function bill(id: string, overrides: Partial<Bill> = {}): Bill {
+function outflow(id: string, overrides: Partial<Outflow> = {}): Outflow {
   return {
     id,
     month: '2026-06',
-    name: `Bill ${id}`,
+    name: `Outflow ${id}`,
     amount: 100,
     isPaid: false,
     isFinal: true,
@@ -19,9 +19,9 @@ function bill(id: string, overrides: Partial<Bill> = {}): Bill {
 describe('mergePendingChanges', () => {
   it('lets a local update win over a fresh row with the same id', () => {
     // Given a fresh row and a Pending Change editing the same record
-    const fresh = [bill('luz', { amount: 150 }), bill('agua', { amount: 90 })];
-    const changes: TabPendingChanges<Bill> = {
-      luz: { type: 'update', id: 'luz', record: bill('luz', { amount: 120 }) },
+    const fresh = [outflow('luz', { amount: 150 }), outflow('agua', { amount: 90 })];
+    const changes: TabPendingChanges<Outflow> = {
+      luz: { type: 'update', id: 'luz', record: outflow('luz', { amount: 120 }) },
     };
 
     // When the Pending Changes are replayed over the fresh rows
@@ -29,17 +29,17 @@ describe('mergePendingChanges', () => {
 
     // Then the local value wins and the untouched row passes through
     expect(result).toEqual([
-      bill('luz', { amount: 120 }),
-      bill('agua', { amount: 90 }),
+      outflow('luz', { amount: 120 }),
+      outflow('agua', { amount: 90 }),
     ]);
   });
 
   it('adds a row for a create, and upserts an edit whose id is absent', () => {
     // Given fresh rows and Pending Changes for ids the sheet does not have
-    const fresh = [bill('luz')];
-    const changes: TabPendingChanges<Bill> = {
-      netflix: { type: 'create', id: 'netflix', record: bill('netflix') },
-      gym: { type: 'update', id: 'gym', record: bill('gym', { amount: 50 }) },
+    const fresh = [outflow('luz')];
+    const changes: TabPendingChanges<Outflow> = {
+      netflix: { type: 'create', id: 'netflix', record: outflow('netflix') },
+      gym: { type: 'update', id: 'gym', record: outflow('gym', { amount: 50 }) },
     };
 
     // When the Pending Changes are replayed
@@ -47,13 +47,13 @@ describe('mergePendingChanges', () => {
 
     // Then the new and orphaned records are appended after the fresh rows
     expect(result.map((row) => row.id)).toEqual(['luz', 'netflix', 'gym']);
-    expect(result[2]).toEqual(bill('gym', { amount: 50 }));
+    expect(result[2]).toEqual(outflow('gym', { amount: 50 }));
   });
 
   it('removes the row a delete targets and ignores a delete of an absent id', () => {
     // Given three fresh rows and a delete for the middle one, plus a bogus delete
-    const fresh = [bill('luz'), bill('agua'), bill('netflix')];
-    const changes: TabPendingChanges<Bill> = {
+    const fresh = [outflow('luz'), outflow('agua'), outflow('netflix')];
+    const changes: TabPendingChanges<Outflow> = {
       agua: { type: 'delete', id: 'agua' },
       ghost: { type: 'delete', id: 'ghost' },
     };
@@ -67,9 +67,9 @@ describe('mergePendingChanges', () => {
 
   it('passes untouched fresh rows through in their original order', () => {
     // Given fresh rows in a deliberate order and a change for an unrelated id
-    const fresh = [bill('zebra'), bill('alfa'), bill('meio')];
-    const changes: TabPendingChanges<Bill> = {
-      novo: { type: 'create', id: 'novo', record: bill('novo') },
+    const fresh = [outflow('zebra'), outflow('alfa'), outflow('meio')];
+    const changes: TabPendingChanges<Outflow> = {
+      novo: { type: 'create', id: 'novo', record: outflow('novo') },
     };
 
     // When the Pending Changes are replayed
@@ -81,9 +81,9 @@ describe('mergePendingChanges', () => {
 
   it('skips blank rows, whether or not a change targets them', () => {
     // Given fresh rows including blank ids and a change keyed by a blank id
-    const fresh = [bill('luz'), bill(''), bill('   '), bill('agua')];
-    const changes: TabPendingChanges<Bill> = {
-      '': { type: 'create', id: '', record: bill('') },
+    const fresh = [outflow('luz'), outflow(''), outflow('   '), outflow('agua')];
+    const changes: TabPendingChanges<Outflow> = {
+      '': { type: 'create', id: '', record: outflow('') },
     };
 
     // When the Pending Changes are replayed
@@ -95,7 +95,7 @@ describe('mergePendingChanges', () => {
 
   it('returns the fresh rows unchanged when there are no Pending Changes', () => {
     // Given fresh rows and no Pending Changes
-    const fresh = [bill('luz'), bill('agua')];
+    const fresh = [outflow('luz'), outflow('agua')];
 
     // When the Pending Changes are replayed
     const result = mergePendingChanges(fresh, {});
@@ -107,10 +107,10 @@ describe('mergePendingChanges', () => {
 
   it('never mutates its inputs', () => {
     // Given fresh rows and a change
-    const fresh = [bill('luz', { amount: 150 })];
+    const fresh = [outflow('luz', { amount: 150 })];
     const freshSnapshot = fresh.map((row) => ({ ...row }));
-    const changes: TabPendingChanges<Bill> = {
-      luz: { type: 'update', id: 'luz', record: bill('luz', { amount: 120 }) },
+    const changes: TabPendingChanges<Outflow> = {
+      luz: { type: 'update', id: 'luz', record: outflow('luz', { amount: 120 }) },
     };
 
     // When the Pending Changes are replayed
@@ -118,20 +118,20 @@ describe('mergePendingChanges', () => {
 
     // Then the caller's arrays and records are untouched
     expect(fresh).toEqual(freshSnapshot);
-    expect(fresh[0]).toEqual(bill('luz', { amount: 150 }));
+    expect(fresh[0]).toEqual(outflow('luz', { amount: 150 }));
   });
 
   it('groups Pending Changes by tab and keys each by record id', () => {
     // Given one device's Pending Changes across two tabs
     const all: PendingChanges = {
-      bills: { luz: { type: 'update', id: 'luz', record: bill('luz') } },
+      outflows: { luz: { type: 'update', id: 'luz', record: outflow('luz') } },
       cards: { 'card-1': { type: 'create', id: 'card-1', record: { id: 'card-1', name: 'cc guta' } } },
     };
 
     // When the tab groups are read by key
     // Then each tab holds its own changes, keyed by record id
-    expect(Object.keys(all)).toEqual(['bills', 'cards']);
-    expect(all.bills?.luz.type).toBe('update');
+    expect(Object.keys(all)).toEqual(['outflows', 'cards']);
+    expect(all.outflows?.luz.type).toBe('update');
     expect(all.cards?.['card-1']).toEqual({
       type: 'create',
       id: 'card-1',
@@ -142,19 +142,19 @@ describe('mergePendingChanges', () => {
 
 describe('mergeSheetData', () => {
   function emptySheet(): SheetData {
-    return { cards: [], banks: [], payers: [], planItems: [], cardSpending: [], bills: [], income: [] };
+    return { cards: [], banks: [], payers: [], planItems: [], cardSpending: [], outflows: [], income: [] };
   }
 
   it('replays each tab group over its own fresh rows, leaving the rest untouched', () => {
-    // Given a pull that brought a remote bill edit and a local pending edit to
+    // Given a pull that brought a remote outflow edit and a local pending edit to
     // a different tab (a card rename)
     const fresh: SheetData = {
       ...emptySheet(),
-      bills: [bill('luz', { amount: 999 })],
+      outflows: [outflow('luz', { amount: 999 })],
       cards: [{ id: 'c1', name: 'old' }],
     };
     const pending: PendingChanges = {
-      bills: { luz: { type: 'update', id: 'luz', record: bill('luz', { amount: 120 }) } },
+      outflows: { luz: { type: 'update', id: 'luz', record: outflow('luz', { amount: 120 }) } },
       cards: { c1: { type: 'update', id: 'c1', record: { id: 'c1', name: 'new' } } },
     };
 
@@ -162,14 +162,14 @@ describe('mergeSheetData', () => {
     const merged = mergeSheetData(fresh, pending);
 
     // Then the local values win and the unrelated tabs are unchanged
-    expect(merged.bills).toEqual([bill('luz', { amount: 120 })]);
+    expect(merged.outflows).toEqual([outflow('luz', { amount: 120 })]);
     expect(merged.cards).toEqual([{ id: 'c1', name: 'new' }]);
     expect(merged.income).toEqual([]);
   });
 
   it('returns the snapshot unchanged when there are no Pending Changes', () => {
     // Given a snapshot and no Pending Changes
-    const fresh: SheetData = { ...emptySheet(), bills: [bill('luz')] };
+    const fresh: SheetData = { ...emptySheet(), outflows: [outflow('luz')] };
 
     // When it is merged
     const merged = mergeSheetData(fresh, {});
