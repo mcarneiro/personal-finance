@@ -32,6 +32,8 @@ const SHEET_DATA_KEYS = [
   'cardSpending',
   'outflows',
   'income',
+  'savingsPots',
+  'savingsBalances',
 ] as const;
 
 /** A stored payload is only a Working Copy when every tab is present as an array. */

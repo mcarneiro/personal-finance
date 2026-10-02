@@ -25,6 +25,8 @@ function snapshot(overrides: Partial<SheetData> = {}): SheetData {
       },
     ],
     income: [{ id: 'i1', month: '2026-06', amount: 3000, source: 'Salário' }],
+    savingsPots: [{ id: 'pot-1', name: 'Emergência' }],
+    savingsBalances: [{ id: 'sb1', month: '2026-06', potId: 'pot-1', balance: 10000 }],
     ...overrides,
   };
 }
@@ -108,6 +110,36 @@ describe('Working Copy cache', () => {
 
     // When it is read
     // Then it is rejected and cleared rather than dispatched into the store
+    expect(loadWorkingCopy('sheet-1')).toBeNull();
+    expect(localStorage.getItem('planyoo:workingCopy:sheet-1')).toBeNull();
+  });
+
+  it('accepts a cache carrying all nine tabs, savings included', () => {
+    // Given a snapshot with the pot registry and its monthly balances
+    const data = snapshot();
+
+    // When it is saved and read back
+    saveWorkingCopy('sheet-1', data);
+
+    // Then the savings tabs survive the round trip
+    const loaded = loadWorkingCopy('sheet-1');
+    expect(loaded?.savingsPots).toEqual([{ id: 'pot-1', name: 'Emergência' }]);
+    expect(loaded?.savingsBalances).toEqual([
+      { id: 'sb1', month: '2026-06', potId: 'pot-1', balance: 10000 },
+    ]);
+  });
+
+  it('rejects a seven-tab legacy payload, falling back to a cold start', () => {
+    // Given a cache written before the savings tabs existed: no savings arrays
+    const legacy = snapshot();
+    const legacyData = { ...legacy } as Partial<SheetData>;
+    delete legacyData.savingsPots;
+    delete legacyData.savingsBalances;
+    localStorage.setItem('planyoo:workingCopy:sheet-1', rawEntry({ data: legacyData }));
+
+    // When it is read
+    // Then it is rejected and dropped, so the app cold-starts instead of
+    // painting a snapshot the store can no longer trust
     expect(loadWorkingCopy('sheet-1')).toBeNull();
     expect(localStorage.getItem('planyoo:workingCopy:sheet-1')).toBeNull();
   });

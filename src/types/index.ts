@@ -74,6 +74,25 @@ export interface IncomeEntry {
   source?: string;
 }
 
+/** A named container of money set aside (emergency, retirement). */
+export interface SavingsPot {
+  id: string;
+  name: string;
+}
+
+/**
+ * The observed balance of one Savings Pot in one month, typed in by hand. A
+ * recorded row exists only against a real pot, so `potId` is never `''`.
+ */
+export interface SavingsBalance {
+  id: string;
+  month: Month;
+  /** The `SavingsPot` this balance belongs to, referenced by its stable id. */
+  potId: string;
+  /** The observed balance, a real number; an explicit `0` is a recorded zero. */
+  balance: number;
+}
+
 /**
  * The record-level edit a Pending Change represents. `create` and `update`
  * carry the record's new value; `delete` carries only its id.
@@ -103,6 +122,8 @@ export interface SheetRecords {
   card_spending: CardSpending;
   outflows: Outflow;
   income: IncomeEntry;
+  savings_pots: SavingsPot;
+  savings_balances: SavingsBalance;
 }
 
 /** The record type a given sheet tab holds. */
@@ -123,4 +144,6 @@ export interface SheetData {
   cardSpending: CardSpending[];
   outflows: Outflow[];
   income: IncomeEntry[];
+  savingsPots: SavingsPot[];
+  savingsBalances: SavingsBalance[];
 }

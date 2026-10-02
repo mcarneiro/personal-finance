@@ -8,6 +8,8 @@ import {
   Payer,
   PendingChanges,
   PlanItem,
+  SavingsBalance,
+  SavingsPot,
   SheetData,
 } from '../types';
 
@@ -330,6 +332,8 @@ export class GoogleSheetsService {
       cardSpending: this.parseCardSpendingRows(byKey.card_spending ?? []),
       outflows: this.parseOutflowsRows(byKey.outflows ?? []),
       income: this.parseIncomeRows(byKey.income ?? []),
+      savingsPots: this.parseSavingsPotsRows(byKey.savings_pots ?? []),
+      savingsBalances: this.parseSavingsBalancesRows(byKey.savings_balances ?? []),
     };
   }
 
@@ -421,6 +425,14 @@ export class GoogleSheetsService {
       case 'income': {
         const entry = record as IncomeEntry;
         return [entry.id, entry.month, entry.amount, entry.source || ''];
+      }
+      case 'savings_pots': {
+        const pot = record as SavingsPot;
+        return [pot.id, pot.name];
+      }
+      case 'savings_balances': {
+        const balance = record as SavingsBalance;
+        return [balance.id, balance.month, balance.potId, balance.balance];
       }
     }
   }
@@ -625,6 +637,25 @@ export class GoogleSheetsService {
     });
   }
 
+  private parseSavingsPotsRows(rows: unknown[][]): SavingsPot[] {
+    return rows.filter((row) => !this.isBlankRow(row)).map((row, index) => {
+      const [id, name] = row;
+      return { id: this.parseString(id, `savings-pot-${index}`), name: this.parseString(name) };
+    });
+  }
+
+  private parseSavingsBalancesRows(rows: unknown[][]): SavingsBalance[] {
+    return rows.filter((row) => !this.isBlankRow(row)).map((row, index) => {
+      const [id, month, potId, balance] = row;
+      return {
+        id: this.parseString(id, `savings-balance-${index}`),
+        month: this.parseString(month),
+        potId: this.parseString(potId),
+        balance: this.parseNumber(balance),
+      };
+    });
+  }
+
   async readCards(spreadsheetId: string): Promise<Card[]> {
     return this.parseCardsRows(await this.readRows(spreadsheetId, 'cards', 'A2:B'));
   }
@@ -651,6 +682,16 @@ export class GoogleSheetsService {
 
   async readIncome(spreadsheetId: string): Promise<IncomeEntry[]> {
     return this.parseIncomeRows(await this.readRows(spreadsheetId, 'income', 'A2:D'));
+  }
+
+  async readSavingsPots(spreadsheetId: string): Promise<SavingsPot[]> {
+    return this.parseSavingsPotsRows(await this.readRows(spreadsheetId, 'savings_pots', 'A2:B'));
+  }
+
+  async readSavingsBalances(spreadsheetId: string): Promise<SavingsBalance[]> {
+    return this.parseSavingsBalancesRows(
+      await this.readRows(spreadsheetId, 'savings_balances', 'A2:D')
+    );
   }
 
   /** Extract the spreadsheet ID from a pasted Google Sheets URL. */

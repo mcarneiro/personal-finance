@@ -37,7 +37,7 @@ const mockedUseGoogleAuth = vi.mocked(useGoogleAuth);
 const pullAll = vi.mocked(googleSheetsService.pullAll);
 
 function emptySheet(): SheetData {
-  return { cards: [], banks: [], payers: [], planItems: [], cardSpending: [], outflows: [], income: [] };
+  return { cards: [], banks: [], payers: [], planItems: [], cardSpending: [], outflows: [], income: [], savingsPots: [], savingsBalances: [] };
 }
 
 function outflow(id: string, overrides: Partial<Outflow> = {}): Outflow {

@@ -239,6 +239,97 @@ describe('GoogleSheetsService schema round-trip', () => {
       { id: 'p2', name: 'Guta' },
     ]);
   });
+
+  it('round-trips the savings pot registry', async () => {
+    // Given the savings_pots tab holds two pots
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        jsonResponse({
+          values: [
+            ['pot-1', 'Emergência'],
+            ['pot-2', 'Aposentadoria'],
+          ],
+        })
+      )
+    );
+
+    // When it is read
+    const pots = await service.readSavingsPots('sheet-1');
+
+    // Then the ids and names survive
+    expect(pots).toEqual([
+      { id: 'pot-1', name: 'Emergência' },
+      { id: 'pot-2', name: 'Aposentadoria' },
+    ]);
+  });
+
+  it('reads a savings balance row with its month, pot reference and numeric balance', async () => {
+    // Given the savings_balances tab stores a balance against a real pot
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        jsonResponse({ values: [['sb1', '2026-06', 'pot-1', 10000]] })
+      )
+    );
+
+    // When it is read
+    const balances = await service.readSavingsBalances('sheet-1');
+
+    // Then the month survives as a string and the balance as a number
+    expect(balances).toEqual([
+      { id: 'sb1', month: '2026-06', potId: 'pot-1', balance: 10000 },
+    ]);
+  });
+
+  it('reads an explicit zero balance as a recorded zero', async () => {
+    // Given a balance row recorded as 0
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(jsonResponse({ values: [['sb1', '2026-06', 'pot-1', 0]] }))
+    );
+
+    // When it is read
+    const balances = await service.readSavingsBalances('sheet-1');
+
+    // Then the zero is preserved, not mistaken for a missing record
+    expect(balances[0].balance).toBe(0);
+  });
+
+  it('writes savings pots and balances in contract order', async () => {
+    // Given a pot and one of its month's balances, with empty id columns
+    const fetchMock = vi.fn().mockImplementation((url: string) =>
+      String(url).includes('values:batchGet')
+        ? Promise.resolve(jsonResponse({ valueRanges: [{ values: [] }] }))
+        : Promise.resolve(jsonResponse({}))
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    // When both are saved in one push
+    await service.writePendingChanges('sheet-1', {
+      savings_pots: {
+        'pot-1': { type: 'create', id: 'pot-1', record: { id: 'pot-1', name: 'Emergência' } },
+      },
+      savings_balances: {
+        sb1: {
+          type: 'create',
+          id: 'sb1',
+          record: { id: 'sb1', month: '2026-06', potId: 'pot-1', balance: 10000 },
+        },
+      },
+    });
+
+    // Then each row carries its tab's columns, in order
+    const update = fetchMock.mock.calls.find(
+      ([url, options]) =>
+        String(url).includes('values:batchUpdate') && (options as RequestInit)?.method === 'POST'
+    );
+    const body = JSON.parse(String((update?.[1] as RequestInit).body));
+    expect(body.data).toEqual([
+      { range: 'savings_pots!A2:B2', values: [['pot-1', 'Emergência']] },
+      { range: 'savings_balances!A2:D2', values: [['sb1', '2026-06', 'pot-1', 10000]] },
+    ]);
+  });
 });
 
 describe('initializeSheets schema migration', () => {
@@ -297,7 +388,7 @@ describe('initializeSheets schema migration', () => {
       .map(([, options]) =>
         JSON.parse(String((options as RequestInit).body)).requests[0].addSheet.properties.title
       );
-    expect(created).toEqual(['banks', 'payers']);
+    expect(created).toEqual(['banks', 'payers', 'savings_pots', 'savings_balances']);
 
     // And only the drifted outflows header is rewritten, gaining the new columns
     const headerWrites = calls
@@ -472,6 +563,8 @@ describe('pullAll', () => {
     card_spending: ['id', 'month', 'card_id', 'total'],
     outflows: ['id', 'month', 'name', 'amount', 'is_paid', 'payer_id', 'bank_id', 'is_final'],
     income: ['id', 'month', 'amount', 'source'],
+    savings_pots: ['id', 'name'],
+    savings_balances: ['id', 'month', 'pot_id', 'balance'],
   };
 
   function tabRows(): Record<string, unknown[][]> {
@@ -486,6 +579,8 @@ describe('pullAll', () => {
         ['b1', '2026-06', 'Luz', 120, 'FALSE', 'payer-1', 'bank-1', 'TRUE'],
       ],
       income: [HEADERS.income, ['i1', '2026-06', 3000, 'Salário']],
+      savings_pots: [HEADERS.savings_pots, ['pot-1', 'Emergência']],
+      savings_balances: [HEADERS.savings_balances, ['sb1', '2026-06', 'pot-1', 10000]],
     };
   }
 
@@ -544,6 +639,10 @@ describe('pullAll', () => {
       },
     ]);
     expect(data.income).toEqual([{ id: 'i1', month: '2026-06', amount: 3000, source: 'Salário' }]);
+    expect(data.savingsPots).toEqual([{ id: 'pot-1', name: 'Emergência' }]);
+    expect(data.savingsBalances).toEqual([
+      { id: 'sb1', month: '2026-06', potId: 'pot-1', balance: 10000 },
+    ]);
   });
 
   it('creates a missing tab and retries the same single read', async () => {
@@ -566,7 +665,7 @@ describe('pullAll', () => {
       if (/\/spreadsheets\/sheet-1$/.test(target)) {
         return Promise.resolve(
           jsonResponse({
-            sheets: ['cards', 'payers', 'plan', 'card_spending', 'outflows', 'income'].map((title) => ({
+            sheets: ['cards', 'payers', 'plan', 'card_spending', 'outflows', 'income', 'savings_pots', 'savings_balances'].map((title) => ({
               properties: { title },
             })),
           })
@@ -593,6 +692,67 @@ describe('pullAll', () => {
 
     // And the retried read decoded every tab
     expect(data.banks).toEqual([{ id: 'bank-1', name: 'Nubank' }]);
+  });
+
+  it('creates both missing savings tabs with their headers on pull', async () => {
+    // Given a sheet from before savings existed, missing both savings tabs
+    const rows = tabRows();
+    let batchCalls = 0;
+    const fetchMock = vi.fn().mockImplementation((url: string) => {
+      const target = decodeURIComponent(String(url));
+      if (target.includes('values:batchGet')) {
+        batchCalls += 1;
+        if (batchCalls === 1) {
+          return Promise.resolve({
+            ok: false,
+            status: 400,
+            json: async () => ({ error: { message: 'Unable to parse range: savings_pots!A1:Z' } }),
+          });
+        }
+        return Promise.resolve(batchResponse(rows)(target));
+      }
+      if (/\/spreadsheets\/sheet-1$/.test(target)) {
+        return Promise.resolve(
+          jsonResponse({
+            sheets: ['cards', 'banks', 'payers', 'plan', 'card_spending', 'outflows', 'income'].map(
+              (title) => ({ properties: { title } })
+            ),
+          })
+        );
+      }
+      return Promise.resolve(jsonResponse({}));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    // When the app pulls
+    const data = await service.pullAll('sheet-1');
+
+    // Then both savings tabs are created, each with its header row
+    const created = fetchMock.mock.calls
+      .filter(
+        ([, options]) =>
+          (options as RequestInit)?.method === 'POST' &&
+          String((options as RequestInit).body).includes('addSheet')
+      )
+      .map(
+        ([, options]) =>
+          JSON.parse(String((options as RequestInit).body)).requests[0].addSheet.properties.title
+      );
+    expect(created).toEqual(['savings_pots', 'savings_balances']);
+    const headerWrites = fetchMock.mock.calls
+      .filter(
+        ([url, options]) =>
+          (options as RequestInit)?.method === 'PUT' && String(url).includes('/values/savings_')
+      )
+      .map(([, options]) => JSON.parse(String((options as RequestInit).body)).values[0]);
+    expect(headerWrites).toContainEqual(['id', 'name']);
+    expect(headerWrites).toContainEqual(['id', 'month', 'pot_id', 'balance']);
+
+    // And the retried read decoded them
+    expect(data.savingsPots).toEqual([{ id: 'pot-1', name: 'Emergência' }]);
+    expect(data.savingsBalances).toEqual([
+      { id: 'sb1', month: '2026-06', potId: 'pot-1', balance: 10000 },
+    ]);
   });
 
   it('re-heads a drifted header without touching its data rows', async () => {

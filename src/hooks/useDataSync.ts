@@ -30,6 +30,8 @@ const EMPTY_SHEET: SheetData = {
   cardSpending: [],
   outflows: [],
   income: [],
+  savingsPots: [],
+  savingsBalances: [],
 };
 
 /**

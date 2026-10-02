@@ -50,6 +50,14 @@ export const SHEET_CONFIGS = {
     name: 'income',
     columns: ['id', 'month', 'amount', 'source'],
   },
+  savings_pots: {
+    name: 'savings_pots',
+    columns: ['id', 'name'],
+  },
+  savings_balances: {
+    name: 'savings_balances',
+    columns: ['id', 'month', 'pot_id', 'balance'],
+  },
 } as const;
 
 export type SheetKey = keyof typeof SHEET_CONFIGS;

@@ -142,7 +142,7 @@ describe('mergePendingChanges', () => {
 
 describe('mergeSheetData', () => {
   function emptySheet(): SheetData {
-    return { cards: [], banks: [], payers: [], planItems: [], cardSpending: [], outflows: [], income: [] };
+    return { cards: [], banks: [], payers: [], planItems: [], cardSpending: [], outflows: [], income: [], savingsPots: [], savingsBalances: [] };
   }
 
   it('replays each tab group over its own fresh rows, leaving the rest untouched', () => {

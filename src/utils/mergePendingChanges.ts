@@ -64,5 +64,7 @@ export function mergeSheetData(data: SheetData, pending: PendingChanges): SheetD
     cardSpending: mergePendingChanges(data.cardSpending, pending.card_spending),
     outflows: mergePendingChanges(data.outflows, pending.outflows),
     income: mergePendingChanges(data.income, pending.income),
+    savingsPots: mergePendingChanges(data.savingsPots, pending.savings_pots),
+    savingsBalances: mergePendingChanges(data.savingsBalances, pending.savings_balances),
   };
 }

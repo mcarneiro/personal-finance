@@ -9,7 +9,8 @@ import type { RootState } from './index';
  *
  * A slice that is unexpectedly absent reads as empty rather than throwing: the
  * snapshot is a best-effort cache and must never fail an otherwise successful
- * sync.
+ * sync. The savings slice arrives with its own ticket; until then both savings
+ * tabs read as empty here even though the contract already carries them.
  */
 export function selectSheetData(state: RootState): SheetData {
   return {
@@ -20,5 +21,7 @@ export function selectSheetData(state: RootState): SheetData {
     cardSpending: state.plan?.cardSpending ?? [],
     outflows: state.outflows?.items ?? [],
     income: state.income?.items ?? [],
+    savingsPots: [],
+    savingsBalances: [],
   };
 }
