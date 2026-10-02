@@ -24,6 +24,7 @@
   "home": {
     "title": "Dashboard",
     "cashFlow": "Income and outflows",
+    "cashFlowOver": "{{amount}} over income",
     "openOutflows": "Open outflows",
     "allPaid": "Hooray! Nothing left to pay! 🎉",
     "planAhead": "{{amount}} left before the plan ceiling",

@@ -109,6 +109,12 @@ function planFill(): HTMLElement {
   return bar.firstElementChild as HTMLElement;
 }
 
+/** The cash-flow bar's coloured fill, for asserting the over/under colour binding. */
+function cashFlowFill(): HTMLElement {
+  const bar = screen.getByRole('progressbar', { name: 'Total das saídas' });
+  return bar.firstElementChild as HTMLElement;
+}
+
 beforeEach(async () => {
   vi.clearAllMocks();
   await i18n.changeLanguage('pt-BR');
@@ -124,7 +130,7 @@ describe('Dashboard — month', () => {
   });
 });
 
-describe('Dashboard — income / outcome', () => {
+describe('Dashboard — income / outflows', () => {
   it('hides the block when the month has neither income nor outflows', () => {
     // Given an empty month
     renderDashboard();
@@ -133,28 +139,56 @@ describe('Dashboard — income / outcome', () => {
     expect(screen.queryByRole('region', { name: 'Renda e saídas' })).not.toBeInTheDocument();
   });
 
-  it('shows income and outflows as bars on a shared scale with the account net', () => {
+  it('shows income, outflows and the net, with the bar filled by the outflows', () => {
     // Given 12.000 of income and 3.000 of outflows
     renderDashboard({
       income: [incomeEntry(12000, 'Salário')],
       outflows: [outflow({ id: 'b1', name: 'Luz', amount: 3000 })],
     });
 
-    // Then both bars, their amounts and the net are shown, income filling the scale
+    // Then the totals and net show, with a single bar a quarter full and green
     expect(screen.getByRole('region', { name: 'Renda e saídas' })).toBeInTheDocument();
-    expect(screen.getByRole('progressbar', { name: 'Total da renda' })).toHaveAttribute(
-      'aria-valuenow',
-      '100'
-    );
     expect(screen.getByRole('progressbar', { name: 'Total das saídas' })).toHaveAttribute(
       'aria-valuenow',
       '25'
     );
+    expect(cashFlowFill()).toHaveClass('bg-green-500');
     expect(screen.getByText('Saldo da conta')).toBeInTheDocument();
     expect(screen.getByText(/9\.000,00/)).toBeInTheDocument();
   });
 
-  it('opens the income and outflows screens from their bars', async () => {
+  it('turns red, caps the bar and names the overage once outflows pass income', () => {
+    // Given 12.000 of income and 13.200 of outflows
+    renderDashboard({
+      income: [incomeEntry(12000, 'Salário')],
+      outflows: [outflow({ id: 'b1', name: 'Luz', amount: 13200 })],
+    });
+
+    // Then the bar is full and red, and the callout names the 1.200 over
+    expect(screen.getByRole('progressbar', { name: 'Total das saídas' })).toHaveAttribute(
+      'aria-valuenow',
+      '100'
+    );
+    expect(cashFlowFill()).toHaveClass('bg-red-600');
+    expect(screen.getByText(/1\.200,00 acima da renda/)).toBeInTheDocument();
+  });
+
+  it('reads a zero-income month with outflows as fully over', () => {
+    // Given no income at all and 500 of outflows
+    renderDashboard({
+      outflows: [outflow({ id: 'b1', name: 'Luz', amount: 500 })],
+    });
+
+    // Then the bar is full and red and the overage callout shows
+    expect(screen.getByRole('progressbar', { name: 'Total das saídas' })).toHaveAttribute(
+      'aria-valuenow',
+      '100'
+    );
+    expect(cashFlowFill()).toHaveClass('bg-red-600');
+    expect(screen.getByText(/500,00 acima da renda/)).toBeInTheDocument();
+  });
+
+  it('opens the income screen from its row', async () => {
     // Given a month with income and outflows
     const user = userEvent.setup();
     renderDashboard({
@@ -162,10 +196,26 @@ describe('Dashboard — income / outcome', () => {
       outflows: [outflow({ id: 'b1', name: 'Luz', amount: 3000 })],
     });
 
-    // When I tap the income bar
+    // When I tap the income row
     await user.click(screen.getByRole('button', { name: 'Ver renda do mês' }));
+
     // Then the income screen opens
     expect(screen.getByText('Tela da renda')).toBeInTheDocument();
+  });
+
+  it('opens the outflows screen from its row', async () => {
+    // Given a month with income and outflows
+    const user = userEvent.setup();
+    renderDashboard({
+      income: [incomeEntry(12000, 'Salário')],
+      outflows: [outflow({ id: 'b1', name: 'Luz', amount: 3000 })],
+    });
+
+    // When I tap the outflows row
+    await user.click(screen.getByRole('button', { name: 'Ver saídas do mês' }));
+
+    // Then the outflows screen opens
+    expect(screen.getByText('Tela de saídas')).toBeInTheDocument();
   });
 });
 

@@ -24,6 +24,7 @@
   "home": {
     "title": "Dashboard",
     "cashFlow": "Renda e saídas",
+    "cashFlowOver": "{{amount}} acima da renda",
     "openOutflows": "Saídas em aberto",
     "allPaid": "Uau! Nada mais para pagar! 🎉",
     "planAhead": "{{amount}} restantes antes do teto do plano",

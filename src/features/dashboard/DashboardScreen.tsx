@@ -10,6 +10,7 @@ import {
   totalSpent,
 } from '../../utils/controlLoop';
 import { planPace, type PlanPaceLevel } from '../../utils/planPace';
+import { cashFlowBar, type CashFlowLevel } from '../../utils/cashFlowBar';
 import { orderOutflows } from '../../utils/outflowOrder';
 import { formatCurrency } from '../../utils/currency';
 import { getCurrentMonth, getMonthName } from '../../utils/month';
@@ -25,6 +26,12 @@ const BAR_COLOR: Record<PlanPaceLevel, string> = {
   over: 'bg-red-600',
 };
 
+/** The cash-flow bar's colour per level. */
+const CASH_FLOW_BAR_COLOR: Record<CashFlowLevel, string> = {
+  under: 'bg-green-500',
+  over: 'bg-red-600',
+};
+
 interface DashboardScreenProps {
   /**
    * The clock the month label and spend pace are read from. Defaults to the real
@@ -36,10 +43,11 @@ interface DashboardScreenProps {
 /**
  * The household Dashboard — the app's entry point, for the current month only.
  * It gathers the three things the household looks at together: the income/outflows
- * picture (the Outflows screen's Income Total, Outflows Total and Account Net as
- * horizontal bars), the Spending Plan's progress (Plan Total and Total Spent as
- * a filled bar, coloured against how far through the month we are, with an
- * over-plan callout), and the Outflows still open to pay, each with a paid toggle.
+ * picture (the Outflows screen's Income Total and Outflows Total as a single bar
+ * filled by the outflows toward the income, plus Account Net), the Spending Plan's
+ * progress (Plan Total and Total Spent as a filled bar, coloured against how far
+ * through the month we are, with an over-plan callout), and the Outflows still
+ * open to pay, each with a paid toggle.
  * No numbers are stored here: the totals come from the control-loop utilities,
  * the pace from `planPace`, and the list from the same order and paid action the
  * Outflows screen uses. History review stays on the month-scoped screens, so the
@@ -78,11 +86,13 @@ export default function DashboardScreen({ now = new Date() }: DashboardScreenPro
   const showCashFlow = incomeValue !== 0 || outflowsValue !== 0;
   const showPlan = target !== 0;
 
-  const barMax = Math.max(incomeValue, outflowsValue, 1);
   const fillPercent = Math.min(100, Math.round(pace.spendRatio * 100));
   const monthPercent = Math.min(100, Math.round(pace.monthRatio * 100));
 
   const barColor = BAR_COLOR[pace.level];
+  const cashFlow = cashFlowBar(incomeValue, outflowsValue);
+  const cashFlowFillPercent = Math.round(cashFlow.ratio * 100);
+  const cashFlowColor = CASH_FLOW_BAR_COLOR[cashFlow.level];
 
   return (
     <div className="mx-auto w-full max-w-md px-4 py-6">
@@ -94,26 +104,55 @@ export default function DashboardScreen({ now = new Date() }: DashboardScreenPro
           className="mt-4 rounded-lg bg-white p-4 shadow-sm"
         >
           <h2 className="text-sm font-semibold text-gray-900">{t('home.cashFlow')}</h2>
-          <ul className="mt-3 space-y-3">
-            <CashFlowBar
-              label={t('outflows.incomeTotal')}
-              value={incomeValue}
-              max={barMax}
-              locale={i18n.language}
-              barClass="bg-blue-600"
-              ariaLabel={t('home.viewIncome')}
-              onClick={() => navigate(`/income/${month}`)}
+          <button
+            type="button"
+            onClick={() => navigate(`/income/${month}`)}
+            aria-label={t('home.viewIncome')}
+            className="mt-3 flex w-full items-center justify-between text-left"
+          >
+            <span className="text-sm text-gray-700">{t('outflows.incomeTotal')}</span>
+            <span className="text-sm font-medium text-gray-900">
+              {formatCurrency(incomeValue, i18n.language)}
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate(`/outflows/${month}`)}
+            aria-label={t('home.viewOutflows')}
+            className="flex w-full items-center justify-between text-left"
+          >
+            <span className="text-sm text-gray-700">{t('outflows.outflowsTotal')}</span>
+            <span className="text-sm font-medium text-gray-900">
+              {formatCurrency(outflowsValue, i18n.language)}
+            </span>
+          </button>
+
+          {/* The bar fills with the month's outflows toward the income ceiling and
+              stops at it; it turns red and caps once outflows pass the income. */}
+          <div
+            role="progressbar"
+            aria-label={t('outflows.outflowsTotal')}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={cashFlowFillPercent}
+            className="relative mt-3 h-2 w-full overflow-hidden rounded-full bg-gray-100"
+          >
+            <div
+              className={`h-full rounded-full ${cashFlowColor}`}
+              style={{ width: `${cashFlowFillPercent}%` }}
             />
-            <CashFlowBar
-              label={t('outflows.outflowsTotal')}
-              value={outflowsValue}
-              max={barMax}
-              locale={i18n.language}
-              barClass="bg-rose-500"
-              ariaLabel={t('home.viewOutflows')}
+          </div>
+
+          {cashFlow.level === 'over' && (
+            <button
+              type="button"
               onClick={() => navigate(`/outflows/${month}`)}
-            />
-          </ul>
+              className="mt-2 text-left text-sm font-medium text-red-700"
+            >
+              {t('home.cashFlowOver', { amount: formatCurrency(-net, i18n.language) })}
+            </button>
+          )}
+
           <div className="mt-3 flex items-center justify-between border-t border-gray-100 pt-3">
             <span className="text-sm font-medium text-gray-700">{t('outflows.accountNet')}</span>
             <span className="text-lg font-bold text-gray-900">
@@ -239,51 +278,5 @@ function BlockHeader({ label, onClick }: { label: string; onClick: () => void })
         </svg>
       </button>
     </h2>
-  );
-}
-
-/** One labelled horizontal bar in the income/outcome picture, on a shared scale. */
-function CashFlowBar({
-  label,
-  value,
-  max,
-  locale,
-  barClass,
-  ariaLabel,
-  onClick,
-}: {
-  label: string;
-  value: number;
-  max: number;
-  locale: string;
-  barClass: string;
-  ariaLabel: string;
-  onClick: () => void;
-}) {
-  const percent = Math.max(0, Math.round((value / max) * 100));
-  return (
-    <li>
-      <button
-        type="button"
-        onClick={onClick}
-        aria-label={ariaLabel}
-        className="block w-full text-left"
-      >
-        <span className="flex items-center justify-between text-sm">
-          <span className="text-gray-700">{label}</span>
-          <span className="font-medium text-gray-900">{formatCurrency(value, locale)}</span>
-        </span>
-        <span
-          role="progressbar"
-          aria-label={label}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={percent}
-          className="mt-1 block h-2 w-full overflow-hidden rounded-full bg-gray-100"
-        >
-          <span className={`block h-full rounded-full ${barClass}`} style={{ width: `${percent}%` }} />
-        </span>
-      </button>
-    </li>
   );
 }
