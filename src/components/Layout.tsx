@@ -40,6 +40,8 @@ const SCREEN_TITLES: { prefix: string; labelKey: string; addLabelKey?: string }[
   { prefix: '/plan', labelKey: 'plan.title', addLabelKey: 'plan.addBucket' },
   { prefix: '/outflows', labelKey: 'outflows.title', addLabelKey: 'outflows.addOutflow' },
   { prefix: '/income', labelKey: 'income.title', addLabelKey: 'income.addEntry' },
+  // Savings has no top-bar "+" and no record editors: pots live in Settings.
+  { prefix: '/savings', labelKey: 'savings.title' },
 ];
 
 const BACK_ICON = 'M15 19l-7-7 7-7';

@@ -153,6 +153,14 @@
     "noSource": "No source",
     "copyLastMonth": "Replicate last month's income"
   },
+  "savings": {
+    "title": "Savings",
+    "balanceLabel": "{{name}} balance",
+    "lastUpdated": "Updated in {{month}}",
+    "emptyRegistry": "Register at least one savings pot in Settings to record balances.",
+    "emptyRegistryCta": "Go to Settings",
+    "total": "Total saved"
+  },
   "settings": {
     "title": "Settings",
     "language": "Language",

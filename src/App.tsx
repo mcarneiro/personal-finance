@@ -10,6 +10,7 @@ import OutflowsScreen from './features/outflows/OutflowsScreen';
 import OutflowEditor from './features/outflows/OutflowEditor';
 import IncomeScreen from './features/income/IncomeScreen';
 import IncomeEditor from './features/income/IncomeEditor';
+import SavingsScreen from './features/savings/SavingsScreen';
 import SettingsScreen from './features/settings/SettingsScreen';
 import Onboarding from './features/onboarding/Onboarding';
 import { useAppSelector } from './store/hooks';
@@ -151,6 +152,15 @@ function App() {
         />
         <Route path="/income/new/:month" element={<IncomeEditor />} />
         <Route path="/income/edit/:id" element={<IncomeEditor />} />
+        {/* The bare `/savings` redirect and the bottom-nav tab land with ticket 06. */}
+        <Route
+          path="/savings/:month"
+          element={
+            <Layout>
+              <SavingsScreen />
+            </Layout>
+          }
+        />
         <Route path="/settings" element={<SettingsScreen />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

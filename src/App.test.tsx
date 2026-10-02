@@ -134,6 +134,18 @@ describe('month navigation', () => {
     expect(screen.getByRole('heading', { name: 'julho de 2026' })).toBeInTheDocument();
   });
 
+  it('navigates months on the Savings screen', async () => {
+    // Given the app is open on the savings for June 2026
+    const user = userEvent.setup();
+    renderApp('/savings/2026-06');
+
+    // When I go to the next month
+    await user.click(screen.getByRole('button', { name: 'Próximo mês' }));
+
+    // Then the savings screen shows July 2026
+    expect(screen.getByRole('heading', { name: 'julho de 2026' })).toBeInTheDocument();
+  });
+
   it('falls back to the current month when the month is malformed', () => {
     // Given the app is opened on a malformed month
     vi.useFakeTimers();
@@ -273,6 +285,19 @@ describe('app shell', () => {
     expect(screen.queryByRole('button', { name: 'Adicionar saída' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Adicionar renda' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Ajustes' })).toBeInTheDocument();
+  });
+
+  it('shows the Savings name in the top bar with no add action', () => {
+    // Given the app is open on the Savings screen
+    renderApp('/savings/2026-06');
+
+    // Then the top bar names it and offers no "+" — pots live in Settings
+    expect(screen.getByRole('heading', { name: 'Poupanças' })).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Adicionar teto de gastos' })
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Adicionar saída' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Adicionar renda' })).not.toBeInTheDocument();
   });
 });
 

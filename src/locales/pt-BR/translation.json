@@ -153,6 +153,14 @@
     "noSource": "Sem fonte",
     "copyLastMonth": "Replicar renda do mês anterior"
   },
+  "savings": {
+    "title": "Poupanças",
+    "balanceLabel": "Saldo da poupança {{name}}",
+    "lastUpdated": "Atualizado em {{month}}",
+    "emptyRegistry": "Cadastre ao menos uma poupança em Ajustes para registrar saldos.",
+    "emptyRegistryCta": "Ir para Ajustes",
+    "total": "Total guardado"
+  },
   "settings": {
     "title": "Ajustes",
     "language": "Idioma",
