@@ -8,12 +8,13 @@ Planyoo is a household card-spending planner. It plans card spending in spending
 
 - `CONTEXT.md` is the domain glossary — the source of truth for what words mean. Keep it in sync when terms change.
 - Monthly payment obligations (a bill, an investment contribution, a maintenance cost) are named **Outflows** — see ADR-0010 (`docs/adr/0010-monthly-payments-are-outflows.md`).
+- Money set aside in named containers (emergency, retirement) is tracked as **Savings Pots** with a hand-updated monthly **Savings Balance** each — see ADR-0011 (`docs/adr/0011-savings-is-a-monthly-snapshot-ledger.md`). Savings is deliberately independent of Outflows and Account Net.
 - `docs/adr/` records the hard decisions. Notably: card spending is tracked as per-card running totals, never as purchases (ADR-0002).
 
 ## Architecture
 
 - Google Sheets is the persistent source of truth. Port `GoogleSheetsService.ts` from `../airbnb-organizer` (Stayoo) — same OAuth flow, same debounced sync middleware pattern (`useDataSync.ts` + `syncListener.ts`).
-- Redux Toolkit slices own feature state (`incomeSlice`, `outflowsSlice`, `planSlice`, `cardsSlice`).
+- Redux Toolkit slices own feature state (`incomeSlice`, `outflowsSlice`, `planSlice`, `cardsSlice`, `savingsSlice`).
 - All derived numbers (Plan Total, Total Spent, Projected Result, Plan Result, Account Net) are computed in pure, fully tested utilities — never stored in state or the sheet.
 - Use `react-i18next` for all user-facing text (pt-BR primary, en-US) and Tailwind CSS for styling. Preserve the mobile-first UI.
 - Types live in `src/types/index.ts`. Do not use `any`. There are no purchase entities in this app — do not add them.

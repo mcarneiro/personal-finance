@@ -64,10 +64,20 @@ _Avoid_: Account, card, credit card
 The part of a month's Outflows that is still open (not paid), shown per Payer and Bank in the by-payer summary. It is a display view only — a device-remembered toggle that swaps the summary's values between the full total and this remainder — and never changes an Outflow or a total.
 _Avoid_: Outstanding balance, amount due, debt
 
+### Savings
+
+**Savings Pot**:
+A named container of money a household sets aside, such as emergency or retirement. Its balance is observed and recorded once a month.
+_Avoid_: Category, envelope, fund, account, bucket
+
+**Savings Balance**:
+The observed balance of one Savings Pot in one month, typed in by hand from the real account or statement. It is never derived from contributions or withdrawals, and it is not linked to an Outflow.
+_Avoid_: Deposit, contribution, transfer, amount saved
+
 ### Months
 
 **Month**:
-The YYYY-MM period every Spending Plan, Card Spending, Outflow, and Income Entry belongs to. It is the unit of navigation and the period a Plan Result is computed over.
+The YYYY-MM period every Spending Plan, Card Spending, Outflow, Income Entry, and Savings Balance belongs to. It is the unit of navigation and the period a Plan Result is computed over.
 _Avoid_: Billing cycle, period, month key
 
 ### Household collaboration
