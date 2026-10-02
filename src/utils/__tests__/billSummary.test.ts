@@ -18,14 +18,15 @@ function bill(
   name: string,
   amount: number,
   payerId: string,
-  bankId: string
+  bankId: string,
+  isPaid = false
 ): Bill {
   return {
     id: `${month}-${name}`,
     month,
     name,
     amount,
-    isPaid: false,
+    isPaid,
     isFinal: true,
     payerId,
     bankId,
@@ -51,15 +52,17 @@ describe('billsByPayerAndBank', () => {
         payerId: 'payer-marcelo',
         payerName: 'Marcelo',
         total: 260,
-        banks: [{ bankId: 'bank-nubank', bankName: 'Nubank', total: 260 }],
+        remaining: 260,
+        banks: [{ bankId: 'bank-nubank', bankName: 'Nubank', total: 260, remaining: 260 }],
       },
       {
         payerId: 'payer-guta',
         payerName: 'Guta',
         total: 3099,
+        remaining: 3099,
         banks: [
-          { bankId: 'bank-itau', bankName: 'Itaú', total: 2899 },
-          { bankId: 'bank-nubank', bankName: 'Nubank', total: 200 },
+          { bankId: 'bank-itau', bankName: 'Itaú', total: 2899, remaining: 2899 },
+          { bankId: 'bank-nubank', bankName: 'Nubank', total: 200, remaining: 200 },
         ],
       },
     ]);
@@ -81,7 +84,8 @@ describe('billsByPayerAndBank', () => {
         payerId: 'payer-marcelo',
         payerName: 'Marcelo',
         total: 240,
-        banks: [{ bankId: 'bank-itau', bankName: 'Itaú', total: 240 }],
+        remaining: 240,
+        banks: [{ bankId: 'bank-itau', bankName: 'Itaú', total: 240, remaining: 240 }],
       },
     ]);
   });
@@ -107,22 +111,25 @@ describe('billsByPayerAndBank', () => {
         payerId: 'payer-marcelo',
         payerName: 'Marcelo',
         total: 150,
-        banks: [{ bankId: 'bank-nubank', bankName: 'Nubank', total: 150 }],
+        remaining: 150,
+        banks: [{ bankId: 'bank-nubank', bankName: 'Nubank', total: 150, remaining: 150 }],
       },
       {
         payerId: 'payer-guta',
         payerName: 'Guta',
         total: 2939,
+        remaining: 2939,
         banks: [
-          { bankId: 'bank-itau', bankName: 'Itaú', total: 2899 },
-          { bankId: 'bank-removido', bankName: '', total: 40 },
+          { bankId: 'bank-itau', bankName: 'Itaú', total: 2899, remaining: 2899 },
+          { bankId: 'bank-removido', bankName: '', total: 40, remaining: 40 },
         ],
       },
       {
         payerId: '',
         payerName: '',
         total: 25,
-        banks: [{ bankId: '', bankName: '', total: 25 }],
+        remaining: 25,
+        banks: [{ bankId: '', bankName: '', total: 25, remaining: 25 }],
       },
     ]);
   });
@@ -141,6 +148,28 @@ describe('billsByPayerAndBank', () => {
     expect(summary).toHaveLength(1);
     expect(summary[0].total).toBe(150);
     expect(summary[0].payerName).toBe('Marcelo');
+  });
+
+  it('counts only unpaid bills as remaining, keeping paid ones in the total', () => {
+    // Given June has an open bill and a paid one from the same payer and bank
+    const bills = [
+      bill(MONTH, 'Luz', 150, MARCELO.id, NUBANK.id),
+      bill(MONTH, 'Internet', 110, MARCELO.id, NUBANK.id, true),
+    ];
+
+    // When the summary is computed
+    const summary = billsByPayerAndBank(MONTH, bills, BANKS, PAYERS);
+
+    // Then the total counts both, but only the open bill is still to pay
+    expect(summary).toEqual([
+      {
+        payerId: 'payer-marcelo',
+        payerName: 'Marcelo',
+        total: 260,
+        remaining: 150,
+        banks: [{ bankId: 'bank-nubank', bankName: 'Nubank', total: 260, remaining: 150 }],
+      },
+    ]);
   });
 
   it('is empty for a month with no bills', () => {

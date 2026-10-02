@@ -1,4 +1,4 @@
-# (PRD) Planoo — Household Card Spending Planner
+# (PRD) Planyoo — Household Card Spending Planner
 
 ## Overview
 
@@ -72,8 +72,8 @@ A React app using Google Sheets as the database (same foundation as Stayoo) that
 - **Final value**: each bill carries a **Final value** flag, set on the editor (unset by default). It marks the amount as confirmed for the month. Bills whose value is not final are flagged with a ⚠️ before their name and grouped at the end of the list, so the variable amounts that still need updating after a replicate are gathered together and easy to find. The flag is a workflow marker only — it never changes a total (ADR-0006)
 - **Payer and bank are required**: every bill records who pays it and which registered bank it is paid from; unset or since-removed references still render and still count. When the payer or bank registry is empty, the Bills list and the editor show a highlighted callout with a shortcut straight to Settings instead of an unusable form
 - **Card bill**: entered by hand as a regular bill when the statement arrives; its amount is the real statement value (covers the previous month's card spending). Installments, fees and refunds are absorbed by the statement value — never modeled
-- Shows: bills total, income total, **account net** = income − bills, and a **by-payer spending summary** (per payer, broken down by bank). The summary sits below the totals and above the bills and is **collapsed by default**, expanding on tap
-- **Filter by payer and bank (front-end only)**: a small filter icon sits between the by-payer summary and the bills list and opens a **right-side drawer** of checkboxes — one per payer and per bank that has bills in the browsed month. Selections are OR-ed within a facet and AND-ed across facets (e.g. Guta + Itaú, Nubank), so any combination is expressible. The filter narrows **only the bill list**; the totals, account net and by-payer summary always keep the full month. It is pure view state — never stored in Redux or the sheet — with an active-count badge, a clear action, an empty-match message, and it resets when the browsed month changes
+- Shows: bills total, income total, **account net** = income − bills, and a **by-payer spending summary** (per payer, broken down by bank). The summary sits below the totals and above the bills and is **collapsed by default**, expanding on tap. A small toggle inside the summary — remembered on the device — swaps each payer's and each bank's value from the full total to the **amount still to pay** (that payer's or bank's open bills)
+- **Filter by payer and bank (front-end only)**: a small filter icon sits between the by-payer summary and the bills list and opens a **right-side drawer** of checkboxes — one per payer and per bank that has bills in the browsed month. Selections are OR-ed within a facet and AND-ed across facets (e.g. Guta + Itaú, Nubank), so any combination is expressible. The filter narrows **only the bill list**; the totals, account net and by-payer summary always keep the full month. The applied filters are spelled out in small stacked lines to the left of the icon (one per facet) so the list is never silently narrowed, with an active-count badge, a clear action, an empty-match message, and a reset when the browsed month changes
 
 #### 6. Spending Plan (the core)
 **Route:** `/plan/:month`

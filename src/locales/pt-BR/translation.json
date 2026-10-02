@@ -27,8 +27,8 @@
     "placeholderMessage": "O painel da casa será construído em breve. Por enquanto, use as abas Plano, Contas e Renda para acompanhar o mês."
   },
   "onboarding": {
-    "title": "Bem-vindo ao Planoo",
-    "subtitle": "Planejo os gastos do cartão da minha casa. Criei o Planoo para planejar, acompanhar as contas e a renda, tudo sincronizado com o Google Sheets. Conecte sua planilha para começar.",
+    "title": "Bem-vindo ao Planyoo",
+    "subtitle": "Planejo os gastos do cartão da minha casa. Criei o Planyoo para planejar, acompanhar as contas e a renda, tudo sincronizado com o Google Sheets. Conecte sua planilha para começar.",
     "configRequired": "Configuração necessária",
     "configMessage": "O ID do cliente OAuth do Google não está configurado. Crie um arquivo .env com seu ID de cliente. Veja .env.example para instruções.",
     "step1": "Passo 1: Entre com Google",
@@ -122,7 +122,10 @@
     "filterApply": "Aplicar filtros",
     "filterClear": "Limpar",
     "filterClearAll": "Limpar filtros",
-    "filterEmpty": "Nenhuma conta corresponde aos filtros."
+    "filterEmpty": "Nenhuma conta corresponde aos filtros.",
+    "filterActivePayer": "Responsável: {{names}}",
+    "filterActiveBank": "Banco: {{names}}",
+    "showRemaining": "Mostrar valor a pagar"
   },
   "income": {
     "title": "Renda",

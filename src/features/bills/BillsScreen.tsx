@@ -19,6 +19,7 @@ import { copyBills } from '../../utils/billCopy';
 import { formatCurrency } from '../../utils/currency';
 import { isValidMonth, shiftMonth } from '../../utils/month';
 import { useCopyGuard } from '../../hooks/useCopyGuard';
+import { usePersistentToggle } from '../../hooks/usePersistentToggle';
 import NeedsRegistryNotice from './NeedsRegistryNotice';
 import BillFilterDrawer from './BillFilterDrawer';
 
@@ -35,6 +36,9 @@ import BillFilterDrawer from './BillFilterDrawer';
  * narrows the list by payer and/or bank (OR within a facet, AND across facets);
  * that filter is view state only — it resets with the browsed month and never
  * touches the totals or the summary, which always keep the full month. The
+ * applied filters are spelled out beside the icon so the list is never silently
+ * narrowed. The by-payer summary can also swap each payer's and bank's value to
+ * what is still to pay, a preference remembered locally. The
  * replicate-last-month button copies last month's obligations so recurring bills
  * need no retyping; the copies arrive open and not final (never pre-paid or
  * pre-confirmed) and can be edited freely. The derived numbers
@@ -59,6 +63,12 @@ export default function BillsScreen() {
   // hide a new month's list.
   const [filter, setFilter] = useState<BillFilter>(EMPTY_BILL_FILTER);
   const [filterOpen, setFilterOpen] = useState(false);
+  // Whether the by-payer summary also shows what is still to pay per payer and
+  // bank. A local display preference, not a derived number, so it is remembered
+  // on this device only.
+  const [showRemaining, toggleShowRemaining] = usePersistentToggle(
+    'planyoo:bills:showRemaining'
+  );
   // Re-read the target month right before replicating so a copy another member
   // already made is never duplicated (ADR-0008).
   const { blocked: copyBlocked, checkFailed: copyCheckFailed, canCopy } = useCopyGuard(
@@ -90,6 +100,20 @@ export default function BillsScreen() {
     id ? (payerNames.get(id) ?? t('bills.removedPayer')) : t('bills.unassignedPayer');
   const bankLabel = (id: string) =>
     id ? (bankNames.get(id) ?? t('bills.removedBank')) : t('bills.unassignedBank');
+
+  // One line per active facet, naming every selected reference. Kept short and
+  // stacked so the block stays no taller than the filter button beside it.
+  const activeFilterLines: string[] = [];
+  if (filter.payerIds.length > 0) {
+    activeFilterLines.push(
+      t('bills.filterActivePayer', { names: filter.payerIds.map(payerLabel).join(', ') })
+    );
+  }
+  if (filter.bankIds.length > 0) {
+    activeFilterLines.push(
+      t('bills.filterActiveBank', { names: filter.bankIds.map(bankLabel).join(', ') })
+    );
+  }
 
   const registryReady = payers.length > 0 && banks.length > 0;
 
@@ -184,13 +208,30 @@ export default function BillsScreen() {
             {spending.length === 0 ? (
               <p className="mt-1 text-sm text-gray-600">{t('bills.byPayerEmpty')}</p>
             ) : (
-              <ul className="mt-2 divide-y divide-gray-100">
-                {spending.map((group) => (
-                  <li key={group.payerId || '__unassigned__'} className="py-2">
-                    <PayerGroupRow group={group} locale={i18n.language} payerLabel={payerLabel} bankLabel={bankLabel} />
-                  </li>
-                ))}
-              </ul>
+              <>
+                <ul className="mt-2 divide-y divide-gray-100">
+                  {spending.map((group) => (
+                    <li key={group.payerId || '__unassigned__'} className="py-2">
+                      <PayerGroupRow
+                        group={group}
+                        locale={i18n.language}
+                        payerLabel={payerLabel}
+                        bankLabel={bankLabel}
+                        showRemaining={showRemaining}
+                      />
+                    </li>
+                  ))}
+                </ul>
+                <label className="mt-3 flex items-center gap-2 border-t border-gray-100 pt-3 text-xs text-gray-600">
+                  <input
+                    type="checkbox"
+                    checked={showRemaining}
+                    onChange={toggleShowRemaining}
+                    className="h-4 w-4 rounded border-gray-300"
+                  />
+                  {t('bills.showRemaining')}
+                </label>
+              </>
             )}
           </div>
         )}
@@ -201,47 +242,58 @@ export default function BillsScreen() {
       )}
 
       {monthBills.length > 0 && (
-        <div className="mt-4 flex items-center justify-end gap-3">
-          {filterActive && (
+        <div className="mt-4 flex items-center justify-between gap-2">
+          {/* The active filters sit on the left, stacked and small, so the row
+              never grows past the filter button beside it. */}
+          <div className="min-w-0 flex-1 space-y-0.5">
+            {activeFilterLines.map((line) => (
+              <p key={line} className="truncate text-[11px] leading-tight text-gray-500">
+                {line}
+              </p>
+            ))}
+          </div>
+          <div className="flex shrink-0 items-center gap-3">
+            {filterActive && (
+              <button
+                type="button"
+                onClick={() => setFilter(EMPTY_BILL_FILTER)}
+                className="text-xs font-semibold text-blue-600 transition-colors hover:text-blue-700"
+              >
+                {t('bills.filterClearAll')}
+              </button>
+            )}
             <button
               type="button"
-              onClick={() => setFilter(EMPTY_BILL_FILTER)}
-              className="text-xs font-semibold text-blue-600 transition-colors hover:text-blue-700"
+              onClick={() => setFilterOpen(true)}
+              aria-label={t('bills.filterOpen')}
+              aria-expanded={filterOpen}
+              aria-controls="bill-filter"
+              className="relative rounded-lg border border-gray-300 bg-white p-2 text-gray-600 transition-colors hover:bg-gray-50"
             >
-              {t('bills.filterClearAll')}
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={() => setFilterOpen(true)}
-            aria-label={t('bills.filterOpen')}
-            aria-expanded={filterOpen}
-            aria-controls="bill-filter"
-            className="relative rounded-lg border border-gray-300 bg-white p-2 text-gray-600 transition-colors hover:bg-gray-50"
-          >
-            <svg
-              aria-hidden="true"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              className="h-5 w-5"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M4 6h16M7 12h10M10 18h4"
-              />
-            </svg>
-            {filterActive && (
-              <span
+              <svg
                 aria-hidden="true"
-                className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-[10px] font-semibold text-white"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                className="h-5 w-5"
               >
-                {billFilterCount(filter)}
-              </span>
-            )}
-          </button>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 6h16M7 12h10M10 18h4"
+                />
+              </svg>
+              {filterActive && (
+                <span
+                  aria-hidden="true"
+                  className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-[10px] font-semibold text-white"
+                >
+                  {billFilterCount(filter)}
+                </span>
+              )}
+            </button>
+          </div>
         </div>
       )}
 
@@ -343,24 +395,26 @@ export default function BillsScreen() {
   );
 }
 
-/** One payer's line with its per-bank breakdown. */
+/** One payer's line with its per-bank breakdown, optionally reading what is left to pay. */
 function PayerGroupRow({
   group,
   locale,
   payerLabel,
   bankLabel,
+  showRemaining,
 }: {
   group: PayerGroup;
   locale: string;
   payerLabel: (id: string) => string;
   bankLabel: (id: string) => string;
+  showRemaining: boolean;
 }) {
   return (
     <div>
       <div className="flex items-center justify-between">
         <span className="text-sm font-medium text-gray-900">{payerLabel(group.payerId)}</span>
         <span className="text-sm font-medium text-gray-900">
-          {formatCurrency(group.total, locale)}
+          {formatCurrency(showRemaining ? group.remaining : group.total, locale)}
         </span>
       </div>
       <ul className="mt-1 space-y-1">
@@ -370,7 +424,9 @@ function PayerGroupRow({
             className="flex items-center justify-between pl-4"
           >
             <span className="text-xs text-gray-600">{bankLabel(line.bankId)}</span>
-            <span className="text-xs text-gray-600">{formatCurrency(line.total, locale)}</span>
+            <span className="text-xs text-gray-600">
+              {formatCurrency(showRemaining ? line.remaining : line.total, locale)}
+            </span>
           </li>
         ))}
       </ul>

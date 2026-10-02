@@ -2,14 +2,16 @@ import type { Bank, Bill, Month, Payer } from '../types';
 
 /**
  * How the month's bills split across payer and bank — the "who spends what
- * where" summary. Like every other derived number it is computed here, on the
- * fly, and never stored.
+ * where" summary, and how much of it is still to pay. Like every other derived
+ * number it is computed here, on the fly, and never stored.
  *
  * Bills are grouped by payer (the top level) and then by bank within each payer.
- * Registry order is preserved so the summary reads in the order the household
- * maintains its lists; any unset or removed reference sorts last. A bill whose
- * registry entry is missing still contributes its amount — removing an entry
- * must never lose money from the totals (mirrors ADR-0002).
+ * Each group and bank line carries its full `total` and its `remaining` — the
+ * part of that total whose bills are still open (not `isPaid`). Registry order
+ * is preserved so the summary reads in the order the household maintains its
+ * lists; any unset or removed reference sorts last. A bill whose registry entry
+ * is missing still contributes its amount — removing an entry must never lose
+ * money from the totals (mirrors ADR-0002).
  */
 
 export interface BankTotal {
@@ -18,6 +20,8 @@ export interface BankTotal {
   /** `''` when unresolved; the screen substitutes a translated fallback. */
   bankName: string;
   total: number;
+  /** The part of `total` still open (not paid). */
+  remaining: number;
 }
 
 export interface PayerGroup {
@@ -26,6 +30,8 @@ export interface PayerGroup {
   /** `''` when unresolved; the screen substitutes a translated fallback. */
   payerName: string;
   total: number;
+  /** The part of `total` still open (not paid). */
+  remaining: number;
   banks: BankTotal[];
 }
 
@@ -38,8 +44,9 @@ export function orderKeys(preferred: string[], present: string[]): string[] {
 }
 
 /**
- * The month's bills grouped by payer and then bank, with totals. Months with no
- * bills yield an empty array (the screen shows its empty state).
+ * The month's bills grouped by payer and then bank, with totals and the part
+ * still to pay. Months with no bills yield an empty array (the screen shows its
+ * empty state).
  */
 export function billsByPayerAndBank(
   month: Month,
@@ -53,11 +60,18 @@ export function billsByPayerAndBank(
   const payerNames = new Map(payers.map((payer) => [payer.id, payer.name]));
   const bankNames = new Map(banks.map((bank) => [bank.id, bank.name]));
 
-  // payerId -> (bankId -> total), insertion-ordered by first appearance.
-  const byPayer = new Map<string, Map<string, number>>();
+  // payerId -> (bankId -> { total, remaining }), insertion-ordered.
+  interface Line {
+    total: number;
+    remaining: number;
+  }
+  const byPayer = new Map<string, Map<string, Line>>();
   for (const bill of monthBills) {
-    const banksForPayer = byPayer.get(bill.payerId) ?? new Map<string, number>();
-    banksForPayer.set(bill.bankId, (banksForPayer.get(bill.bankId) ?? 0) + bill.amount);
+    const banksForPayer = byPayer.get(bill.payerId) ?? new Map<string, Line>();
+    const line = banksForPayer.get(bill.bankId) ?? { total: 0, remaining: 0 };
+    line.total += bill.amount;
+    if (!bill.isPaid) line.remaining += bill.amount;
+    banksForPayer.set(bill.bankId, line);
     byPayer.set(bill.payerId, banksForPayer);
   }
 
@@ -68,18 +82,23 @@ export function billsByPayerAndBank(
   const bankOrder = banks.map((bank) => bank.id);
 
   return payerKeys.map((payerId) => {
-    const banksForPayer = byPayer.get(payerId) ?? new Map<string, number>();
+    const banksForPayer = byPayer.get(payerId) ?? new Map<string, Line>();
     const bankKeys = orderKeys(bankOrder, [...banksForPayer.keys()]);
-    const banks = bankKeys.map((bankId) => ({
-      bankId,
-      bankName: bankNames.get(bankId) ?? '',
-      total: banksForPayer.get(bankId) ?? 0,
-    }));
+    const banks = bankKeys.map((bankId) => {
+      const line = banksForPayer.get(bankId) ?? { total: 0, remaining: 0 };
+      return {
+        bankId,
+        bankName: bankNames.get(bankId) ?? '',
+        total: line.total,
+        remaining: line.remaining,
+      };
+    });
 
     return {
       payerId,
       payerName: payerNames.get(payerId) ?? '',
       total: banks.reduce((sum, bank) => sum + bank.total, 0),
+      remaining: banks.reduce((sum, bank) => sum + bank.remaining, 0),
       banks,
     };
   });

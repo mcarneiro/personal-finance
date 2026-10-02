@@ -27,8 +27,8 @@
     "placeholderMessage": "The household dashboard is being built. For now, use the Plan, Bills and Income tabs to follow the month."
   },
   "onboarding": {
-    "title": "Welcome to Planoo",
-    "subtitle": "I plan my household's card spending. I built Planoo to plan card spending, track bills and income, all synced to Google Sheets. Connect your sheet to get started.",
+    "title": "Welcome to Planyoo",
+    "subtitle": "I plan my household's card spending. I built Planyoo to plan card spending, track bills and income, all synced to Google Sheets. Connect your sheet to get started.",
     "configRequired": "Configuration Required",
     "configMessage": "The Google OAuth Client ID is not configured. Please create a .env file with your Client ID. See .env.example for instructions.",
     "step1": "Step 1: Sign in with Google",
@@ -122,7 +122,10 @@
     "filterApply": "Apply filters",
     "filterClear": "Clear",
     "filterClearAll": "Clear filters",
-    "filterEmpty": "No bills match the filters."
+    "filterEmpty": "No bills match the filters.",
+    "filterActivePayer": "Payer: {{names}}",
+    "filterActiveBank": "Bank: {{names}}",
+    "showRemaining": "Show amount to pay"
   },
   "income": {
     "title": "Income",

@@ -1,6 +1,6 @@
-# Planoo
+# Planyoo
 
-Planoo plans and controls household card spending and tracks monthly payment obligations.
+Planyoo plans and controls household card spending and tracks monthly payment obligations.
 
 ## Language
 
@@ -59,6 +59,10 @@ _Avoid_: Owner, user, cardholder, responsible
 **Bank**:
 A named account a Bill is paid from. Banks form a registry the household maintains in Settings; a Bill references one by id, so renaming a bank flows through to its bills.
 _Avoid_: Account, card, credit card
+
+**Remaining to Pay**:
+The part of a month's Bills that is still open (not paid), shown per Payer and Bank in the by-payer summary. It is a display view only — a device-remembered toggle that swaps the summary's values between the full total and this remainder — and never changes a Bill or a total.
+_Avoid_: Outstanding balance, amount due, debt
 
 ### Months
 

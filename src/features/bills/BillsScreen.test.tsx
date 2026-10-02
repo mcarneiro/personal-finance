@@ -16,6 +16,7 @@ import payersReducer from '../../store/payersSlice';
 import settingsReducer from '../../store/settingsSlice';
 import { writtenRecords } from '../../test/pendingWrites';
 import type { Bank, Bill, IncomeEntry, Payer } from '../../types';
+import { formatCurrency } from '../../utils/currency';
 import { getCurrentMonth, shiftMonth } from '../../utils/month';
 import BillsScreen from './BillsScreen';
 
@@ -36,6 +37,13 @@ vi.mock('../../services/GoogleSheetsService', async (importOriginal) => {
 const JUNE = '2026-06';
 const MAY = '2026-05';
 const JULY = '2026-07';
+
+/**
+ * pt-BR currency with a plain space. `Intl` inserts a non-breaking space after
+ * `R$`, which an exact text matcher does not normalize, so tests build expected
+ * money strings through this helper.
+ */
+const money = (amount: number) => formatCurrency(amount, 'pt-BR').replace(/\u00A0/g, ' ');
 
 // Months are relative to the real "now" so month-navigation tests stay
 // deterministic whenever the suite runs.
@@ -166,6 +174,9 @@ async function expectBillsWritten(matches: (written: Bill[]) => boolean) {
 
 beforeEach(async () => {
   vi.clearAllMocks();
+  // The remaining-to-pay toggle persists in local storage; clear it so one
+  // test's preference can never leak into the next.
+  localStorage.clear();
   // The copy guard's re-read defaults to an empty sheet; the guard tests below
   // return rows to simulate another member's copy having landed.
   vi.mocked(googleSheetsService.readBills).mockResolvedValue([]);
@@ -352,6 +363,44 @@ describe('Bills', () => {
     expect(payerGroup('Guta').getByText(/3\.099,00/)).toBeInTheDocument();
     expect(payerGroup('Guta').getByText(/2\.899,00/)).toBeInTheDocument();
     expect(payerGroup('Guta').getByText(/200,00/)).toBeInTheDocument();
+  });
+
+  it('swaps the by-payer and per-bank values to the amount still to pay on request', async () => {
+    // Given Guta has one paid Itaú bill and one open Nubank bill
+    renderBills(`/bills/${JUNE}`, [
+      bill({ month: JUNE, name: 'Cartão guta', amount: 150, isPaid: true, payerId: 'payer-guta', bankId: 'bank-itau' }),
+      bill({ month: JUNE, name: 'Gym', amount: 200, payerId: 'payer-guta', bankId: 'bank-nubank' }),
+    ]);
+    const user = userEvent.setup();
+    await user.click(summaryToggle());
+    const group = payerGroup('Guta');
+
+    // Then the values start as the full totals (350) including the paid bill
+    expect(group.getByText(money(350))).toBeInTheDocument();
+    expect(group.getByText(money(150))).toBeInTheDocument();
+
+    // When I turn on the remaining toggle
+    await user.click(byPayer().getByRole('checkbox', { name: 'Mostrar valor a pagar' }));
+
+    // Then each value becomes what is still to pay — the paid Itaú bill drops
+    // to zero and the group total drops to the open Nubank bill
+    expect(group.queryByText(money(350))).not.toBeInTheDocument();
+    expect(group.queryByText(money(150))).not.toBeInTheDocument();
+    expect(group.getAllByText(money(200))).toHaveLength(2);
+    expect(group.getByText(money(0))).toBeInTheDocument();
+  });
+
+  it('remembers the remaining toggle in local storage', async () => {
+    // Given June has a bill with the by-payer summary open
+    renderBills(`/bills/${JUNE}`, [bill({ month: JUNE, name: 'Luz', amount: 150 })]);
+    const user = userEvent.setup();
+    await user.click(summaryToggle());
+
+    // When I turn the remaining toggle on
+    await user.click(byPayer().getByRole('checkbox', { name: 'Mostrar valor a pagar' }));
+
+    // Then the preference is persisted for the next visit
+    expect(localStorage.getItem('planyoo:bills:showRemaining')).toBe('true');
   });
 
   it('still counts a bill whose payer and bank were removed from the registries', async () => {
@@ -669,6 +718,44 @@ describe('Bill filter', () => {
     // Then the new month starts unfiltered — a stale selection never hides it
     expect(screen.getByText('Luz')).toBeInTheDocument();
     expect(screen.getByText('Cartão guta')).toBeInTheDocument();
+  });
+
+  it('spells out the active filters to the left of the filter control', async () => {
+    // Given June has a Marcelo bill and a Guta/Itaú bill
+    renderBills(`/bills/${JUNE}`, [
+      bill({ month: JUNE, name: 'Luz', amount: 150 }),
+      bill({ month: JUNE, name: 'Cartão guta', amount: 2899, payerId: 'payer-guta', bankId: 'bank-itau' }),
+    ]);
+    const user = userEvent.setup();
+
+    // When I filter by Guta and Itaú
+    await applyFilter(user, 'Guta', 'Itaú');
+
+    // Then each facet is named to the left of the filter icon
+    const payerFilter = screen.getByText('Responsável: Guta');
+    const bankFilter = screen.getByText('Banco: Itaú');
+    expect(appearsBefore(payerFilter, filterButton())).toBe(true);
+    expect(appearsBefore(bankFilter, filterButton())).toBe(true);
+
+    // And clearing the filters removes the labels
+    await user.click(screen.getByRole('button', { name: 'Limpar filtros' }));
+    expect(screen.queryByText('Responsável: Guta')).not.toBeInTheDocument();
+    expect(screen.queryByText('Banco: Itaú')).not.toBeInTheDocument();
+  });
+
+  it('lists several selected payers in one label', async () => {
+    // Given June has a bill for each payer
+    renderBills(`/bills/${JUNE}`, [
+      bill({ month: JUNE, name: 'Luz', amount: 150 }),
+      bill({ month: JUNE, name: 'Cartão guta', amount: 2899, payerId: 'payer-guta', bankId: 'bank-itau' }),
+    ]);
+    const user = userEvent.setup();
+
+    // When I select both payers
+    await applyFilter(user, 'Marcelo', 'Guta');
+
+    // Then a single label names them both
+    expect(screen.getByText('Responsável: Marcelo, Guta')).toBeInTheDocument();
   });
 });
 
