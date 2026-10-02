@@ -194,6 +194,15 @@
         "namePlaceholder": "ex.: Marcelo",
         "add": "Adicionar responsável",
         "renameFieldLabel": "Novo nome do responsável"
+      },
+      "pots": {
+        "title": "Poupanças",
+        "empty": "Nenhuma poupança cadastrada ainda.",
+        "nameLabel": "Nome da poupança",
+        "namePlaceholder": "ex.: Emergência",
+        "add": "Adicionar poupança",
+        "renameFieldLabel": "Novo nome da poupança",
+        "retireNotice": "Remover uma poupança a aposenta: ela deixa de aparecer e de contar em todos os meses, inclusive no histórico. É diferente de remover um responsável ou banco, que continua aparecendo e contando. Os valores já registrados ficam na planilha."
       }
     },
     "rename": "Renomear",

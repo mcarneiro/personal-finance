@@ -5,6 +5,7 @@ import PageHeader from '../../components/PageHeader';
 import CardRegistry from './CardRegistry';
 import BankRegistry from './BankRegistry';
 import PayerRegistry from './PayerRegistry';
+import SavingsPotRegistry from './SavingsPotRegistry';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { setSheetId } from '../../store/settingsSlice';
 import { useGoogleAuth } from '../../contexts/GoogleAuthContext';
@@ -120,6 +121,7 @@ export default function SettingsScreen() {
         <CardRegistry />
         <BankRegistry />
         <PayerRegistry />
+        <SavingsPotRegistry />
 
         <LanguageSwitcher />
       </div>

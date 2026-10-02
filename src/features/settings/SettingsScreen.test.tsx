@@ -11,11 +11,12 @@ import banksReducer from '../../store/banksSlice';
 import cardsReducer from '../../store/cardsSlice';
 import payersReducer from '../../store/payersSlice';
 import planReducer from '../../store/planSlice';
+import savingsReducer from '../../store/savingsSlice';
 import { syncListenerMiddleware } from '../../store/middleware/syncListener';
 import pendingReducer from '../../store/pendingSlice';
 import settingsReducer from '../../store/settingsSlice';
 import { lastWrittenRecords, writtenChanges, writtenRecords } from '../../test/pendingWrites';
-import { Bank, Card, CardSpending, Payer } from '../../types';
+import { Bank, Card, CardSpending, Payer, SavingsBalance, SavingsPot } from '../../types';
 import SettingsScreen from './SettingsScreen';
 
 vi.mock('../../contexts/GoogleAuthContext', () => ({
@@ -59,6 +60,7 @@ function renderSettings(existingSheetId: string | null = null) {
       cards: cardsReducer,
       banks: banksReducer,
       payers: payersReducer,
+      savings: savingsReducer,
       settings: settingsReducer,
     },
     preloadedState: { settings: { sheetId: existingSheetId } },
@@ -85,6 +87,8 @@ function renderRegistry({
   cardSpending = [] as CardSpending[],
   banks = [] as Bank[],
   payers = [] as Payer[],
+  savingsPots = [] as SavingsPot[],
+  savingsBalances = [] as SavingsBalance[],
 } = {}) {
   const store = configureStore({
     reducer: {
@@ -92,6 +96,7 @@ function renderRegistry({
       banks: banksReducer,
       payers: payersReducer,
       plan: planReducer,
+      savings: savingsReducer,
       settings: settingsReducer,
       pending: pendingReducer,
     },
@@ -102,6 +107,7 @@ function renderRegistry({
       banks: { items: banks },
       payers: { items: payers },
       plan: { items: [], cardSpending },
+      savings: { items: savingsPots, balances: savingsBalances },
       settings: { sheetId: 'sheet-1' },
     },
   });
@@ -395,5 +401,116 @@ describe('Settings bank and payer registries', () => {
         }),
       { timeout: 2500 }
     );
+  });
+});
+
+describe('Settings savings pot registry', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockedUseGoogleAuth.mockReturnValue(signedInAuth());
+  });
+
+  it('lists the registered savings pots', () => {
+    // Given the household has registered two pots
+    // When settings renders
+    renderRegistry({
+      savingsPots: [
+        { id: 's1', name: 'Emergência' },
+        { id: 's2', name: 'Aposentadoria' },
+      ],
+    });
+
+    // Then both pots are listed
+    expect(screen.getByText('Emergência')).toBeInTheDocument();
+    expect(screen.getByText('Aposentadoria')).toBeInTheDocument();
+  });
+
+  it('states that removing a pot retires it, unlike a payer or bank', () => {
+    // Given the savings registry section
+    // When settings renders
+    renderRegistry();
+
+    // Then the copy explains the distinct retire semantic
+    expect(screen.getByText(/aposenta.*banco/i)).toBeInTheDocument();
+  });
+
+  it('adds a pot and writes the pots tab back', async () => {
+    // Given no pots are registered
+    renderRegistry();
+    const user = userEvent.setup();
+
+    // When the user adds a pot by name
+    await user.type(screen.getByLabelText('Nome da poupança'), 'Emergência');
+    await user.click(screen.getByRole('button', { name: 'Adicionar poupança' }));
+
+    // Then the pot is listed and persisted to the savings_pots tab
+    expect(screen.getByText('Emergência')).toBeInTheDocument();
+    await waitFor(
+      () =>
+        expect(lastWrittenRecords(googleSheetsService, 'savings_pots')).toEqual([
+          expect.objectContaining({ id: expect.any(String), name: 'Emergência' }),
+        ]),
+      { timeout: 2500 }
+    );
+  });
+
+  it('renames a pot and writes the pots tab back under the same id', async () => {
+    // Given one registered pot
+    renderRegistry({ savingsPots: [{ id: 's1', name: 'Emergencia' }] });
+    const user = userEvent.setup();
+
+    // When the user renames it
+    await user.click(screen.getByRole('button', { name: 'Renomear Emergencia' }));
+    const input = screen.getByLabelText('Novo nome da poupança');
+    await user.clear(input);
+    await user.type(input, 'Emergência');
+    await user.click(screen.getByRole('button', { name: 'Salvar' }));
+
+    // Then the new name is shown and persisted under the same id, so every
+    // month's balance follows the rename by id
+    expect(screen.getByText('Emergência')).toBeInTheDocument();
+    await waitFor(
+      () =>
+        expect(lastWrittenRecords(googleSheetsService, 'savings_pots')).toEqual([
+          expect.objectContaining({ id: 's1', name: 'Emergência' }),
+        ]),
+      { timeout: 2500 }
+    );
+  });
+
+  it('removes a pot, drops it from the registry, and leaves its balances untouched', async () => {
+    // Given two pots, one with a balance already recorded for June
+    const juneBalance: SavingsBalance[] = [
+      { id: '2026-06-s1', month: '2026-06', potId: 's1', balance: 10000 },
+    ];
+    const store = renderRegistry({
+      savingsPots: [
+        { id: 's1', name: 'Emergência' },
+        { id: 's2', name: 'Aposentadoria' },
+      ],
+      savingsBalances: juneBalance,
+    });
+    const user = userEvent.setup();
+
+    // When the user removes the pot
+    await user.click(screen.getByRole('button', { name: 'Remover Emergência' }));
+
+    // Then it is gone from the registry
+    expect(screen.queryByText('Emergência')).not.toBeInTheDocument();
+
+    // And only the savings_pots tab is written back — never savings_balances, so
+    // the pot's recorded history survives in the sheet
+    await waitFor(
+      () =>
+        expect(writtenChanges(googleSheetsService, 'savings_pots')).toContainEqual({
+          type: 'delete',
+          id: 's1',
+        }),
+      { timeout: 2500 }
+    );
+    expect(writtenRecords(googleSheetsService, 'savings_balances')).toEqual([]);
+
+    // And the slice still holds the retired pot's balance row
+    expect(store.getState().savings.balances).toEqual(juneBalance);
   });
 });

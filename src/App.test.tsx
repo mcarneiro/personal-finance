@@ -14,6 +14,7 @@ import cardsReducer from './store/cardsSlice';
 import incomeReducer from './store/incomeSlice';
 import payersReducer from './store/payersSlice';
 import planReducer from './store/planSlice';
+import savingsReducer from './store/savingsSlice';
 import settingsReducer from './store/settingsSlice';
 
 // Auth is an external boundary; screens are tested with a signed-in household planner.
@@ -62,6 +63,7 @@ function appStore({ dataLoading = false, dataLoaded = true } = {}) {
       plan: planReducer,
       outflows: outflowsReducer,
       income: incomeReducer,
+      savings: savingsReducer,
       settings: settingsReducer,
     },
     preloadedState: {

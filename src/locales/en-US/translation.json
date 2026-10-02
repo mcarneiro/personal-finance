@@ -194,6 +194,15 @@
         "namePlaceholder": "e.g. Marcelo",
         "add": "Add payer",
         "renameFieldLabel": "New payer name"
+      },
+      "pots": {
+        "title": "Savings pots",
+        "empty": "No savings pots registered yet.",
+        "nameLabel": "Savings pot name",
+        "namePlaceholder": "e.g. Emergency",
+        "add": "Add savings pot",
+        "renameFieldLabel": "New savings pot name",
+        "retireNotice": "Removing a savings pot retires it: it stops appearing and stops counting in every month, including history. This is unlike removing a payer or bank, which still appears and still counts. Balances already recorded stay in the sheet."
       }
     },
     "rename": "Rename",

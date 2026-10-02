@@ -11,6 +11,8 @@ interface NameRegistryProps {
   /** Stable id prefix for the add field, independent of the localized title. */
   nameFieldId: string;
   title: string;
+  /** Optional explanation shown under the title, e.g. a distinct removal semantic. */
+  helperText?: string;
   emptyText: string;
   items: RegistryItem[];
   nameLabel: string;
@@ -24,14 +26,17 @@ interface NameRegistryProps {
 
 /**
  * A reusable name registry: a list of named entries that can be added, renamed
- * in place, and removed. Used for the household's cards, banks and payers — the
- * vocabulary the rest of the app picks from. Removal only drops the entry from
- * the registry; screens that reference it fall back gracefully, so historical
- * data is never corrupted (mirrors ADR-0002).
+ * in place, and removed. Used for the household's cards, banks, payers and
+ * savings pots — the vocabulary the rest of the app picks from. Removal only
+ * drops the entry from the registry; screens that reference it fall back
+ * gracefully, so historical data is never corrupted (mirrors ADR-0002). Savings
+ * pots are the exception and pass a `helperText` that says so: a removed pot is
+ * retired and stops counting everywhere, unlike a payer or bank (ADR-0011).
  */
 export default function NameRegistry({
   nameFieldId,
   title,
+  helperText,
   emptyText,
   items,
   nameLabel,
@@ -67,6 +72,8 @@ export default function NameRegistry({
   return (
     <section className="mt-6 rounded-lg bg-white p-4 shadow-sm">
       <h2 className="text-sm font-semibold text-gray-900">{title}</h2>
+
+      {helperText && <p className="mt-1 text-xs text-gray-500">{helperText}</p>}
 
       {items.length === 0 ? (
         <p className="mt-1 text-sm text-gray-600">{emptyText}</p>
