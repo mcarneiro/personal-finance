@@ -84,10 +84,18 @@ A React app using Google Sheets as the database (same foundation as Stayoo) that
 - **Projected Result**: plan total − Total Spent − Σ remaining estimates — the live sobra, green when positive, red when negative
 - When the estimates are zero the projection **is** the final Plan Result; for past months the Plan Result is the headline
 
+#### 7. Dashboard (home)
+**Route:** `/`
+- The **current month only**, with no month navigation — history review stays on the month-scoped screens. A month label (e.g. "Outubro 2026") makes this explicit.
+- **Income/outcome block**: Income Total vs Bills Total as two horizontal bars on a shared scale, with Account Net. The Income bar opens `/income/:month`, the Bills bar `/bills/:month`. Hidden when both totals are zero.
+- **Spending Plan block**: Plan Total and Total Spent with a bar filled to `Total Spent / Plan Total` (capped at 100%, never overshooting) and a marker for how far through the month we are. Green normally; **yellow** when spend runs more than 25 percentage points ahead of the month (callout names the headroom still available before the ceiling); **red** once Total Spent passes Plan Total (callout names the overage). Both callouts and the block header open `/plan/:month`. Hidden when Plan Total is zero. It deliberately shows the raw Plan Result, not the Projected Result — see ADR-0009.
+- **Open bills block**: the month's **open** Bills (unpaid) only, in the Bills screen's order (final values first, then alphabetical), each with a paid toggle that removes the row immediately (no animation) and a tap that opens its editor; the block header opens `/bills/:month`. Always shown; when nothing is open it celebrates ("Hooray! No more bills to pay!").
+- Reuses the Bills screen's wording and the control-loop derived numbers; everything is computed on the fly and nothing new is stored.
+
 ## Technical Requirements
 
 ### Tech Stack
-Same as Stayoo: React 19, Vite, Redux Toolkit, react-router-dom, react-i18next (pt-BR primary, en-US), Tailwind CSS 4, Recharts not needed (no charts), Vitest + Testing Library.
+Same as Stayoo: React 19, Vite, Redux Toolkit, react-router-dom, react-i18next (pt-BR primary, en-US), Tailwind CSS 4, Recharts not needed (no charts — the Dashboard's bars are plain CSS), Vitest + Testing Library.
 
 ### Architecture Principles
 - Port `GoogleSheetsService.ts`, `useDataSync.ts`, `syncListener.ts`, onboarding, and month navigation from Stayoo — no new integration patterns
@@ -172,7 +180,7 @@ Onboarding validates the connected sheet and creates any missing tabs with the h
 - Check-in friction below 30 seconds: N card inputs + estimate tweaks
 
 ### Key Screens
-1. **Dashboard** (`/`) — the app entry point and a placeholder shell for the household dashboard (still to be designed). Its top bar shows the title "Dashboard" and the Settings shortcut; every other screen's top bar shows a back button and that screen's name.
+1. **Dashboard** (`/`) — the app entry point and the household's current-month home: the income/outcome bars with Account Net, the Spending Plan's progress with its pace bar and over-plan callout, and the Bills still open to pay. It is current-month only (no month navigation) — history lives on the month-scoped screens. Its top bar shows the title "Dashboard" and the Settings shortcut; every other screen's top bar shows a back button and that screen's name.
 2. **Spending Plan** (`/plan/:month`) — spending buckets, check-in inputs, remaining estimates, Projected Result headline. Tap a bucket to edit on `/plan/edit/:id`; add via the top-bar "+" (`/plan/new/:month`)
 3. **Bills** (`/bills/:month`) — bill list with paid toggles, income total, account net, the by-payer spending summary, and the replicate-last-month button. Bills awaiting a final value are flagged with a ⚠️ and sink to the end of the list. Tap a row to edit on `/bills/edit/:id`; add via the top-bar "+" (`/bills/new/:month`)
 4. **Income** (`/income/:month`) — entries, total, replicate button. Tap a row to edit on `/income/edit/:id`; add via the top-bar "+" (`/income/new/:month`)

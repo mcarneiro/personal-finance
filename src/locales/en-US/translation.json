@@ -23,8 +23,14 @@
   },
   "home": {
     "title": "Dashboard",
-    "placeholderTitle": "Your dashboard is coming",
-    "placeholderMessage": "The household dashboard is being built. For now, use the Plan, Bills and Income tabs to follow the month."
+    "cashFlow": "Income and bills",
+    "openBills": "Open bills",
+    "allPaid": "Hooray! No more bills to pay! 🎉",
+    "planAhead": "{{amount}} left before the plan ceiling",
+    "planOver": "{{amount}} over the plan",
+    "viewIncome": "View month's income",
+    "viewBills": "View month's bills",
+    "viewPlan": "View month's plan"
   },
   "onboarding": {
     "title": "Welcome to Planyoo",

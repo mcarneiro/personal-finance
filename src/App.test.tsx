@@ -176,9 +176,9 @@ describe('app shell', () => {
     // When I tap the back button
     await user.click(screen.getByRole('button', { name: 'Voltar' }));
 
-    // Then the home placeholder is shown
+    // Then the Dashboard is shown
     expect(screen.getByRole('heading', { name: 'Dashboard' })).toBeInTheDocument();
-    expect(screen.getByText('Seu painel está chegando')).toBeInTheDocument();
+    expect(screen.getByText('Uau! Não há mais contas para pagar! 🎉')).toBeInTheDocument();
   });
 
   it('moves Settings out of the bottom bar and into the home top bar', async () => {
