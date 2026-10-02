@@ -6,7 +6,9 @@
     "back": "Voltar",
     "cancel": "Cancelar",
     "previousMonth": "Mês anterior",
-    "nextMonth": "Próximo mês"
+    "nextMonth": "Próximo mês",
+    "copyBlocked": "Este mês já tem registros. Nada foi copiado para não duplicar.",
+    "copyCheckFailed": "Não foi possível verificar o mês antes de copiar. Nada foi copiado."
   },
   "session": {
     "title": "Sessão expirada",

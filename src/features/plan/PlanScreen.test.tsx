@@ -24,6 +24,7 @@ vi.mock('../../services/GoogleSheetsService', async (importOriginal) => {
     googleSheetsService: {
       ...actual.googleSheetsService,
       writePendingChanges: vi.fn(),
+      readPlanItems: vi.fn(),
     },
   };
 });
@@ -121,6 +122,9 @@ const checkIn = () => within(screen.getByRole('region', { name: 'Check-in dos ca
 
 beforeEach(async () => {
   vi.clearAllMocks();
+  // The copy guard's re-read defaults to an empty sheet; the guard tests below
+  // return rows to simulate another member's copy having landed.
+  vi.mocked(googleSheetsService.readPlanItems).mockResolvedValue([]);
   await i18n.changeLanguage('pt-BR');
 });
 
@@ -227,6 +231,26 @@ describe('Spending Plan composition', () => {
     expect(
       screen.queryByRole('button', { name: 'Copiar plano do mês anterior' })
     ).not.toBeInTheDocument();
+  });
+
+  it('re-reads the target month and blocks the copy when another member already copied', async () => {
+    // Given I see June as empty, but the sheet now holds a June bucket
+    renderPlan(`/plan/${JUNE}`, [planItem({ month: MAY, name: 'Internet', amount: 110 })]);
+    vi.mocked(googleSheetsService.readPlanItems).mockResolvedValue([
+      planItem({ month: JUNE, name: 'Gym', amount: 200 }),
+    ]);
+    const user = userEvent.setup();
+
+    // When I tap copy last month
+    await user.click(screen.getByRole('button', { name: 'Copiar plano do mês anterior' }));
+
+    // Then the sheet was re-read, nothing was copied, and a message explains why
+    expect(googleSheetsService.readPlanItems).toHaveBeenCalledWith('sheet-1');
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Este mês já tem registros. Nada foi copiado para não duplicar.'
+    );
+    expect(screen.queryByText('Internet')).not.toBeInTheDocument();
+    await waitFor(() => expect(writtenRecords(googleSheetsService, 'plan')).toEqual([]));
   });
 
   it("shows each month's own composition when navigating months", async () => {

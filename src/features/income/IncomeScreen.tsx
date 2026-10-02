@@ -8,6 +8,7 @@ import { incomeTotal } from '../../utils/controlLoop';
 import { formatCurrency } from '../../utils/currency';
 import { copyIncomeEntries } from '../../utils/incomeCopy';
 import { isValidMonth, shiftMonth } from '../../utils/month';
+import { useCopyGuard } from '../../hooks/useCopyGuard';
 
 /**
  * The Income screen for one month: entries with an amount and an optional
@@ -23,6 +24,12 @@ export default function IncomeScreen() {
   const { month } = useParams<{ month: string }>();
   const dispatch = useAppDispatch();
   const items = useAppSelector((state) => state.income.items);
+  // Re-read the target month right before replicating so income another member
+  // already copied is never duplicated (ADR-0008).
+  const { blocked: copyBlocked, checkFailed: copyCheckFailed, canCopy } = useCopyGuard(
+    'income',
+    month
+  );
 
   if (!isValidMonth(month)) {
     // MonthScaffold owns the redirect; nothing to list until it settles.
@@ -49,15 +56,32 @@ export default function IncomeScreen() {
           </span>
         </div>
         {/* Replicate only into an empty month: on a month that already has
-            entries it would silently duplicate the whole list. */}
+            entries it would silently duplicate the whole list. The re-read
+            below guards against another member's copy landing first. */}
         {lastMonthEntries.length > 0 && monthEntries.length === 0 && (
           <button
             type="button"
-            onClick={() => dispatch(addIncomeEntries(copyIncomeEntries(lastMonthEntries, month)))}
+            onClick={async () => {
+              // Work out what would be copied BEFORE the await: a pull or a
+              // re-render during the re-read must not change this list under us.
+              const toCopy = copyIncomeEntries(lastMonthEntries, month);
+              if (!(await canCopy())) return;
+              dispatch(addIncomeEntries(toCopy));
+            }}
             className="mt-3 w-full rounded-lg border border-blue-600 py-2 text-sm font-semibold text-blue-600 transition-colors hover:bg-blue-50"
           >
             {t('income.copyLastMonth')}
           </button>
+        )}
+        {copyBlocked && (
+          <p role="alert" className="mt-2 text-sm text-amber-700">
+            {t('common.copyBlocked')}
+          </p>
+        )}
+        {copyCheckFailed && (
+          <p role="alert" className="mt-2 text-sm text-amber-700">
+            {t('common.copyCheckFailed')}
+          </p>
         )}
       </section>
 

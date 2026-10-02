@@ -26,6 +26,9 @@ vi.mock('../../services/GoogleSheetsService', async (importOriginal) => {
     googleSheetsService: {
       ...actual.googleSheetsService,
       writePendingChanges: vi.fn(),
+      readBills: vi.fn(),
+      readPlanItems: vi.fn(),
+      readIncome: vi.fn(),
     },
   };
 });
@@ -163,6 +166,12 @@ async function expectBillsWritten(matches: (written: Bill[]) => boolean) {
 
 beforeEach(async () => {
   vi.clearAllMocks();
+  // The copy guard's re-read defaults to an empty sheet; the guard tests below
+  // return rows to simulate another member's copy having landed.
+  vi.mocked(googleSheetsService.readBills).mockResolvedValue([]);
+  // `clearAllMocks` strips the implementation, so every test re-arms the write
+  // boundary as a resolved stub; `writtenRecords` reads its call payloads.
+  vi.mocked(googleSheetsService.writePendingChanges).mockResolvedValue(undefined);
   await i18n.changeLanguage('pt-BR');
 });
 
@@ -727,6 +736,82 @@ describe('Replicate last month', () => {
     expect(
       screen.queryByRole('button', { name: 'Replicar contas do mês anterior' })
     ).not.toBeInTheDocument();
+  });
+
+  it('re-reads the target month and blocks the copy when another member already replicated', async () => {
+    // Given I see June as empty, but the sheet now holds a June bill (another
+    // member copied while my Working Copy was stale)
+    renderBills(`/bills/${JUNE}`, [bill({ month: MAY, name: 'Luz', amount: 150 })]);
+    vi.mocked(googleSheetsService.readBills).mockResolvedValue([
+      bill({ month: JUNE, name: 'Internet', amount: 110 }),
+    ]);
+    const user = userEvent.setup();
+
+    // When I tap replicate
+    await user.click(screen.getByRole('button', { name: 'Replicar contas do mês anterior' }));
+
+    // Then the sheet was re-read for this month, nothing was copied, and a
+    // message explains why
+    expect(googleSheetsService.readBills).toHaveBeenCalledWith('sheet-1');
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Este mês já tem registros. Nada foi copiado para não duplicar.'
+    );
+    expect(screen.queryByText('Luz')).not.toBeInTheDocument();
+    expect(writtenRecords(googleSheetsService, 'bills')).toEqual([]);
+  });
+
+  it('blocks the copy and says so when the target month cannot be checked', async () => {
+    // Given the re-read fails (offline or expired session)
+    renderBills(`/bills/${JUNE}`, [bill({ month: MAY, name: 'Luz', amount: 150 })]);
+    vi.mocked(googleSheetsService.readBills).mockRejectedValue(new Error('offline'));
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const user = userEvent.setup();
+
+    // When I tap replicate
+    await user.click(screen.getByRole('button', { name: 'Replicar contas do mês anterior' }));
+
+    // Then nothing is copied and a message explains that the check failed
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Não foi possível verificar o mês antes de copiar. Nada foi copiado.'
+    );
+    expect(screen.queryByText('Luz')).not.toBeInTheDocument();
+    expect(writtenRecords(googleSheetsService, 'bills')).toEqual([]);
+    errorSpy.mockRestore();
+  });
+
+  it('cannot double-replicate when the copy button is tapped twice before the re-read settles', async () => {
+    // Given an empty target month, a source bill that is a duplicate by name, and
+    // a re-read slow enough for a second tap to land inside the first
+    const store = renderBills(`/bills/${JUNE}`, [
+      bill({ month: MAY, name: 'Luz', amount: 150 }),
+      bill({ month: MAY, name: 'Luz', amount: 150 }),
+    ]);
+    let resolveRead: (value: Bill[]) => void = () => {};
+    vi.mocked(googleSheetsService.readBills).mockReturnValue(
+      new Promise<Bill[]>((resolve) => {
+        resolveRead = resolve;
+      })
+    );
+    const user = userEvent.setup();
+
+    // When I tap replicate twice, both taps landing inside the same in-flight read
+    const button = screen.getByRole('button', { name: 'Replicar contas do mês anterior' });
+    await user.click(button);
+    await user.click(button);
+    resolveRead([]);
+
+    // Then the month was read once and exactly one set of copies was added; the
+    // list settles on the two copied bills (duplicates by name both survive)
+    await waitFor(() => {
+      expect(store.getState().bills.items.filter((entry) => entry.month === JUNE)).toHaveLength(2);
+    }, { timeout: 2500 });
+    expect(googleSheetsService.readBills).toHaveBeenCalledTimes(1);
+    expect(screen.getAllByText('Luz')).toHaveLength(2);
+    // Drain the debounced write this copy scheduled so it cannot leak into the
+    // next test's write assertions.
+    await waitFor(() => {
+      expect(writtenRecords(googleSheetsService, 'bills')).toHaveLength(2);
+    }, { timeout: 2500 });
   });
 
   it('replicates from the currently browsed month, not the calendar month', async () => {

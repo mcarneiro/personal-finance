@@ -6,7 +6,9 @@
     "back": "Back",
     "cancel": "Cancel",
     "previousMonth": "Previous month",
-    "nextMonth": "Next month"
+    "nextMonth": "Next month",
+    "copyBlocked": "This month already has records. Nothing was copied to avoid duplicating.",
+    "copyCheckFailed": "Couldn't check this month before copying. Nothing was copied."
   },
   "session": {
     "title": "Session expired",

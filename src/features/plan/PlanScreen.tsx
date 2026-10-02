@@ -7,6 +7,7 @@ import { planResult, planTotal, projectedResult } from '../../utils/controlLoop'
 import { formatCurrency } from '../../utils/currency';
 import { isPastMonth, isValidMonth, shiftMonth } from '../../utils/month';
 import { copyPlanItems } from '../../utils/planCopy';
+import { useCopyGuard } from '../../hooks/useCopyGuard';
 import AmountInput from './AmountInput';
 import CardCheckIn from './CardCheckIn';
 
@@ -26,6 +27,12 @@ export default function PlanScreen() {
   const dispatch = useAppDispatch();
   const items = useAppSelector((state) => state.plan.items);
   const cardSpending = useAppSelector((state) => state.plan.cardSpending);
+  // Re-read the target month right before copying so a plan another member
+  // already seeded is never duplicated (ADR-0008).
+  const { blocked: copyBlocked, checkFailed: copyCheckFailed, canCopy } = useCopyGuard(
+    'plan',
+    month
+  );
 
   if (!isValidMonth(month)) {
     // MonthScaffold owns the redirect; nothing to compose until it settles.
@@ -71,15 +78,32 @@ export default function PlanScreen() {
           </span>
         </div>
         {/* Seed only an empty month: on a month that already has items a copy
-            would silently duplicate the whole plan. */}
+            would silently duplicate the whole plan. The re-read below guards
+            against another member's copy landing first. */}
         {lastMonthItems.length > 0 && monthItems.length === 0 && (
           <button
             type="button"
-            onClick={() => dispatch(addPlanItems(copyPlanItems(lastMonthItems, month)))}
+            onClick={async () => {
+              // Work out what would be copied BEFORE the await: a pull or a
+              // re-render during the re-read must not change this list under us.
+              const toCopy = copyPlanItems(lastMonthItems, month);
+              if (!(await canCopy())) return;
+              dispatch(addPlanItems(toCopy));
+            }}
             className="mt-3 w-full rounded-lg border border-blue-600 py-2 text-sm font-semibold text-blue-600 transition-colors hover:bg-blue-50"
           >
             {t('plan.copyLastMonth')}
           </button>
+        )}
+        {copyBlocked && (
+          <p role="alert" className="mt-2 text-sm text-amber-700">
+            {t('common.copyBlocked')}
+          </p>
+        )}
+        {copyCheckFailed && (
+          <p role="alert" className="mt-2 text-sm text-amber-700">
+            {t('common.copyCheckFailed')}
+          </p>
         )}
       </section>
 

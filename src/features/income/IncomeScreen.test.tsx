@@ -23,6 +23,7 @@ vi.mock('../../services/GoogleSheetsService', async (importOriginal) => {
     googleSheetsService: {
       ...actual.googleSheetsService,
       writePendingChanges: vi.fn(),
+      readIncome: vi.fn(),
     },
   };
 });
@@ -82,6 +83,9 @@ const summary = () => within(screen.getByRole('region', { name: 'Resumo da renda
 
 beforeEach(async () => {
   vi.clearAllMocks();
+  // The copy guard's re-read defaults to an empty sheet; the guard test below
+  // returns rows to simulate another member's copy having landed.
+  vi.mocked(googleSheetsService.readIncome).mockResolvedValue([]);
   await i18n.changeLanguage('pt-BR');
 });
 
@@ -224,6 +228,28 @@ describe('Month navigation', () => {
     // Then July shows its own (empty) income
     expect(screen.getByRole('heading', { name: 'julho de 2026' })).toBeInTheDocument();
     expect(screen.queryByText('Salário')).not.toBeInTheDocument();
+  });
+
+  it('re-reads the target month and blocks the copy when another member already replicated', async () => {
+    // Given I see June as empty, but the sheet now holds a June entry
+    renderIncome(`/income/${JUNE}`, [
+      incomeEntry({ month: MAY, amount: 12000, source: 'Salário' }),
+    ]);
+    vi.mocked(googleSheetsService.readIncome).mockResolvedValue([
+      incomeEntry({ month: JUNE, amount: 500, source: 'Freela' }),
+    ]);
+    const user = userEvent.setup();
+
+    // When I tap replicate
+    await user.click(screen.getByRole('button', { name: 'Replicar renda do mês anterior' }));
+
+    // Then the sheet was re-read, nothing was copied, and a message explains why
+    expect(googleSheetsService.readIncome).toHaveBeenCalledWith('sheet-1');
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Este mês já tem registros. Nada foi copiado para não duplicar.'
+    );
+    expect(screen.queryByText('Salário')).not.toBeInTheDocument();
+    expect(writtenRecords(googleSheetsService, 'income')).toEqual([]);
   });
 
   it('replicates from the currently browsed month, not the calendar month', async () => {

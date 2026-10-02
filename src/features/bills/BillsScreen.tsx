@@ -18,6 +18,7 @@ import {
 import { copyBills } from '../../utils/billCopy';
 import { formatCurrency } from '../../utils/currency';
 import { isValidMonth, shiftMonth } from '../../utils/month';
+import { useCopyGuard } from '../../hooks/useCopyGuard';
 import NeedsRegistryNotice from './NeedsRegistryNotice';
 import BillFilterDrawer from './BillFilterDrawer';
 
@@ -58,6 +59,12 @@ export default function BillsScreen() {
   // hide a new month's list.
   const [filter, setFilter] = useState<BillFilter>(EMPTY_BILL_FILTER);
   const [filterOpen, setFilterOpen] = useState(false);
+  // Re-read the target month right before replicating so a copy another member
+  // already made is never duplicated (ADR-0008).
+  const { blocked: copyBlocked, checkFailed: copyCheckFailed, canCopy } = useCopyGuard(
+    'bills',
+    month
+  );
 
   useEffect(() => {
     setFilter(EMPTY_BILL_FILTER);
@@ -111,15 +118,32 @@ export default function BillsScreen() {
           </span>
         </div>
         {/* Replicate only into an empty month: on a month that already has
-            bills it would silently duplicate the whole list. */}
+            bills it would silently duplicate the whole list. The re-read below
+            guards against another member's copy landing first. */}
         {lastMonthBills.length > 0 && monthBills.length === 0 && (
           <button
             type="button"
-            onClick={() => dispatch(addBills(copyBills(lastMonthBills, month)))}
+            onClick={async () => {
+              // Work out what would be copied BEFORE the await: a pull or a
+              // re-render during the re-read must not change this list under us.
+              const toCopy = copyBills(lastMonthBills, month);
+              if (!(await canCopy())) return;
+              dispatch(addBills(toCopy));
+            }}
             className="mt-3 w-full rounded-lg border border-blue-600 py-2 text-sm font-semibold text-blue-600 transition-colors hover:bg-blue-50"
           >
             {t('bills.copyLastMonth')}
           </button>
+        )}
+        {copyBlocked && (
+          <p role="alert" className="mt-2 text-sm text-amber-700">
+            {t('common.copyBlocked')}
+          </p>
+        )}
+        {copyCheckFailed && (
+          <p role="alert" className="mt-2 text-sm text-amber-700">
+            {t('common.copyCheckFailed')}
+          </p>
         )}
       </section>
 

@@ -63,12 +63,12 @@ A React app using Google Sheets as the database (same foundation as Stayoo) that
 **Route:** `/income/:month`
 - Income entries: amount + optional source note. Receipt is not tracked.
 - Add via the top-bar "+" and tap a row to edit both on a **full-screen editor** (`/income/new/:month`, `/income/edit/:id`); delete lives on the editor behind a confirmation modal, never inline in the list
-- Total shown; replicate-last-month button for the recurring salary
+- Total shown; replicate-last-month button for the recurring salary (it re-reads the target month first and refuses with a message when it is no longer empty, so two members cannot double-replicate — ADR-0008)
 - Account net (income − bills) is surfaced on the Bills screen
 
 #### 5. Bills Management
 **Route:** `/bills/:month`
-- Bills: add (name, amount, payer, bank, final value), toggle paid, edit, delete — no auto-generation (the card bill is entered by hand). Add via the top-bar "+" and tap a row to edit both on a **full-screen editor** (`/bills/new/:month`, `/bills/edit/:id`); delete lives on the editor behind a confirmation modal, never inline in the list. The list reads **final values first, then bills still awaiting one**; within each group **open bills first, then paid**, each group **alphabetical by name**. A **replicate-last-month button** seeds an empty month from last month's bills; copies carry name, amount, payer and bank, but always arrive **unpaid and not final** (ADR-0003)
+- Bills: add (name, amount, payer, bank, final value), toggle paid, edit, delete — no auto-generation (the card bill is entered by hand). Add via the top-bar "+" and tap a row to edit both on a **full-screen editor** (`/bills/new/:month`, `/bills/edit/:id`); delete lives on the editor behind a confirmation modal, never inline in the list. The list reads **final values first, then bills still awaiting one**; within each group **open bills first, then paid**, each group **alphabetical by name**. A **replicate-last-month button** seeds an empty month from last month's bills; copies carry name, amount, payer and bank, but always arrive **unpaid and not final** (ADR-0003). The copy re-reads the target month from the sheet first and, if it is no longer empty, copies nothing and says so — so two members cannot double-replicate (ADR-0008)
 - **Final value**: each bill carries a **Final value** flag, set on the editor (unset by default). It marks the amount as confirmed for the month. Bills whose value is not final are flagged with a ⚠️ before their name and grouped at the end of the list, so the variable amounts that still need updating after a replicate are gathered together and easy to find. The flag is a workflow marker only — it never changes a total (ADR-0006)
 - **Payer and bank are required**: every bill records who pays it and which registered bank it is paid from; unset or since-removed references still render and still count. When the payer or bank registry is empty, the Bills list and the editor show a highlighted callout with a shortcut straight to Settings instead of an unusable form
 - **Card bill**: entered by hand as a regular bill when the statement arrives; its amount is the real statement value (covers the previous month's card spending). Installments, fees and refunds are absorbed by the statement value — never modeled
@@ -78,7 +78,7 @@ A React app using Google Sheets as the database (same foundation as Stayoo) that
 #### 6. Spending Plan (the core)
 **Route:** `/plan/:month`
 - **Plan composition**: spending buckets (name + cap). User-defined names. Add via the top-bar "+" and tap a row's name/amount to edit both on a **full-screen editor** (`/plan/new/:month`, `/plan/edit/:id`); delete lives on the editor behind a confirmation modal, while the remaining-estimate check-in stays inline on the list
-- **Copy-last-month button**: one tap seeds the new month's plan from last month's; then edit freely (does not copy remaining estimates or card totals — those start at zero)
+- **Copy-last-month button**: one tap seeds the new month's plan from last month's; then edit freely (does not copy remaining estimates or card totals — those start at zero). The copy re-reads the target month from the sheet first and, if it is no longer empty, copies nothing and says so — so two members cannot double-replicate (ADR-0008)
 - **Card check-in**: one editable current total per card; Total Spent = sum. Totals are current-state — overwritten at each check-in, no snapshot history in V1
 - **Remaining Estimates**: one editable estimate per bucket ("still expected until month end")
 - **Projected Result**: plan total − Total Spent − Σ remaining estimates — the live sobra, green when positive, red when negative
