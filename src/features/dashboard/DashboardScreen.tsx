@@ -9,12 +9,21 @@ import {
   planTotal,
   totalSpent,
 } from '../../utils/controlLoop';
-import { planPace } from '../../utils/planPace';
+import { planPace, type PlanPaceLevel } from '../../utils/planPace';
 import { orderBills } from '../../utils/billOrder';
 import { formatCurrency } from '../../utils/currency';
 import { getCurrentMonth, getMonthName } from '../../utils/month';
+import { useRegistryLabels } from '../../hooks/useRegistryLabels';
+import BillRow from '../bills/BillRow';
 
 const CHEVRON_ICON = 'M9 5l7 7-7 7';
+
+/** The plan bar's colour per pace level. */
+const BAR_COLOR: Record<PlanPaceLevel, string> = {
+  under: 'bg-green-500',
+  ahead: 'bg-amber-500',
+  over: 'bg-red-600',
+};
 
 interface DashboardScreenProps {
   /**
@@ -46,8 +55,8 @@ export default function DashboardScreen({ now = new Date() }: DashboardScreenPro
   const cardSpending = useAppSelector((state) => state.plan.cardSpending);
   const bills = useAppSelector((state) => state.bills.items);
   const income = useAppSelector((state) => state.income.items);
-  const banks = useAppSelector((state) => state.banks.items);
-  const payers = useAppSelector((state) => state.payers.items);
+  // Payer/bank names are resolved exactly as on the Bills screen.
+  const { payerLabel, bankLabel } = useRegistryLabels();
 
   const incomeValue = incomeTotal(month, income);
   const billsValue = billsTotal(month, bills);
@@ -63,13 +72,6 @@ export default function DashboardScreen({ now = new Date() }: DashboardScreenPro
     i18n.language
   );
 
-  const payerNames = new Map(payers.map((payer) => [payer.id, payer.name]));
-  const bankNames = new Map(banks.map((bank) => [bank.id, bank.name]));
-  const payerLabel = (id: string) =>
-    id ? (payerNames.get(id) ?? t('bills.removedPayer')) : t('bills.unassignedPayer');
-  const bankLabel = (id: string) =>
-    id ? (bankNames.get(id) ?? t('bills.removedBank')) : t('bills.unassignedBank');
-
   // A month with neither income nor bills says nothing; the plan block hides when
   // there is no plan to pace against. The open-bills block always shows, so the
   // good news ("nothing left to pay") is never silent.
@@ -80,12 +82,7 @@ export default function DashboardScreen({ now = new Date() }: DashboardScreenPro
   const fillPercent = Math.min(100, Math.round(pace.spendRatio * 100));
   const monthPercent = Math.min(100, Math.round(pace.monthRatio * 100));
 
-  const barColor =
-    pace.level === 'over'
-      ? 'bg-red-600'
-      : pace.level === 'ahead'
-        ? 'bg-amber-500'
-        : 'bg-green-500';
+  const barColor = BAR_COLOR[pace.level];
 
   return (
     <div className="mx-auto w-full max-w-md px-4 py-6">
@@ -162,7 +159,9 @@ export default function DashboardScreen({ now = new Date() }: DashboardScreenPro
             <div
               aria-hidden="true"
               className="absolute inset-y-0 w-px bg-gray-400/70"
-              style={{ left: `${monthPercent}%` }}
+              // Clamped just inside the clipped track so the marker stays visible
+              // even on the last day, when the month is 100% elapsed.
+              style={{ left: `${Math.min(monthPercent, 99)}%` }}
             />
           </div>
 
@@ -200,46 +199,17 @@ export default function DashboardScreen({ now = new Date() }: DashboardScreenPro
         ) : (
           <ul className="mt-2 divide-y divide-gray-100">
             {openBills.map((bill) => (
-              <li key={bill.id} className="flex items-start gap-2 py-2">
-                {/* The paid toggle is a sibling of the row button, as on the
-                    Bills screen — a checkbox nested in a button is invalid. */}
-                <input
-                  id={`dashboard-paid-${bill.id}`}
-                  type="checkbox"
-                  checked={bill.isPaid}
-                  onChange={() => dispatch(toggleBillPaid(bill.id))}
-                  aria-label={t('bills.markPaid', { name: bill.name })}
-                  className="mt-1 h-4 w-4 shrink-0 rounded border-gray-300"
-                />
-                <button
-                  type="button"
-                  onClick={() => navigate(`/bills/edit/${bill.id}`)}
-                  aria-label={t('bills.edit', { name: bill.name })}
-                  className="flex min-w-0 flex-1 flex-col gap-1 text-left"
-                >
-                  <span className="flex items-center justify-between gap-2">
-                    <span className="flex min-w-0 flex-1 items-center gap-1">
-                      {!bill.isFinal && (
-                        <span
-                          role="img"
-                          aria-label={t('bills.notFinal')}
-                          title={t('bills.notFinal')}
-                          className="shrink-0 text-sm"
-                        >
-                          ⚠️
-                        </span>
-                      )}
-                      <span className="min-w-0 truncate text-sm text-gray-900">{bill.name}</span>
-                    </span>
-                    <span className="text-sm font-medium text-gray-900">
-                      {formatCurrency(bill.amount, i18n.language)}
-                    </span>
-                  </span>
-                  <span className="min-w-0 truncate text-xs text-gray-500">
-                    {payerLabel(bill.payerId)} · {bankLabel(bill.bankId)}
-                  </span>
-                </button>
-              </li>
+              <BillRow
+                key={bill.id}
+                bill={bill}
+                locale={i18n.language}
+                payerLabel={payerLabel}
+                bankLabel={bankLabel}
+                showStatus={false}
+                idPrefix="dashboard-paid"
+                onTogglePaid={(id) => dispatch(toggleBillPaid(id))}
+                onEdit={(id) => navigate(`/bills/edit/${id}`)}
+              />
             ))}
           </ul>
         )}
@@ -290,7 +260,7 @@ function CashFlowBar({
   ariaLabel: string;
   onClick: () => void;
 }) {
-  const percent = Math.round((value / max) * 100);
+  const percent = Math.max(0, Math.round((value / max) * 100));
   return (
     <li>
       <button

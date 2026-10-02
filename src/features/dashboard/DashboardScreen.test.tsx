@@ -103,6 +103,12 @@ function renderDashboard(data: DashboardData = {}) {
   return store;
 }
 
+/** The plan bar's coloured fill, for asserting the pace colour binding. */
+function planFill(): HTMLElement {
+  const bar = screen.getByRole('progressbar', { name: 'Total gasto até agora' });
+  return bar.firstElementChild as HTMLElement;
+}
+
 beforeEach(async () => {
   vi.clearAllMocks();
   await i18n.changeLanguage('pt-BR');
@@ -179,12 +185,13 @@ describe('Dashboard — Spending Plan', () => {
       cardSpending: [cardTotal('card-1', 100)],
     });
 
-    // Then the totals show and the bar is a tenth full with no callout
+    // Then the totals show and the bar is a tenth full, green, with no callout
     expect(screen.getByText('Total do plano')).toBeInTheDocument();
     expect(screen.getByRole('progressbar', { name: 'Total gasto até agora' })).toHaveAttribute(
       'aria-valuenow',
       '10'
     );
+    expect(planFill()).toHaveClass('bg-green-500');
     expect(screen.queryByText(/acima do plano/)).not.toBeInTheDocument();
     expect(screen.queryByText(/antes do teto do plano/)).not.toBeInTheDocument();
   });
@@ -197,6 +204,7 @@ describe('Dashboard — Spending Plan', () => {
     });
 
     // Then the yellow callout names the money still left before the ceiling
+    expect(planFill()).toHaveClass('bg-amber-500');
     expect(screen.getByText(/200,00 restantes antes do teto do plano/)).toBeInTheDocument();
   });
 
@@ -207,11 +215,12 @@ describe('Dashboard — Spending Plan', () => {
       cardSpending: [cardTotal('card-1', 1100)],
     });
 
-    // Then the bar is full and the red callout names the 100 over
+    // Then the bar is full and red, and the callout names the 100 over
     expect(screen.getByRole('progressbar', { name: 'Total gasto até agora' })).toHaveAttribute(
       'aria-valuenow',
       '100'
     );
+    expect(planFill()).toHaveClass('bg-red-600');
     expect(screen.getByText(/100,00 acima do plano/)).toBeInTheDocument();
   });
 

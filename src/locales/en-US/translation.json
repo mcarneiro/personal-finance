@@ -29,8 +29,7 @@
     "planAhead": "{{amount}} left before the plan ceiling",
     "planOver": "{{amount}} over the plan",
     "viewIncome": "View month's income",
-    "viewBills": "View month's bills",
-    "viewPlan": "View month's plan"
+    "viewBills": "View month's bills"
   },
   "onboarding": {
     "title": "Welcome to Planyoo",

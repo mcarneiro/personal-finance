@@ -22,8 +22,10 @@ import { isValidMonth, shiftMonth } from '../../utils/month';
 import { useCopyGuard } from '../../hooks/useCopyGuard';
 import { usePersistentState } from '../../hooks/usePersistentState';
 import { usePersistentToggle } from '../../hooks/usePersistentToggle';
+import { useRegistryLabels } from '../../hooks/useRegistryLabels';
 import NeedsRegistryNotice from './NeedsRegistryNotice';
 import BillFilterDrawer from './BillFilterDrawer';
+import BillRow from './BillRow';
 
 /**
  * The Bills screen for one month: payment obligations added by hand (name,
@@ -83,6 +85,8 @@ export default function BillsScreen() {
     'bills',
     month
   );
+  // Resolve payer/bank names the same way the Dashboard does.
+  const { payerLabel, bankLabel } = useRegistryLabels();
 
   if (!isValidMonth(month)) {
     // MonthScaffold owns the redirect; nothing to list until it settles.
@@ -96,14 +100,6 @@ export default function BillsScreen() {
   const filterOptions = billFilterOptions(monthBills, banks, payers);
   const filterActive = !isBillFilterEmpty(filter);
   const visibleBills = orderBills(filterBills(monthBills, filter), i18n.language);
-
-  const payerNames = new Map(payers.map((payer) => [payer.id, payer.name]));
-  const bankNames = new Map(banks.map((bank) => [bank.id, bank.name]));
-  /** Resolve a registry name, falling back for unset vs. since-removed entries. */
-  const payerLabel = (id: string) =>
-    id ? (payerNames.get(id) ?? t('bills.removedPayer')) : t('bills.unassignedPayer');
-  const bankLabel = (id: string) =>
-    id ? (bankNames.get(id) ?? t('bills.removedBank')) : t('bills.unassignedBank');
 
   // One line per active facet, naming every selected reference. Kept short and
   // stacked so the block stays no taller than the filter button beside it.
@@ -313,68 +309,15 @@ export default function BillsScreen() {
           ) : (
             <ul className="divide-y divide-gray-100">
               {visibleBills.map((bill) => (
-                <li key={bill.id} className="flex items-start gap-2 py-2">
-                  {/* The paid toggle stays a sibling of the row button — a
-                      checkbox nested in a button would be invalid and awkward
-                      to reach with a screen reader. */}
-                  <input
-                    id={`paid-${bill.id}`}
-                    type="checkbox"
-                    checked={bill.isPaid}
-                    onChange={() => dispatch(toggleBillPaid(bill.id))}
-                    aria-label={t(bill.isPaid ? 'bills.markOpen' : 'bills.markPaid', {
-                      name: bill.name,
-                    })}
-                    className="mt-1 h-4 w-4 shrink-0 rounded border-gray-300"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => navigate(`/bills/edit/${bill.id}`)}
-                    aria-label={t('bills.edit', { name: bill.name })}
-                    className="flex min-w-0 flex-1 flex-col gap-1 text-left"
-                  >
-                    <span className="flex items-center justify-between gap-2">
-                      <span className="flex min-w-0 flex-1 items-center gap-1">
-                        {!bill.isFinal && (
-                          <span
-                            role="img"
-                            aria-label={t('bills.notFinal')}
-                            title={t('bills.notFinal')}
-                            className="shrink-0 text-sm"
-                          >
-                            ⚠️
-                          </span>
-                        )}
-                        <span
-                          className={`min-w-0 truncate text-sm ${
-                            bill.isPaid ? 'text-gray-400 line-through' : 'text-gray-900'
-                          }`}
-                        >
-                          {bill.name}
-                        </span>
-                      </span>
-                      <span
-                        className={`text-sm font-medium ${
-                          bill.isPaid ? 'text-gray-400 line-through' : 'text-gray-900'
-                        }`}
-                      >
-                        {formatCurrency(bill.amount, i18n.language)}
-                      </span>
-                    </span>
-                    <span className="flex items-center justify-between gap-2">
-                      <span className="min-w-0 truncate text-xs text-gray-500">
-                        {payerLabel(bill.payerId)} · {bankLabel(bill.bankId)}
-                      </span>
-                      <span
-                        className={`shrink-0 text-xs font-medium ${
-                          bill.isPaid ? 'text-green-600' : 'text-amber-600'
-                        }`}
-                      >
-                        {t(bill.isPaid ? 'bills.paid' : 'bills.open')}
-                      </span>
-                    </span>
-                  </button>
-                </li>
+                <BillRow
+                  key={bill.id}
+                  bill={bill}
+                  locale={i18n.language}
+                  payerLabel={payerLabel}
+                  bankLabel={bankLabel}
+                  onTogglePaid={(id) => dispatch(toggleBillPaid(id))}
+                  onEdit={(id) => navigate(`/bills/edit/${id}`)}
+                />
               ))}
             </ul>
           )}
