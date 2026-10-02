@@ -5,20 +5,27 @@ import AmountInput from '../plan/AmountInput';
 import NeedsPotRegistryNotice from './NeedsPotRegistryNotice';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { deleteSavingsBalance, upsertSavingsBalance } from '../../store/savingsSlice';
-import { potBalance } from '../../utils/savings';
+import { potBalance, totalSaved } from '../../utils/savings';
+import { formatCurrency } from '../../utils/currency';
 import { getMonthName, isValidMonth } from '../../utils/month';
 
 /**
- * The Savings screen for one month: every active pot with an inline editable
- * Savings Balance, the same check-in pattern as the card totals and remaining
- * estimates. Committing a value upserts the month's `savings_balances` row for
- * that pot; clearing the field deletes that month's row so carry-forward
- * resumes; an explicit `0` is a recorded zero (ADR-0011). A pot with no record
- * in the browsed month shows its carried balance, marked with the earlier month
- * it came from; a pot recorded in no month at all shows an empty field and no
- * value is ever fabricated. Pots are a Settings registry — there is no add
- * affordance or editor here. Derived numbers are not stored; the Total Saved
- * headline lands with ticket 05.
+ * The Savings screen for one month: the Total Saved headline, then every active
+ * pot with an inline editable Savings Balance, the same check-in pattern as the
+ * card totals and remaining estimates. Committing a value upserts the month's
+ * `savings_balances` row for that pot; clearing the field deletes that month's
+ * row so carry-forward resumes; an explicit `0` is a recorded zero (ADR-0011).
+ * A pot with no record in the browsed month shows its carried balance, marked
+ * with the earlier month it came from; a pot recorded in no month at all shows
+ * an empty field and no value is ever fabricated. Pots are a Settings registry —
+ * there is no add affordance or editor here.
+ *
+ * Total Saved is derived live by `totalSaved` from the active pots' carried
+ * balances and never stored (ADR-0011): it drops by a pot's carried balance the
+ * moment that pot is retired, and falls back to the carried value the moment a
+ * month's record is cleared. There is deliberately no target, goal progress or
+ * month-over-month delta, and a short line states that savings are independent
+ * of income, outflows and Account Net.
  */
 export default function SavingsScreen() {
   const { t, i18n } = useTranslation();
@@ -40,8 +47,26 @@ export default function SavingsScreen() {
     );
   }
 
+  const total = totalSaved(month, pots, balances);
+
   return (
     <MonthScaffold basePath="/savings">
+      {/* Total Saved is a derived number: never stored in state or the sheet,
+          summed from the active pots' carried balances (ADR-0011). The scope
+          line keeps savings from being read as part of the account ledger. */}
+      <section
+        aria-label={t('savings.summary')}
+        className="mt-4 rounded-lg bg-white p-4 shadow-sm"
+      >
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium text-gray-700">{t('savings.total')}</span>
+          <span className="text-lg font-bold text-gray-900">
+            {formatCurrency(total, i18n.language)}
+          </span>
+        </div>
+        <p className="mt-2 text-xs leading-tight text-gray-500">{t('savings.independent')}</p>
+      </section>
+
       <section
         aria-label={t('savings.title')}
         className="mt-4 rounded-lg bg-white p-4 shadow-sm"

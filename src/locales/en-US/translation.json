@@ -159,7 +159,9 @@
     "lastUpdated": "Updated in {{month}}",
     "emptyRegistry": "Register at least one savings pot in Settings to record balances.",
     "emptyRegistryCta": "Go to Settings",
-    "total": "Total saved"
+    "summary": "Savings summary",
+    "total": "Total saved",
+    "independent": "Savings do not affect income, outflows or account net."
   },
   "settings": {
     "title": "Settings",

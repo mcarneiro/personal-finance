@@ -159,7 +159,9 @@
     "lastUpdated": "Atualizado em {{month}}",
     "emptyRegistry": "Cadastre ao menos uma poupança em Ajustes para registrar saldos.",
     "emptyRegistryCta": "Ir para Ajustes",
-    "total": "Total guardado"
+    "summary": "Resumo das poupanças",
+    "total": "Total guardado",
+    "independent": "As poupanças não afetam a renda, as saídas nem o saldo da conta."
   },
   "settings": {
     "title": "Ajustes",

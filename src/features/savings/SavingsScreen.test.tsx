@@ -241,6 +241,102 @@ describe('Savings', () => {
   });
 });
 
+describe('Total Saved', () => {
+  const summary = () => within(screen.getByRole('region', { name: 'Resumo das poupanças' }));
+
+  it('sums the carried balances of the active pots', () => {
+    // Given Emergency is recorded in June and Retirement only in May
+    renderSavings(
+      `/savings/${JUNE}`,
+      [EMERGENCY, RETIREMENT],
+      [
+        balance(JUNE, EMERGENCY.id, 11000),
+        balance(MAY, RETIREMENT.id, 40000),
+      ]
+    );
+
+    // When I look at the headline
+    // Then it is June's 11000 plus May's carried 40000
+    expect(summary().getByText('Total guardado')).toBeInTheDocument();
+    expect(summary().getByText(/51\.000,00/)).toBeInTheDocument();
+  });
+
+  it('falls back to the carried value in the total after the month’s balance is cleared', async () => {
+    // Given May and June both have recorded balances
+    renderSavings(
+      `/savings/${JUNE}`,
+      [EMERGENCY],
+      [balance(MAY, EMERGENCY.id, 1000), balance(JUNE, EMERGENCY.id, 1500)]
+    );
+    const user = userEvent.setup();
+    expect(summary().getByText(/1\.500,00/)).toBeInTheDocument();
+
+    // When I clear June's field and leave it
+    await user.clear(balanceField());
+    await user.tab();
+
+    // Then the total falls back to the carried May value
+    await waitFor(() => expect(summary().getByText(/1\.000,00/)).toBeInTheDocument());
+    expect(summary().queryByText(/1\.500,00/)).not.toBeInTheDocument();
+  });
+
+  it('counts nothing for a pot with no record and moves with a typed balance', async () => {
+    // Given a pot with no recorded balance
+    renderSavings(`/savings/${JUNE}`, [EMERGENCY]);
+    const user = userEvent.setup();
+    expect(summary().getByText(/0,00/)).toBeInTheDocument();
+
+    // When I type a balance
+    await user.type(balanceField(), '2000');
+
+    // Then the total updates immediately
+    await waitFor(() => expect(summary().getByText(/2\.000,00/)).toBeInTheDocument());
+  });
+
+  it('drops a retired pot’s carried balance from the total', async () => {
+    // Given two pots with balances, and a store I can dispatch a retirement to
+    const store = renderSavings(
+      `/savings/${JUNE}`,
+      [EMERGENCY, RETIREMENT],
+      [
+        balance(JUNE, EMERGENCY.id, 11000),
+        balance(JUNE, RETIREMENT.id, 40000),
+      ]
+    );
+    expect(summary().getByText(/51\.000,00/)).toBeInTheDocument();
+
+    // When the Retirement pot is retired
+    const { deleteSavingsPot } = await import('../../store/savingsSlice');
+    store.dispatch(deleteSavingsPot(RETIREMENT.id));
+
+    // Then the total drops by exactly its carried balance
+    await waitFor(() => expect(summary().getByText(/11\.000,00/)).toBeInTheDocument());
+  });
+
+  it('states that savings do not affect income, outflows or account net', () => {
+    // Given a registered pot
+    renderSavings(`/savings/${JUNE}`, [EMERGENCY]);
+
+    // Then the scope line is shown
+    expect(
+      screen.getByText('As poupanças não afetam a renda, as saídas nem o saldo da conta.')
+    ).toBeInTheDocument();
+  });
+
+  it('shows no target, goal, progress bar or month-over-month delta', () => {
+    // Given two pots with balances
+    renderSavings(
+      `/savings/${JUNE}`,
+      [EMERGENCY, RETIREMENT],
+      [balance(JUNE, EMERGENCY.id, 11000), balance(MAY, RETIREMENT.id, 40000)]
+    );
+
+    // Then the savings UI carries only the total and the check-in fields
+    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+    expect(screen.queryByText(/meta/i)).not.toBeInTheDocument();
+  });
+});
+
 describe('Savings screen chrome', () => {
   it('has no inline add or remove affordances', () => {
     // Given a registered pot
