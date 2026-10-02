@@ -6,6 +6,7 @@ import {
   billFilterOptions,
   filterBills,
   isBillFilterEmpty,
+  parseBillFilter,
 } from '../billFilter';
 
 const MARCELO: Payer = { id: 'payer-marcelo', name: 'Marcelo' };
@@ -180,5 +181,39 @@ describe('billFilterCount and isBillFilterEmpty', () => {
     // Then it is empty and counts zero
     expect(isBillFilterEmpty(EMPTY_BILL_FILTER)).toBe(true);
     expect(billFilterCount(EMPTY_BILL_FILTER)).toBe(0);
+  });
+});
+
+describe('parseBillFilter', () => {
+  it('accepts a well-formed stored filter and copies its id arrays', () => {
+    // Given a stored filter with both facets set
+    const stored = { payerIds: [GUTA.id], bankIds: [ITAU.id, NUBANK.id] };
+
+    // When I parse it
+    const parsed = parseBillFilter(stored);
+
+    // Then the filter comes back with the same selections
+    expect(parsed).toEqual({ payerIds: [GUTA.id], bankIds: [ITAU.id, NUBANK.id] });
+    expect(parsed).not.toBe(stored);
+  });
+
+  it('accepts an empty filter', () => {
+    // Given an empty stored filter
+    // When I parse it
+    // Then it is a valid, empty selection
+    expect(parseBillFilter({ payerIds: [], bankIds: [] })).toEqual(EMPTY_BILL_FILTER);
+  });
+
+  it.each([
+    ['null', null],
+    ['a primitive', 'payer-guta'],
+    ['a missing facet', { payerIds: [] }],
+    ['a non-array facet', { payerIds: 'payer-guta', bankIds: [] }],
+    ['a non-string id', { payerIds: [1], bankIds: [] }],
+  ])('rejects %s so the caller falls back to no filter', (_label, raw) => {
+    // Given a malformed stored value
+    // When I parse it
+    // Then it is rejected rather than coerced
+    expect(parseBillFilter(raw)).toBeNull();
   });
 });

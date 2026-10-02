@@ -24,6 +24,23 @@ export function isBillFilterEmpty(filter: BillFilter): boolean {
   return filter.payerIds.length === 0 && filter.bankIds.length === 0;
 }
 
+/**
+ * Read a `BillFilter` back from storage. Only an object with two arrays of
+ * string ids is accepted; anything else — a stale shape, a corrupt value or a
+ * hand-edited entry — yields null so the caller can fall back to no filter
+ * instead of crashing on a malformed selection.
+ */
+export function parseBillFilter(raw: unknown): BillFilter | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const candidate = raw as { payerIds?: unknown; bankIds?: unknown };
+  const ids = (value: unknown): string[] | null =>
+    Array.isArray(value) && value.every((id) => typeof id === 'string') ? [...value] : null;
+  const payerIds = ids(candidate.payerIds);
+  const bankIds = ids(candidate.bankIds);
+  if (payerIds === null || bankIds === null) return null;
+  return { payerIds, bankIds };
+}
+
 /** The checkbox options the filter drawer offers for a month. */
 export interface BillFilterOptions {
   payerIds: string[];

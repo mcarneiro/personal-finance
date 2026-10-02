@@ -1,4 +1,5 @@
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
+import { usePersistentState } from './usePersistentState';
 
 /**
  * A boolean view preference that outlives the session. The value is read from
@@ -10,26 +11,11 @@ import { useCallback, useState } from 'react';
  * swallowed: an unremembered toggle must never break the screen.
  */
 export function usePersistentToggle(key: string, fallback = false): [boolean, () => void] {
-  const [enabled, setEnabled] = useState<boolean>(() => {
-    try {
-      const stored = localStorage.getItem(key);
-      return stored === null ? fallback : stored === 'true';
-    } catch {
-      return fallback;
-    }
-  });
+  const [enabled, setEnabled] = usePersistentState<boolean>(key, fallback);
 
   const toggle = useCallback(() => {
-    setEnabled((current) => {
-      const next = !current;
-      try {
-        localStorage.setItem(key, String(next));
-      } catch {
-        // Nothing to do: a preference that cannot be stored still works in-session.
-      }
-      return next;
-    });
-  }, [key]);
+    setEnabled((current) => !current);
+  }, [setEnabled]);
 
   return [enabled, toggle];
 }

@@ -86,6 +86,7 @@
     "summary": "Month summary",
     "billsTotal": "Bills total",
     "incomeTotal": "Income total",
+    "viewIncome": "View month's income",
     "accountNet": "Account net",
     "nameLabel": "Bill name",
     "amountLabel": "Bill amount",

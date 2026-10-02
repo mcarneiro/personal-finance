@@ -1,6 +1,6 @@
 # Planyoo
 
-A household card-spending planner. Planyoo plans card spending as spending buckets, tracks weekly card check-ins and per-bucket remaining estimates, projects the month result live, and tracks income and bills — including who pays each bill, from which bank, whether each amount is final, a by-payer spending summary that can swap to the amount still to pay per payer and bank, a payer/bank filter on the bill list that spells out the active filters, and one-tap replication of last month's bills. All data lives in your own Google Sheet.
+A household card-spending planner. Planyoo plans card spending as spending buckets, tracks weekly card check-ins and per-bucket remaining estimates, projects the month result live, and tracks income and bills — including who pays each bill, from which bank, whether each amount is final, a by-payer spending summary that can swap to the amount still to pay per payer and bank, a payer/bank filter on the bill list that spells out the active filters, and one-tap replication of last month's bills. The Bills screen's filter and by-payer summary state are remembered on the device, and the income total links straight to that month's Income screen. All data lives in your own Google Sheet.
 
 See `prd.md` for the product spec, `CONTEXT.md` for the domain glossary, and `docs/adr/` for the hard decisions.
 

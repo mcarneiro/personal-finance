@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 import MonthScaffold from '../../components/MonthScaffold';
@@ -13,12 +13,14 @@ import {
   billFilterOptions,
   filterBills,
   isBillFilterEmpty,
+  parseBillFilter,
   type BillFilter,
 } from '../../utils/billFilter';
 import { copyBills } from '../../utils/billCopy';
 import { formatCurrency } from '../../utils/currency';
 import { isValidMonth, shiftMonth } from '../../utils/month';
 import { useCopyGuard } from '../../hooks/useCopyGuard';
+import { usePersistentState } from '../../hooks/usePersistentState';
 import { usePersistentToggle } from '../../hooks/usePersistentToggle';
 import NeedsRegistryNotice from './NeedsRegistryNotice';
 import BillFilterDrawer from './BillFilterDrawer';
@@ -27,24 +29,25 @@ import BillFilterDrawer from './BillFilterDrawer';
  * The Bills screen for one month: payment obligations added by hand (name,
  * amount, payer, bank — the card bill is just another bill with its real
  * statement value), each with a paid toggle, plus the month's bills total,
- * income total and the account net (income − bills). Below the totals sits the
- * by-payer spending summary, collapsed until opened, then the month's bills
+ * income total and the account net (income − bills). The income total is a
+ * shortcut to the same month on the Income screen. Below the totals sits the
+ * by-payer spending summary, collapsed by default, then the month's bills
  * ordered final-first, open-first and alphabetically. A bill whose value is not
  * final is flagged with a warning before its name and sinks to the bottom, so a
  * replicated month gathers the variable amounts still needing review. A small
  * filter icon between the summary and the list opens a right-side drawer that
  * narrows the list by payer and/or bank (OR within a facet, AND across facets);
- * that filter is view state only — it resets with the browsed month and never
- * touches the totals or the summary, which always keep the full month. The
- * applied filters are spelled out beside the icon so the list is never silently
- * narrowed. The by-payer summary can also swap each payer's and bank's value to
- * what is still to pay, a preference remembered locally. The
- * replicate-last-month button copies last month's obligations so recurring bills
- * need no retyping; the copies arrive open and not final (never pre-paid or
- * pre-confirmed) and can be edited freely. The derived numbers
- * come from the control-loop utilities and the bill-summary utility and are
- * never stored; every mutation syncs through the debounced middleware onto the
- * bills tab.
+ * that filter is view state only — a device preference remembered locally, so
+ * it is restored on the next visit and never touches the totals or the summary,
+ * which always keep the full month. The applied filters are spelled out beside
+ * the icon so the list is never silently narrowed. The by-payer summary's
+ * expanded state and its swap of each payer's and bank's value to what is still
+ * to pay are both remembered locally. The replicate-last-month button copies
+ * last month's obligations so recurring bills need no retyping; the copies
+ * arrive open and not final (never pre-paid or pre-confirmed) and can be edited
+ * freely. The derived numbers come from the control-loop utilities and the
+ * bill-summary utility and are never stored; every mutation syncs through the
+ * debounced middleware onto the bills tab.
  */
 export default function BillsScreen() {
   const { t, i18n } = useTranslation();
@@ -57,11 +60,16 @@ export default function BillsScreen() {
   const payers = useAppSelector((state) => state.payers.items);
   // The by-payer summary starts folded so the month's bills — the thing being
   // checked off — lead the page; the totals stay visible as the section header.
-  const [summaryOpen, setSummaryOpen] = useState(false);
+  // Whether it is open is a device preference, so it is remembered locally.
+  const [summaryOpen, toggleSummaryOpen] = usePersistentToggle('planyoo:bills:summaryOpen');
   // The payer/bank filter is pure view state: it never reaches Redux or the
-  // sheet, and it resets with the browsed month so a stale selection can never
-  // hide a new month's list.
-  const [filter, setFilter] = useState<BillFilter>(EMPTY_BILL_FILTER);
+  // sheet. It is a device preference remembered locally, so a selection made in
+  // one visit — or one month — is restored on the next.
+  const [filter, setFilter] = usePersistentState<BillFilter>(
+    'planyoo:bills:filter',
+    EMPTY_BILL_FILTER,
+    parseBillFilter
+  );
   const [filterOpen, setFilterOpen] = useState(false);
   // Whether the by-payer summary also shows what is still to pay per payer and
   // bank. A local display preference, not a derived number, so it is remembered
@@ -75,10 +83,6 @@ export default function BillsScreen() {
     'bills',
     month
   );
-
-  useEffect(() => {
-    setFilter(EMPTY_BILL_FILTER);
-  }, [month]);
 
   if (!isValidMonth(month)) {
     // MonthScaffold owns the redirect; nothing to list until it settles.
@@ -129,12 +133,17 @@ export default function BillsScreen() {
             {formatCurrency(billsTotal(month, bills), i18n.language)}
           </span>
         </div>
-        <div className="mt-2 flex items-center justify-between">
+        <button
+          type="button"
+          onClick={() => navigate(`/income/${month}`)}
+          aria-label={t('bills.viewIncome')}
+          className="mt-2 flex w-full items-center justify-between rounded-md text-left transition-colors hover:bg-gray-50"
+        >
           <span className="text-sm text-gray-700">{t('bills.incomeTotal')}</span>
-          <span className="text-sm font-medium text-gray-900">
+          <span className="text-sm font-medium text-blue-600">
             {formatCurrency(incomeTotal(month, income), i18n.language)}
           </span>
-        </div>
+        </button>
         <div className="mt-3 flex items-center justify-between border-t border-gray-100 pt-3">
           <span className="text-sm font-medium text-gray-700">{t('bills.accountNet')}</span>
           <span className="text-lg font-bold text-gray-900">
@@ -178,7 +187,7 @@ export default function BillsScreen() {
         <h2>
           <button
             type="button"
-            onClick={() => setSummaryOpen((open) => !open)}
+            onClick={toggleSummaryOpen}
             aria-expanded={summaryOpen}
             aria-controls="by-payer-summary"
             className="flex w-full items-center justify-between gap-2 text-left"

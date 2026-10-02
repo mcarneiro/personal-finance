@@ -86,6 +86,7 @@
     "summary": "Resumo do mês",
     "billsTotal": "Total das contas",
     "incomeTotal": "Total da renda",
+    "viewIncome": "Ver renda do mês",
     "accountNet": "Saldo da conta",
     "nameLabel": "Nome da conta",
     "amountLabel": "Valor da conta",

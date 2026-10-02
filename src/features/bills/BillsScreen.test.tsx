@@ -115,6 +115,7 @@ function renderBills(
           <Route path="/bills/:month" element={<BillsScreen />} />
           <Route path="/bills/edit/:id" element={<p>Editor da conta</p>} />
           <Route path="/bills/new/:month" element={<p>Nova conta</p>} />
+          <Route path="/income/:month" element={<p>Página de renda</p>} />
           <Route path="/settings" element={<p>Ajustes</p>} />
         </Routes>
       </MemoryRouter>
@@ -344,6 +345,18 @@ describe('Bills', () => {
     expect(summaryRow('Saldo da conta').getByText(/8\.951,00/)).toBeInTheDocument();
   });
 
+  it('opens the same month on the Income screen from the income total', async () => {
+    // Given June has income and I am browsing June
+    renderBills(`/bills/${JUNE}`, [], [incomeEntry(JUNE, 12000, 'Salário')]);
+    const user = userEvent.setup();
+
+    // When I tap the income total
+    await user.click(screen.getByRole('button', { name: 'Ver renda do mês' }));
+
+    // Then the Income screen for the same month opens
+    expect(screen.getByText('Página de renda')).toBeInTheDocument();
+  });
+
   it('groups the month spending by payer and then by bank', async () => {
     // Given June's bills split across two payers and two banks
     renderBills(`/bills/${JUNE}`, [
@@ -401,6 +414,18 @@ describe('Bills', () => {
 
     // Then the preference is persisted for the next visit
     expect(localStorage.getItem('planyoo:bills:showRemaining')).toBe('true');
+  });
+
+  it('remembers whether the by-payer summary is expanded', async () => {
+    // Given June has a bill and the summary starts collapsed
+    renderBills(`/bills/${JUNE}`, [bill({ month: JUNE, name: 'Luz', amount: 150 })]);
+    const user = userEvent.setup();
+
+    // When I expand the summary
+    await user.click(summaryToggle());
+
+    // Then the open state is persisted for the next visit
+    expect(localStorage.getItem('planyoo:bills:summaryOpen')).toBe('true');
   });
 
   it('still counts a bill whose payer and bank were removed from the registries', async () => {
@@ -701,7 +726,7 @@ describe('Bill filter', () => {
     expect(filterDrawer().getByRole('checkbox', { name: 'Sem banco' })).toBeInTheDocument();
   });
 
-  it('resets the filter when the browsed month changes', async () => {
+  it('keeps the filter when the browsed month changes', async () => {
     // Given the current month has a Marcelo bill and a Guta bill
     renderBills(`/bills/${CURRENT}`, [
       bill({ month: CURRENT, name: 'Luz', amount: 150 }),
@@ -715,9 +740,27 @@ describe('Bill filter', () => {
     await user.click(screen.getByRole('button', { name: 'Próximo mês' }));
     await user.click(screen.getByRole('button', { name: 'Mês anterior' }));
 
-    // Then the new month starts unfiltered — a stale selection never hides it
-    expect(screen.getByText('Luz')).toBeInTheDocument();
+    // Then the selection is a remembered preference and still narrows the list
+    expect(screen.queryByText('Luz')).not.toBeInTheDocument();
     expect(screen.getByText('Cartão guta')).toBeInTheDocument();
+    expect(screen.getByText('Responsável: Guta')).toBeInTheDocument();
+  });
+
+  it('remembers the filter in local storage', async () => {
+    // Given June has a Marcelo bill and a Guta bill
+    renderBills(`/bills/${JUNE}`, [
+      bill({ month: JUNE, name: 'Luz', amount: 150 }),
+      bill({ month: JUNE, name: 'Cartão guta', amount: 2899, payerId: 'payer-guta', bankId: 'bank-itau' }),
+    ]);
+    const user = userEvent.setup();
+
+    // When I filter by Guta and Itaú
+    await applyFilter(user, 'Guta', 'Itaú');
+
+    // Then the selection is persisted for the next visit
+    expect(localStorage.getItem('planyoo:bills:filter')).toBe(
+      JSON.stringify({ payerIds: ['payer-guta'], bankIds: ['bank-itau'] })
+    );
   });
 
   it('spells out the active filters to the left of the filter control', async () => {
