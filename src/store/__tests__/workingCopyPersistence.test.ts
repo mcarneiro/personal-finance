@@ -12,6 +12,10 @@ import incomeReducer from '../incomeSlice';
 import payersReducer from '../payersSlice';
 import pendingReducer from '../pendingSlice';
 import planReducer from '../planSlice';
+import savingsReducer, {
+  addSavingsPot,
+  upsertSavingsBalance,
+} from '../savingsSlice';
 import settingsReducer, { setSheetId } from '../settingsSlice';
 
 vi.mock('../../services/GoogleSheetsService', () => ({
@@ -47,6 +51,7 @@ function makeStore() {
       plan: planReducer,
       outflows: outflowsReducer,
       income: incomeReducer,
+      savings: savingsReducer,
       settings: settingsReducer,
       pending: pendingReducer,
     },
@@ -118,5 +123,43 @@ describe('Working Copy persistence after a write', () => {
 
     // Then the retried write clears the Pending Change
     expect(store.getState().pending.changes.outflows?.b1).toBeUndefined();
+  });
+
+  it('writes a new savings pot and caches it in the snapshot', async () => {
+    // Given a connected store
+    const store = makeStore();
+
+    // When a pot is added to the registry
+    store.dispatch(addSavingsPot({ id: 'pot-1', name: 'Emergência' }));
+
+    // Then it is written to the savings_pots tab and cached
+    await vi.waitFor(() => {
+      expect(googleSheetsService.writePendingChanges).toHaveBeenCalledWith(
+        'sheet-1',
+        expect.objectContaining({ savings_pots: expect.anything() })
+      );
+      expect(loadWorkingCopy('sheet-1')?.savingsPots).toEqual([
+        { id: 'pot-1', name: 'Emergência' },
+      ]);
+    }, { timeout: 2500 });
+  });
+
+  it('writes a checked-in savings balance and caches it', async () => {
+    // Given a connected store
+    const store = makeStore();
+
+    // When a pot's balance is committed for a month
+    store.dispatch(upsertSavingsBalance({ month: '2026-06', potId: 'pot-1', balance: 11000 }));
+
+    // Then the row is written to the savings_balances tab and cached
+    await vi.waitFor(() => {
+      expect(googleSheetsService.writePendingChanges).toHaveBeenCalledWith(
+        'sheet-1',
+        expect.objectContaining({ savings_balances: expect.anything() })
+      );
+      expect(loadWorkingCopy('sheet-1')?.savingsBalances).toEqual([
+        { id: '2026-06-pot-1', month: '2026-06', potId: 'pot-1', balance: 11000 },
+      ]);
+    }, { timeout: 2500 });
   });
 });

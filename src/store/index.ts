@@ -6,6 +6,7 @@ import payersReducer from './payersSlice';
 import planReducer from './planSlice';
 import outflowsReducer from './outflowsSlice';
 import incomeReducer from './incomeSlice';
+import savingsReducer from './savingsSlice';
 import settingsReducer from './settingsSlice';
 import pendingReducer from './pendingSlice';
 import { syncListenerMiddleware } from './middleware/syncListener';
@@ -19,6 +20,7 @@ export const store = configureStore({
     plan: planReducer,
     outflows: outflowsReducer,
     income: incomeReducer,
+    savings: savingsReducer,
     settings: settingsReducer,
     pending: pendingReducer,
   },

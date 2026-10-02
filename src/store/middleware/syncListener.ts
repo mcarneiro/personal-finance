@@ -5,6 +5,13 @@ import { addPayer, deletePayer, updatePayer } from '../payersSlice';
 import { addOutflow, addOutflows, deleteOutflow, toggleOutflowPaid, updateOutflow } from '../outflowsSlice';
 import { addIncomeEntries, addIncomeEntry, deleteIncomeEntry, updateIncomeEntry } from '../incomeSlice';
 import {
+  addSavingsPot,
+  deleteSavingsBalance,
+  deleteSavingsPot,
+  updateSavingsPot,
+  upsertSavingsBalance,
+} from '../savingsSlice';
+import {
   addPlanItem,
   addPlanItems,
   deletePlanItem,
@@ -344,5 +351,82 @@ startAppListening({
     if (!settings.sheetId || settings.sheetId !== sheetIdAtChange) return;
 
     await flushPendingTab(listenerApi, 'income', settings.sheetId);
+  },
+});
+
+startAppListening({
+  matcher: isAnyOf(addSavingsPot, updateSavingsPot, deleteSavingsPot),
+  effect: async (action, listenerApi) => {
+    const sheetIdAtChange = listenerApi.getState().settings.sheetId;
+    if (addSavingsPot.match(action)) {
+      listenerApi.dispatch(
+        recordPendingChange({
+          tab: 'savings_pots',
+          change: { type: 'create', id: action.payload.id, record: action.payload },
+        })
+      );
+    } else if (updateSavingsPot.match(action)) {
+      listenerApi.dispatch(
+        recordPendingChange({
+          tab: 'savings_pots',
+          change: { type: 'update', id: action.payload.id, record: action.payload },
+        })
+      );
+    } else if (deleteSavingsPot.match(action)) {
+      listenerApi.dispatch(
+        recordPendingChange({
+          tab: 'savings_pots',
+          change: { type: 'delete', id: action.payload },
+        })
+      );
+    }
+
+    await listenerApi.delay(DEBOUNCE_MS);
+    listenerApi.cancelActiveListeners();
+
+    const settings = listenerApi.getState().settings;
+    // Abort a write that raced a Settings sheet change: the store was cleared
+    // for the new sheet, so proceeding would push empty (or the wrong) data.
+    if (!settings.sheetId || settings.sheetId !== sheetIdAtChange) return;
+
+    await flushPendingTab(listenerApi, 'savings_pots', settings.sheetId);
+  },
+});
+
+startAppListening({
+  matcher: isAnyOf(upsertSavingsBalance, deleteSavingsBalance),
+  effect: async (action, listenerApi) => {
+    const sheetIdAtChange = listenerApi.getState().settings.sheetId;
+    if (upsertSavingsBalance.match(action)) {
+      const { month, potId } = action.payload;
+      const row = listenerApi
+        .getState()
+        .savings.balances.find((entry) => entry.month === month && entry.potId === potId);
+      if (row) {
+        listenerApi.dispatch(
+          recordPendingChange({
+            tab: 'savings_balances',
+            change: { type: 'update', id: row.id, record: row },
+          })
+        );
+      }
+    } else if (deleteSavingsBalance.match(action)) {
+      listenerApi.dispatch(
+        recordPendingChange({
+          tab: 'savings_balances',
+          change: { type: 'delete', id: action.payload },
+        })
+      );
+    }
+
+    await listenerApi.delay(DEBOUNCE_MS);
+    listenerApi.cancelActiveListeners();
+
+    const settings = listenerApi.getState().settings;
+    // Abort a write that raced a Settings sheet change: the store was cleared
+    // for the new sheet, so proceeding would push empty (or the wrong) data.
+    if (!settings.sheetId || settings.sheetId !== sheetIdAtChange) return;
+
+    await flushPendingTab(listenerApi, 'savings_balances', settings.sheetId);
   },
 });

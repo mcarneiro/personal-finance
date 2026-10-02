@@ -10,6 +10,7 @@ import { setPayers } from '../store/payersSlice';
 import { setPlanItems, setCardSpending } from '../store/planSlice';
 import { setOutflows } from '../store/outflowsSlice';
 import { setIncomeEntries } from '../store/incomeSlice';
+import { setSavingsBalances, setSavingsPots } from '../store/savingsSlice';
 import { setDataLoading, setDataLoaded, setSyncing, setOffline } from '../store/appSlice';
 import { clearPendingChanges, dropPendingChanges } from '../store/pendingSlice';
 import { SHEET_KEYS } from '../config/google';
@@ -88,6 +89,8 @@ export function useDataSync() {
       dispatch(setCardSpending(data.cardSpending));
       dispatch(setOutflows(data.outflows));
       dispatch(setIncomeEntries(data.income));
+      dispatch(setSavingsPots(data.savingsPots));
+      dispatch(setSavingsBalances(data.savingsBalances));
     },
     [dispatch]
   );
