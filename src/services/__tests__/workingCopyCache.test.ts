@@ -81,7 +81,7 @@ describe('Working Copy cache', () => {
   it('discards a cache stamped with a different sheet contract version', () => {
     // Given a cache written against an older column contract
     localStorage.setItem(
-      'planoo:workingCopy:sheet-1',
+      'planyoo:workingCopy:sheet-1',
       rawEntry({ contractVersion: 'cards(id,name)|legacy' })
     );
 
@@ -89,38 +89,38 @@ describe('Working Copy cache', () => {
     // Then it is rejected...
     expect(loadWorkingCopy('sheet-1')).toBeNull();
     // ...and dropped, so it is not re-checked on every startup
-    expect(localStorage.getItem('planoo:workingCopy:sheet-1')).toBeNull();
+    expect(localStorage.getItem('planyoo:workingCopy:sheet-1')).toBeNull();
   });
 
   it('discards a cache written in an older storage format', () => {
     // Given a cache from an older payload shape
-    localStorage.setItem('planoo:workingCopy:sheet-1', rawEntry({ formatVersion: 0 }));
+    localStorage.setItem('planyoo:workingCopy:sheet-1', rawEntry({ formatVersion: 0 }));
 
     // When it is read
     // Then it is rejected and cleared
     expect(loadWorkingCopy('sheet-1')).toBeNull();
-    expect(localStorage.getItem('planoo:workingCopy:sheet-1')).toBeNull();
+    expect(localStorage.getItem('planyoo:workingCopy:sheet-1')).toBeNull();
   });
 
   it('discards a cache whose payload is not a full snapshot', () => {
     // Given a cache whose data is not the expected snapshot shape
-    localStorage.setItem('planoo:workingCopy:sheet-1', rawEntry({ data: 42 }));
+    localStorage.setItem('planyoo:workingCopy:sheet-1', rawEntry({ data: 42 }));
 
     // When it is read
     // Then it is rejected and cleared rather than dispatched into the store
     expect(loadWorkingCopy('sheet-1')).toBeNull();
-    expect(localStorage.getItem('planoo:workingCopy:sheet-1')).toBeNull();
+    expect(localStorage.getItem('planyoo:workingCopy:sheet-1')).toBeNull();
   });
 
   it('survives a corrupt cache entry instead of throwing', () => {
     // Given storage holds something that is not valid JSON
     vi.spyOn(console, 'error').mockImplementation(() => {});
-    localStorage.setItem('planoo:workingCopy:sheet-1', '{not json');
+    localStorage.setItem('planyoo:workingCopy:sheet-1', '{not json');
 
     // When it is read
     // Then it returns nothing and clears the bad entry
     expect(loadWorkingCopy('sheet-1')).toBeNull();
-    expect(localStorage.getItem('planoo:workingCopy:sheet-1')).toBeNull();
+    expect(localStorage.getItem('planyoo:workingCopy:sheet-1')).toBeNull();
   });
 
   it('clears a cached snapshot on request', () => {

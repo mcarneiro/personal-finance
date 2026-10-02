@@ -186,7 +186,7 @@ export class GoogleSheetsService {
   }
 
   /**
-   * Migrate the `plan` tab off the retired `kind` column. Planoo no longer
+   * Migrate the `plan` tab off the retired `kind` column. Planyoo no longer
    * distinguishes fixed charges from spending buckets — every plan item is a
    * bucket — so the third column is dropped and each remaining row is rewritten
    * in the new order (id, month, name, amount, remaining_estimate). Without this
@@ -371,7 +371,7 @@ export class GoogleSheetsService {
     await this.clearRange(spreadsheetId, sheetName, `A2:${lastColumn}`);
 
     if (values.length > 0) {
-      // RAW keeps values exactly as sent. Planoo keys rows by a `YYYY-MM` month
+      // RAW keeps values exactly as sent. Planyoo keys rows by a `YYYY-MM` month
       // string, so USER_ENTERED must be avoided: Sheets would coerce `2026-06`
       // into a date and read it back as a serial number.
       const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetName}!A2?valueInputOption=RAW`;
@@ -509,7 +509,7 @@ export class GoogleSheetsService {
 
     if (data.length === 0) return;
 
-    // RAW keeps values exactly as sent. Planoo keys rows by a `YYYY-MM` month
+    // RAW keeps values exactly as sent. Planyoo keys rows by a `YYYY-MM` month
     // string, so Sheets must not coerce `2026-06` into a date and read it back
     // as a serial number.
     const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values:batchUpdate`;

@@ -1,6 +1,6 @@
 # The app shell and navigation are shared across every screen
 
-Planoo uses one mobile-first shell for every signed-in screen: `src/components/Layout.tsx` renders a contextual top bar, a `max-w-md` content column, and a fixed bottom navigation with three tabs — Plan, Bills, Income. The Dashboard (`/`) is the entry point and the only place the Settings shortcut appears; every other screen's top bar shows a back button (to `/`) and that screen's name, and the name is not repeated in the content. Settings is a full-screen page with its own header and back button and no bottom navigation — it is never a tab.
+Planyoo uses one mobile-first shell for every signed-in screen: `src/components/Layout.tsx` renders a contextual top bar, a `max-w-md` content column, and a fixed bottom navigation with three tabs — Plan, Bills, Income. The Dashboard (`/`) is the entry point and the only place the Settings shortcut appears; every other screen's top bar shows a back button (to `/`) and that screen's name, and the name is not repeated in the content. Settings is a full-screen page with its own header and back button and no bottom navigation — it is never a tab.
 
 Concretely, the shared conventions are:
 

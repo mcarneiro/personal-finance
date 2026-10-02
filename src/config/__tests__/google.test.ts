@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { SHEET_CONFIGS } from '../google';
 
 describe('SHEET_CONFIGS', () => {
-  it('defines exactly the Planoo tabs with the PRD columns', () => {
+  it('defines exactly the Planyoo tabs with the PRD columns', () => {
     // Given the sheet schema is the contract with the user's spreadsheet
     // When the tab configuration is read
     // Then every tab and column matches prd.md exactly

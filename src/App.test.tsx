@@ -304,6 +304,6 @@ describe('startup gate', () => {
     );
 
     // Then onboarding is shown
-    expect(screen.getByRole('heading', { name: 'Bem-vindo ao Planoo' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Bem-vindo ao Planyoo' })).toBeInTheDocument();
   });
 });

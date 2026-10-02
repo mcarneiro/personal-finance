@@ -1,8 +1,8 @@
-# Planoo Development Guide
+# Planyoo Development Guide
 
 ## Product
 
-Planoo is a household card-spending planner. It plans card spending in spending buckets, tracks weekly card check-ins and per-bucket remaining estimates, projects the month result live, and tracks income and bills. Data lives in Google Sheets.
+Planyoo is a household card-spending planner. It plans card spending in spending buckets, tracks weekly card check-ins and per-bucket remaining estimates, projects the month result live, and tracks income and bills. Data lives in Google Sheets.
 
 ## Domain
 

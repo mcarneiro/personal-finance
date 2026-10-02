@@ -12,7 +12,7 @@ import type { SheetData } from '../types';
  * version, so switching sheets in Settings — or shipping a new column contract
  * — never reuses another shape's data.
  */
-const CACHE_KEY_PREFIX = 'planoo:workingCopy:';
+const CACHE_KEY_PREFIX = 'planyoo:workingCopy:';
 
 /** Bump when the cached payload's shape changes, not the sheet contract. */
 const CACHE_FORMAT_VERSION = 1;

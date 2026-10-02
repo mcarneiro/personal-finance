@@ -1,6 +1,6 @@
 # Startup paints from a cached Working Copy
 
-Loading Planoo used to gate the whole app behind a loading screen while ~9 sequential Google Sheets round trips settled (one sheet-metadata call, seven sequential per-tab header checks, the plan-migration read, then the parallel full-tab reads), and nothing was cached locally. Now every successful pull and push persists the merged snapshot to a per-sheet local cache (keyed by spreadsheet id, stamped with the sheet contract version), and startup paints that snapshot immediately: a background pull — one `values:batchGet` for all seven tabs — merges fresh rows over it seconds later, replaying local Pending Changes so nothing typed during the swap is lost. The cache is a Working Copy; Google Sheets remains the only source of truth (ADR-0001).
+Loading Planyoo used to gate the whole app behind a loading screen while ~9 sequential Google Sheets round trips settled (one sheet-metadata call, seven sequential per-tab header checks, the plan-migration read, then the parallel full-tab reads), and nothing was cached locally. Now every successful pull and push persists the merged snapshot to a per-sheet local cache (keyed by spreadsheet id, stamped with the sheet contract version), and startup paints that snapshot immediately: a background pull — one `values:batchGet` for all seven tabs — merges fresh rows over it seconds later, replaying local Pending Changes so nothing typed during the swap is lost. The cache is a Working Copy; Google Sheets remains the only source of truth (ADR-0001).
 
 ## Considered alternatives
 

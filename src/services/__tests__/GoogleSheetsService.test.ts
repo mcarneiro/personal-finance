@@ -7,7 +7,7 @@ function jsonResponse(body: unknown) {
 }
 
 /**
- * Planoo's tab schema and string months are specific to this app (Stayoo stores
+ * Planyoo's tab schema and string months are specific to this app (Stayoo stores
  * dates), so the round-trip between the sheet and the app is guarded here.
  */
 describe('GoogleSheetsService schema round-trip', () => {

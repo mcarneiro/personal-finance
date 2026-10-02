@@ -16,7 +16,7 @@ export const GOOGLE_CONFIG = {
 };
 
 /**
- * Sheet tab definitions for Planoo. Column names are the sheet contract (see
+ * Sheet tab definitions for Planyoo. Column names are the sheet contract (see
  * `prd.md`) and must not drift. A missing tab is created with its header row; an
  * existing tab whose header row differs (e.g. one created before a new column
  * was introduced) has its header row rewritten, but never its data.

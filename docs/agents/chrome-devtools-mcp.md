@@ -23,7 +23,7 @@ A few seconds later the same server connects on its own. The opencode log then s
 message="mcp connected" server=chrome-devtools tools=30
 ```
 
-This failed-then-connected pair repeats every session. It is normal. It is not a Planoo bug and it needs no debugging.
+This failed-then-connected pair repeats every session. It is normal. It is not a Planyoo bug and it needs no debugging.
 
 ## The short path
 
