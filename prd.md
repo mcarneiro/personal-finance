@@ -24,7 +24,7 @@ A React app using Google Sheets as the database (same foundation as Stayoo) that
 - Weekly card check-ins: per-card running totals → Total Spent
 - Remaining Estimates per bucket → live Projected Result (the sobra)
 - Outflows with paid control, payer and bank, income entries, and the account net
-- Savings pots with a hand-updated monthly balance each and a Total Saved
+- Savings pots with a hand-updated monthly balance each, a Total Saved, and a 12-month savings trend on the Dashboard
 
 ## Goals
 
@@ -93,6 +93,7 @@ A React app using Google Sheets as the database (same foundation as Stayoo) that
 - **Income/Outflows block**: Income Total and Outflows Total with a single bar filled to `Outflows Total / Income Total` (capped at 100%, never overshooting): green while income covers the outflows, **red** once outflows pass income (callout names the overage), with Account Net below. The Income and Outflows rows open `/income/:month` and `/outflows/:month`. Hidden when both totals are zero.
 - **Spending Plan block**: Plan Total and Total Spent with a bar filled to `Total Spent / Plan Total` (capped at 100%, never overshooting) and a marker for how far through the month we are. Green normally; **yellow** when spend runs more than 25 percentage points ahead of the month (callout names the headroom still available before the ceiling); **red** once Total Spent passes Plan Total (callout names the overage). Both callouts and the block header open `/plan/:month`. Hidden when Plan Total is zero. It deliberately shows the raw Plan Result, not the Projected Result — see ADR-0009.
 - **Open outflows block**: the month's **open** Outflows (unpaid) only, in the Outflows screen's order (final values first, then alphabetical), each with a paid toggle that removes the row immediately (no animation) and a tap that opens its editor; the block header opens `/outflows/:month`. Always shown; when nothing is open it celebrates ("Hooray! Nothing left to pay!").
+- **Savings trend block**: a rolling 12-month stacked bar chart of the household's savings, ending on the current month with the newest column at the right edge; empty months are zero-filled. Each column stacks the active pots to that month's **Total Saved**, coloured by the pot's index in the active registry (a fixed palette), scaled zero-based against the tallest stacked total in the window — no y-axis, no gridlines, no separate legend. A month with no balance of its own plots the carried balance, so a column always equals the **Total Saved** the Savings screen would show for that month; retired pots never appear. Tapping a column reveals that month's Total Saved and a per-pot breakdown (colour swatch, name, carried balance) beneath the chart — display-only, it never navigates — while the block header opens `/savings/<current month>`. The whole block is hidden when there are no active pots or the window's tallest Total Saved is zero.
 - Reuses the Outflows screen's wording and the control-loop derived numbers; everything is computed on the fly and nothing new is stored.
 
 #### 8. Savings
@@ -100,13 +101,13 @@ A React app using Google Sheets as the database (same foundation as Stayoo) that
 - **Savings Pot registry**: pots (name only) are managed in Settings alongside cards, banks and payers (add / rename / remove). A pot keeps one identity across months, so renaming it flows through to every month's balance. Removing a pot **retires** it: it stops appearing and stops counting in every month, including history. Its balance rows are left in the sheet untouched; re-adding a pot with the same name is a fresh identity (ADR-0011)
 - **Monthly balance check-in**: the screen lists every active pot with an inline editable **Savings Balance** for the browsed month, the same pattern as card totals and remaining estimates. Balances are hand-typed from the real account or statement — never derived from contributions or withdrawals, and never linked to an Outflow. Add buckets/pots via the top-bar "+" is **not** offered here; pots live in Settings. When the registry is empty the screen shows a highlighted callout with a shortcut straight to Settings
 - **Carry-forward**: a pot with no balance recorded in the browsed month displays its most recent recorded balance, marked as updated in an earlier month. An empty field means "not checked yet", never zero; clearing a field removes that month's record so carry-forward resumes. An explicit `0` is a recorded zero. A newly created pot shows ready to fill but has no balance and never appears retroactively in earlier months
-- **Total Saved**: Σ of the active pots' carried balances, shown as the screen's headline. No target, no goal, no month-over-month delta. Savings is independent of the account ledger: the income/outflows totals and Account Net are untouched (ADR-0011)
+- **Total Saved**: Σ of the active pots' carried balances, shown as the screen's headline. No target and no goal. This screen shows a single month's numbers, with no month-over-month delta of its own — the Dashboard's savings trend is the read-only month-over-month view over these same balances, not a second set of numbers here. Savings is independent of the account ledger: the income/outflows totals and Account Net are untouched (ADR-0011)
 - Month-scoped with prev/next, so the recorded history is browsable month by month
 
 ## Technical Requirements
 
 ### Tech Stack
-Same as Stayoo: React 19, Vite, Redux Toolkit, react-router-dom, react-i18next (pt-BR primary, en-US), Tailwind CSS 4, Recharts not needed (no charts — the Dashboard's bars are plain CSS), Vitest + Testing Library.
+Same as Stayoo: React 19, Vite, Redux Toolkit, react-router-dom, react-i18next (pt-BR primary, en-US), Tailwind CSS 4, Vitest + Testing Library. No chart library: the only chart, the Dashboard's 12-month savings trend, is stacked bars in plain CSS/flex like the Dashboard's other bars (Recharts still not needed).
 
 ### Architecture Principles
 - Port `GoogleSheetsService.ts`, `useDataSync.ts`, `syncListener.ts`, onboarding, and month navigation from Stayoo — no new integration patterns
@@ -205,7 +206,7 @@ Onboarding validates the connected sheet and creates any missing tabs with the h
 - Check-in friction below 30 seconds: N card inputs + estimate tweaks
 
 ### Key Screens
-1. **Dashboard** (`/`) — the app entry point and the household's current-month home: the income/outflows bars with Account Net, the Spending Plan's progress with its pace bar and over-plan callout, and the Outflows still open to pay. It is current-month only (no month navigation) — history lives on the month-scoped screens. Its top bar shows the title "Dashboard" and the Settings shortcut; every other screen's top bar shows a back button and that screen's name.
+1. **Dashboard** (`/`) — the app entry point and the household's current-month home: the income/outflows bars with Account Net, the Spending Plan's progress with its pace bar and over-plan callout, the Outflows still open to pay, and the 12-month savings trend chart you can tap for a per-pot breakdown. It is current-month only (no month navigation) — history lives on the month-scoped screens. Its top bar shows the title "Dashboard" and the Settings shortcut; every other screen's top bar shows a back button and that screen's name.
 2. **Spending Plan** (`/plan/:month`) — spending buckets, check-in inputs, remaining estimates, Projected Result headline. Tap a bucket to edit on `/plan/edit/:id`; add via the top-bar "+" (`/plan/new/:month`)
 3. **Outflows** (`/outflows/:month`) — outflow list with paid toggles, income total, account net, the by-payer summary, and the replicate-last-month button. Outflows awaiting a final value are flagged with a ⚠️ and sink to the end of the list. Tap a row to edit on `/outflows/edit/:id`; add via the top-bar "+" (`/outflows/new/:month`)
 4. **Income** (`/income/:month`) — entries, total, replicate button. Tap a row to edit on `/income/edit/:id`; add via the top-bar "+" (`/income/new/:month`)
@@ -249,7 +250,7 @@ Total Saved       = Σ active pots' balances, each carried forward from its
 ## Out of Scope (V1)
 
 - Purchase-level tracking and per-bucket actuals (ADR-0002 — deliberate non-goal, not a missing feature)
-- Charts, YoY, analytics of any kind
+- Other charts, YoY, and analytics beyond the Dashboard's 12-month savings trend
 - Installment modeling (the card bill is the real statement value)
 - Savings targets/goals, contribution or withdrawal tracking, and returns (a Savings Balance is observed and typed, never derived — ADR-0011)
 - Outflow auto-generation (the card bill is entered by hand)
