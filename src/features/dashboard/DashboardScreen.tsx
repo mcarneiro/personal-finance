@@ -15,9 +15,9 @@ import { orderOutflows } from '../../utils/outflowOrder';
 import { formatCurrency } from '../../utils/currency';
 import { getCurrentMonth, getMonthName } from '../../utils/month';
 import { useRegistryLabels } from '../../hooks/useRegistryLabels';
+import BlockHeader from '../../components/BlockHeader';
 import OutflowRow from '../outflows/OutflowRow';
-
-const CHEVRON_ICON = 'M9 5l7 7-7 7';
+import SavingsTrend from './SavingsTrend';
 
 /** The plan bar's colour per pace level. */
 const BAR_COLOR: Record<PlanPaceLevel, string> = {
@@ -42,12 +42,13 @@ interface DashboardScreenProps {
 
 /**
  * The household Dashboard — the app's entry point, for the current month only.
- * It gathers the three things the household looks at together: the income/outflows
+ * It gathers the four things the household looks at together: the income/outflows
  * picture (the Outflows screen's Income Total and Outflows Total as a single bar
  * filled by the outflows toward the income, plus Account Net), the Spending Plan's
  * progress (Plan Total and Total Spent as a filled bar, coloured against how far
- * through the month we are, with an over-plan callout), and the Outflows still
- * open to pay, each with a paid toggle.
+ * through the month we are, with an over-plan callout), the Outflows still
+ * open to pay, each with a paid toggle, and the savings trend (the rolling
+ * 12-month stacked chart, its own `SavingsTrend` block).
  * No numbers are stored here: the totals come from the control-loop utilities,
  * the pace from `planPace`, and the list from the same order and paid action the
  * Outflows screen uses. History review stays on the month-scoped screens, so the
@@ -253,30 +254,10 @@ export default function DashboardScreen({ now = new Date() }: DashboardScreenPro
           </ul>
         )}
       </section>
-    </div>
-  );
-}
 
-/** A tappable block header that opens the block's full month screen. */
-function BlockHeader({ label, onClick }: { label: string; onClick: () => void }) {
-  return (
-    <h2>
-      <button
-        type="button"
-        onClick={onClick}
-        className="flex w-full items-center justify-between gap-2 text-left"
-      >
-        <span className="text-sm font-semibold text-gray-900">{label}</span>
-        <svg
-          aria-hidden="true"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          className="h-4 w-4 shrink-0 text-gray-400"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={CHEVRON_ICON} />
-        </svg>
-      </button>
-    </h2>
+      {/* The savings trend is the last block; it hides itself when the household
+          has no pots or no recorded history (ADR-0011). */}
+      <SavingsTrend now={now} />
+    </div>
   );
 }

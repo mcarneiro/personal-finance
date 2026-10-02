@@ -31,7 +31,9 @@
     "planAhead": "{{amount}} left before the plan ceiling",
     "planOver": "{{amount}} over the plan",
     "viewIncome": "View month's income",
-    "viewOutflows": "View month's outflows"
+    "viewOutflows": "View month's outflows",
+    "savingsTrend": "Savings trend",
+    "savingsColumn": "{{month}}: {{amount}} saved"
   },
   "onboarding": {
     "title": "Welcome to Planyoo",

@@ -31,7 +31,9 @@
     "planAhead": "{{amount}} restantes antes do teto do plano",
     "planOver": "{{amount}} acima do plano",
     "viewIncome": "Ver renda do mês",
-    "viewOutflows": "Ver saídas do mês"
+    "viewOutflows": "Ver saídas do mês",
+    "savingsTrend": "Evolução das poupanças",
+    "savingsColumn": "{{month}}: {{amount}} guardados"
   },
   "onboarding": {
     "title": "Bem-vindo ao Planyoo",

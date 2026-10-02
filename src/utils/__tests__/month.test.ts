@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatMonth, getMonthName, isPastMonth, isValidMonth, parseMonth, shiftMonth } from '../month';
+import { formatMonth, getMonthName, getShortMonthName, isPastMonth, isValidMonth, parseMonth, shiftMonth } from '../month';
 
 describe('month utilities', () => {
   it('accepts well-formed months and rejects malformed ones', () => {
@@ -58,6 +58,14 @@ describe('month utilities', () => {
     // Then each locale reads naturally
     expect(getMonthName('2026-06', 'pt-BR')).toBe('junho de 2026');
     expect(getMonthName('2026-06', 'en-US')).toBe('June 2026');
+  });
+
+  it('gives a short localized month label for chart columns', () => {
+    // Given June 2026
+    // When asking for the short month name
+    // Then each locale shortens it the way Intl does
+    expect(getShortMonthName('2026-06', 'pt-BR')).toBe('jun.');
+    expect(getShortMonthName('2026-06', 'en-US')).toBe('Jun');
   });
 
   it('tells a past month from the current and future ones', () => {

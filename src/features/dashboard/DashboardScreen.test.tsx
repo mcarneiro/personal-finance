@@ -15,9 +15,17 @@ import { syncListenerMiddleware } from '../../store/middleware/syncListener';
 import payersReducer from '../../store/payersSlice';
 import pendingReducer from '../../store/pendingSlice';
 import planReducer from '../../store/planSlice';
+import savingsReducer from '../../store/savingsSlice';
 import settingsReducer from '../../store/settingsSlice';
 import { writtenRecords } from '../../test/pendingWrites';
-import type { Outflow, CardSpending, IncomeEntry, PlanItem } from '../../types';
+import type {
+  Outflow,
+  CardSpending,
+  IncomeEntry,
+  PlanItem,
+  SavingsBalance,
+  SavingsPot,
+} from '../../types';
 import DashboardScreen from './DashboardScreen';
 
 vi.mock('../../services/GoogleSheetsService', async (importOriginal) => {
@@ -52,11 +60,17 @@ function incomeEntry(amount: number, source?: string, month = JUNE): IncomeEntry
   return { id: `${month}-${source ?? amount}`, month, amount, source };
 }
 
+function savingsBalance(month: string, potId: string, amount: number): SavingsBalance {
+  return { id: `${month}-${potId}`, month, potId, balance: amount };
+}
+
 interface DashboardData {
   planItems?: PlanItem[];
   cardSpending?: CardSpending[];
   outflows?: Outflow[];
   income?: IncomeEntry[];
+  savingsPots?: SavingsPot[];
+  savingsBalances?: SavingsBalance[];
 }
 
 /**
@@ -73,6 +87,7 @@ function renderDashboard(data: DashboardData = {}) {
       plan: planReducer,
       outflows: outflowsReducer,
       income: incomeReducer,
+      savings: savingsReducer,
       settings: settingsReducer,
       pending: pendingReducer,
     },
@@ -82,6 +97,7 @@ function renderDashboard(data: DashboardData = {}) {
       plan: { items: data.planItems ?? [], cardSpending: data.cardSpending ?? [] },
       outflows: { items: data.outflows ?? [] },
       income: { items: data.income ?? [] },
+      savings: { items: data.savingsPots ?? [], balances: data.savingsBalances ?? [] },
       settings: { sheetId: 'sheet-1' },
     },
   });
@@ -94,6 +110,7 @@ function renderDashboard(data: DashboardData = {}) {
           <Route path="/income/:month" element={<p>Tela da renda</p>} />
           <Route path="/outflows/:month" element={<p>Tela de saídas</p>} />
           <Route path="/plan/:month" element={<p>Tela do plano</p>} />
+          <Route path="/savings/:month" element={<p>Tela das poupanças</p>} />
           <Route path="/outflows/edit/:id" element={<p>Editor da saída</p>} />
         </Routes>
       </MemoryRouter>
@@ -393,5 +410,46 @@ describe('Dashboard — full picture', () => {
     expect(screen.getByRole('region', { name: 'Plano de Gastos' })).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Saídas em aberto' })).toBeInTheDocument();
     expect(within(screen.getByRole('region', { name: 'Saídas em aberto' })).getByText('Luz')).toBeInTheDocument();
+  });
+});
+
+describe('Dashboard — savings trend', () => {
+  it('is absent for a household with no pots', () => {
+    // Given a month with no savings pots
+    renderDashboard({ income: [incomeEntry(12000, 'Salário')] });
+
+    // Then the trend section is not drawn
+    expect(screen.queryByRole('region', { name: 'Evolução das poupanças' })).not.toBeInTheDocument();
+  });
+
+  it('is the last section on the Dashboard, below open outflows', () => {
+    // Given a pot with a recorded balance and an open outflow
+    renderDashboard({
+      outflows: [outflow({ id: 'luz', name: 'Luz', amount: 300 })],
+      savingsPots: [{ id: 'pot-emergency', name: 'Emergência' }],
+      savingsBalances: [savingsBalance(JUNE, 'pot-emergency', 10000)],
+    });
+
+    // Then the trend follows the open-outflows block in document order
+    const regions = screen
+      .getAllByRole('region')
+      .map((region) => region.getAttribute('aria-label'));
+    expect(regions[regions.length - 1]).toBe('Evolução das poupanças');
+    expect(regions).toContain('Saídas em aberto');
+  });
+
+  it('opens the current month Savings screen from the trend header', async () => {
+    // Given a pot with a recorded balance
+    const user = userEvent.setup();
+    renderDashboard({
+      savingsPots: [{ id: 'pot-emergency', name: 'Emergência' }],
+      savingsBalances: [savingsBalance(JUNE, 'pot-emergency', 10000)],
+    });
+
+    // When I tap the trend header
+    await user.click(screen.getByRole('button', { name: 'Evolução das poupanças' }));
+
+    // Then the Savings screen opens at the current month
+    expect(screen.getByText('Tela das poupanças')).toBeInTheDocument();
   });
 });

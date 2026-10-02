@@ -53,3 +53,12 @@ export function getMonthName(month: Month, locale: string = 'pt-BR'): string {
     year: 'numeric',
   });
 }
+
+/**
+ * Localized short month label, e.g. "jun." (pt-BR) or "Jun" (en-US). The
+ * Dashboard savings trend uses it under each column, matching the locale style
+ * of `getMonthName` (same parser, same locale source) at chart-label size.
+ */
+export function getShortMonthName(month: Month, locale: string = 'pt-BR'): string {
+  return parseMonth(month).toLocaleDateString(locale, { month: 'short' });
+}
