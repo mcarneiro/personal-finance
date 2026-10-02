@@ -33,7 +33,8 @@
     "viewIncome": "View month's income",
     "viewOutflows": "View month's outflows",
     "savingsTrend": "Savings trend",
-    "savingsColumn": "{{month}}: {{amount}} saved"
+    "savingsColumn": "{{month}}: {{amount}} saved",
+    "savingsReadout": "{{month}} breakdown"
   },
   "onboarding": {
     "title": "Welcome to Planyoo",

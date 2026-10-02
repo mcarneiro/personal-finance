@@ -33,7 +33,8 @@
     "viewIncome": "Ver renda do mês",
     "viewOutflows": "Ver saídas do mês",
     "savingsTrend": "Evolução das poupanças",
-    "savingsColumn": "{{month}}: {{amount}} guardados"
+    "savingsColumn": "{{month}}: {{amount}} guardados",
+    "savingsReadout": "Detalhes de {{month}}"
   },
   "onboarding": {
     "title": "Bem-vindo ao Planyoo",

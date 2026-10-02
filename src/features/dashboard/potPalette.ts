@@ -15,3 +15,12 @@ export const POT_PALETTE = [
   'bg-orange-500',
   'bg-indigo-500',
 ];
+
+/**
+ * The palette class for the pot at registry index `index`, cycling past eight.
+ * The single place the palette's modulo indexing lives, so a pot's stacked
+ * segment and the readout swatch can never drift apart.
+ */
+export function potPaletteClass(index: number): string {
+  return POT_PALETTE[index % POT_PALETTE.length];
+}
