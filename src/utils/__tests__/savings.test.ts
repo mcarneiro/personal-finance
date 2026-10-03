@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Month, SavingsBalance, SavingsPot } from '../../types';
-import { potBalance, totalSaved } from '../savings';
+import { potBalance, savingsDelta, totalSaved } from '../savings';
 
 const MONTH: Month = '2026-06';
 const MAY: Month = '2026-05';
@@ -167,5 +167,90 @@ describe('totalSaved', () => {
     // When computing Total Saved
     // Then the real zero contributes nothing but is not treated as absent
     expect(totalSaved(MONTH, pots, balances)).toBe(0);
+  });
+});
+
+describe('savingsDelta', () => {
+  // Given active pots and recorded balances
+  // When computing the month's change from the previous month
+  // Then it is the signed difference in Total Saved plus the percentage of that base
+  it('reports the absolute and percentage growth against the previous month', () => {
+    // Given Emergency grew from 10.000 in May to 11.000 in June
+    const pots = [pot('pot-1', 'Emergência')];
+    const balances = [balance(MAY, 'pot-1', 10000), balance(MONTH, 'pot-1', 11000)];
+
+    // When computing June's delta
+    const result = savingsDelta(MONTH, pots, balances);
+
+    // Then it is +1.000 on a 10.000 base, i.e. +10%
+    expect(result).toEqual({ absolute: 1000, percent: 10 });
+  });
+
+  it('reports a decline as a negative absolute and percentage', () => {
+    // Given Emergency fell from 11.000 in May to 9.000 in June
+    const pots = [pot('pot-1', 'Emergência')];
+    const balances = [balance(MAY, 'pot-1', 11000), balance(MONTH, 'pot-1', 9000)];
+
+    // When computing June's delta
+    const result = savingsDelta(MONTH, pots, balances);
+
+    // Then it is -2.000 on an 11.000 base
+    expect(result.absolute).toBe(-2000);
+    expect(result.percent).toBeCloseTo(-18.18, 1);
+  });
+
+  it('has no percentage when the previous month has no savings to compare against', () => {
+    // Given the first balance ever was recorded in June
+    const pots = [pot('pot-1', 'Emergência')];
+    const balances = [balance(MONTH, 'pot-1', 11000)];
+
+    // When computing June's delta against an empty May
+    const result = savingsDelta(MONTH, pots, balances);
+
+    // Then the absolute is the full 11.000 and the percentage is undefined
+    expect(result).toEqual({ absolute: 11000, percent: null });
+  });
+
+  it('is zero when the month carries the previous balance forward unchanged', () => {
+    // Given the pot was last recorded in May and June has no new record
+    const pots = [pot('pot-1', 'Emergência')];
+    const balances = [balance(MAY, 'pot-1', 10000)];
+
+    // When computing June's delta from the carried value
+    const result = savingsDelta(MONTH, pots, balances);
+
+    // Then nothing changed
+    expect(result).toEqual({ absolute: 0, percent: 0 });
+  });
+
+  it('counts only active pots in both months', () => {
+    // Given a retired pot still holding large balance rows in both months
+    const pots = [pot('pot-1', 'Emergência')];
+    const balances = [
+      balance(MAY, 'pot-1', 10000),
+      balance(MONTH, 'pot-1', 11000),
+      balance(MAY, 'pot-retired', 50000),
+      balance(MONTH, 'pot-retired', 60000),
+    ];
+
+    // When computing the delta
+    const result = savingsDelta(MONTH, pots, balances);
+
+    // Then the retired pot is excluded from both sides
+    expect(result).toEqual({ absolute: 1000, percent: 10 });
+  });
+
+  it('compares across a year boundary', () => {
+    // Given a balance recorded in December and January
+    const january: Month = '2026-01';
+    const december: Month = '2025-12';
+    const pots = [pot('pot-1', 'Emergência')];
+    const balances = [balance(december, 'pot-1', 1000), balance(january, 'pot-1', 1500)];
+
+    // When computing January's delta
+    const result = savingsDelta(january, pots, balances);
+
+    // Then it compares against the previous December
+    expect(result).toEqual({ absolute: 500, percent: 50 });
   });
 });

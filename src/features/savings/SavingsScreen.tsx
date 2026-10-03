@@ -5,7 +5,7 @@ import AmountInput from '../plan/AmountInput';
 import NeedsPotRegistryNotice from './NeedsPotRegistryNotice';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { deleteSavingsBalance, upsertSavingsBalance } from '../../store/savingsSlice';
-import { potBalance, totalSaved } from '../../utils/savings';
+import { potBalance, savingsDelta, totalSaved } from '../../utils/savings';
 import { formatCurrency } from '../../utils/currency';
 import { getMonthName, isValidMonth } from '../../utils/month';
 
@@ -23,9 +23,12 @@ import { getMonthName, isValidMonth } from '../../utils/month';
  * Total Saved is derived live by `totalSaved` from the active pots' carried
  * balances and never stored (ADR-0011): it drops by a pot's carried balance the
  * moment that pot is retired, and falls back to the carried value the moment a
- * month's record is cleared. There is deliberately no target, goal progress or
- * month-over-month delta, and a short line states that savings are independent
- * of income, outflows and Account Net.
+ * month's record is cleared. Below it, `savingsDelta` shows how the total moved
+ * from the previous month — percentage and absolute value, green when growing
+ * and red when falling — with the percentage omitted when the previous month had
+ * no savings to compare against. There is deliberately no target or goal
+ * progress, and a short line states that savings are independent of income,
+ * outflows and Account Net.
  */
 export default function SavingsScreen() {
   const { t, i18n } = useTranslation();
@@ -49,6 +52,35 @@ export default function SavingsScreen() {
 
   const total = totalSaved(month, pots, balances);
 
+  // The headline's month-over-month change, also pure and never stored. Nothing
+  // is shown until the household has a balance somewhere: with both months empty
+  // there is no comparison to make. When the previous month was itself empty the
+  // percentage is undefined and only the absolute change is shown.
+  const delta = savingsDelta(month, pots, balances);
+  const hasComparison = delta.percent !== null || delta.absolute !== 0;
+  const deltaDirection = Math.sign(delta.absolute);
+  const deltaTone =
+    deltaDirection > 0
+      ? 'text-green-600'
+      : deltaDirection < 0
+        ? 'text-red-600'
+        : 'text-gray-500';
+  const deltaArrow = deltaDirection > 0 ? '↑' : deltaDirection < 0 ? '↓' : '→';
+  const deltaDirectionLabel =
+    deltaDirection > 0
+      ? t('savings.increase')
+      : deltaDirection < 0
+        ? t('savings.decrease')
+        : t('savings.noChange');
+  const deltaAmount = formatCurrency(Math.abs(delta.absolute), i18n.language);
+  const deltaPercent =
+    delta.percent === null
+      ? null
+      : new Intl.NumberFormat(i18n.language, {
+          style: 'percent',
+          maximumFractionDigits: 1,
+        }).format(Math.abs(delta.percent) / 100);
+
   return (
     <MonthScaffold basePath="/savings">
       {/* Total Saved is a derived number: never stored in state or the sheet,
@@ -60,10 +92,23 @@ export default function SavingsScreen() {
       >
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium text-gray-700">{t('savings.total')}</span>
-          <span className="text-lg font-bold text-gray-900">
+          <span data-testid="savings-total" className="text-lg font-bold text-gray-900">
             {formatCurrency(total, i18n.language)}
           </span>
         </div>
+        {/* The change from the previous month, derived by `savingsDelta` on the
+            same carried balances as the headline. The arrow and the screen-reader
+            direction word carry the sign; the amount is shown unsigned so it is
+            never double-signed. */}
+        {hasComparison && (
+          <p data-testid="savings-delta" className={`mt-1 text-sm font-medium ${deltaTone}`}>
+            <span className="sr-only">{deltaDirectionLabel}</span>
+            <span aria-hidden="true">{deltaArrow}</span>{' '}
+            {deltaPercent ? `${deltaPercent} · ` : ''}
+            {deltaAmount}{' '}
+            <span className="font-normal text-gray-500">{t('savings.vsPrevious')}</span>
+          </p>
+        )}
         <p className="mt-2 text-xs leading-tight text-gray-500">{t('savings.independent')}</p>
       </section>
 

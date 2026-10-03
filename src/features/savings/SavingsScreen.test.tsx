@@ -243,6 +243,9 @@ describe('Savings', () => {
 
 describe('Total Saved', () => {
   const summary = () => within(screen.getByRole('region', { name: 'Resumo das poupanças' }));
+  // The headline value only: the month-over-month delta shows amounts too, so
+  // number queries must not match both.
+  const total = () => summary().getByTestId('savings-total');
 
   it('sums the carried balances of the active pots', () => {
     // Given Emergency is recorded in June and Retirement only in May
@@ -258,7 +261,7 @@ describe('Total Saved', () => {
     // When I look at the headline
     // Then it is June's 11000 plus May's carried 40000
     expect(summary().getByText('Total guardado')).toBeInTheDocument();
-    expect(summary().getByText(/51\.000,00/)).toBeInTheDocument();
+    expect(total()).toHaveTextContent(/51\.000,00/);
   });
 
   it('falls back to the carried value in the total after the month’s balance is cleared', async () => {
@@ -269,28 +272,28 @@ describe('Total Saved', () => {
       [balance(MAY, EMERGENCY.id, 1000), balance(JUNE, EMERGENCY.id, 1500)]
     );
     const user = userEvent.setup();
-    expect(summary().getByText(/1\.500,00/)).toBeInTheDocument();
+    expect(total()).toHaveTextContent(/1\.500,00/);
 
     // When I clear June's field and leave it
     await user.clear(balanceField());
     await user.tab();
 
     // Then the total falls back to the carried May value
-    await waitFor(() => expect(summary().getByText(/1\.000,00/)).toBeInTheDocument());
-    expect(summary().queryByText(/1\.500,00/)).not.toBeInTheDocument();
+    await waitFor(() => expect(total()).toHaveTextContent(/1\.000,00/));
+    expect(total()).not.toHaveTextContent(/1\.500,00/);
   });
 
   it('counts nothing for a pot with no record and moves with a typed balance', async () => {
     // Given a pot with no recorded balance
     renderSavings(`/savings/${JUNE}`, [EMERGENCY]);
     const user = userEvent.setup();
-    expect(summary().getByText(/0,00/)).toBeInTheDocument();
+    expect(total()).toHaveTextContent(/0,00/);
 
     // When I type a balance
     await user.type(balanceField(), '2000');
 
     // Then the total updates immediately
-    await waitFor(() => expect(summary().getByText(/2\.000,00/)).toBeInTheDocument());
+    await waitFor(() => expect(total()).toHaveTextContent(/2\.000,00/));
   });
 
   it('drops a retired pot’s carried balance from the total', async () => {
@@ -303,14 +306,14 @@ describe('Total Saved', () => {
         balance(JUNE, RETIREMENT.id, 40000),
       ]
     );
-    expect(summary().getByText(/51\.000,00/)).toBeInTheDocument();
+    expect(total()).toHaveTextContent(/51\.000,00/);
 
     // When the Retirement pot is retired
     const { deleteSavingsPot } = await import('../../store/savingsSlice');
     store.dispatch(deleteSavingsPot(RETIREMENT.id));
 
     // Then the total drops by exactly its carried balance
-    await waitFor(() => expect(summary().getByText(/11\.000,00/)).toBeInTheDocument());
+    await waitFor(() => expect(total()).toHaveTextContent(/11\.000,00/));
   });
 
   it('states that savings do not affect income, outflows or account net', () => {
@@ -323,7 +326,7 @@ describe('Total Saved', () => {
     ).toBeInTheDocument();
   });
 
-  it('shows no target, goal, progress bar or month-over-month delta', () => {
+  it('shows no target, goal or progress bar', () => {
     // Given two pots with balances
     renderSavings(
       `/savings/${JUNE}`,
@@ -331,9 +334,92 @@ describe('Total Saved', () => {
       [balance(JUNE, EMERGENCY.id, 11000), balance(MAY, RETIREMENT.id, 40000)]
     );
 
-    // Then the savings UI carries only the total and the check-in fields
+    // Then the savings UI carries only the total, the delta and the check-in fields
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
     expect(screen.queryByText(/meta/i)).not.toBeInTheDocument();
+  });
+});
+
+describe('Month-over-month delta', () => {
+  const summary = () => within(screen.getByRole('region', { name: 'Resumo das poupanças' }));
+  const delta = () => summary().getByTestId('savings-delta');
+
+  it('shows the percentage and absolute growth below Total saved, in green', () => {
+    // Given Emergency grew from May's 10.000 to June's 11.000
+    renderSavings(
+      `/savings/${JUNE}`,
+      [EMERGENCY],
+      [balance(MAY, EMERGENCY.id, 10000), balance(JUNE, EMERGENCY.id, 11000)]
+    );
+
+    // When the screen renders
+    // Then the growth reads +10% and +R$ 1.000,00, marked up in green
+    expect(delta()).toHaveTextContent('10%');
+    expect(delta()).toHaveTextContent(/1\.000,00/);
+    expect(delta()).toHaveClass('text-green-600');
+    expect(delta()).toHaveTextContent('↑');
+  });
+
+  it('shows a decline in red', () => {
+    // Given Emergency fell from May's 11.000 to June's 9.000
+    renderSavings(
+      `/savings/${JUNE}`,
+      [EMERGENCY],
+      [balance(MAY, EMERGENCY.id, 11000), balance(JUNE, EMERGENCY.id, 9000)]
+    );
+
+    // When the screen renders
+    // Then the decline reads with a down arrow and +R$ 2.000,00, in red
+    expect(delta()).toHaveTextContent('↓');
+    expect(delta()).toHaveClass('text-red-600');
+    expect(delta()).toHaveTextContent(/2\.000,00/);
+  });
+
+  it('omits the percentage when the previous month had no savings', () => {
+    // Given the first balance ever is June's 11.000
+    renderSavings(`/savings/${JUNE}`, [EMERGENCY], [balance(JUNE, EMERGENCY.id, 11000)]);
+
+    // When the screen renders
+    // Then only the absolute growth is shown, with no percentage
+    expect(delta()).toHaveTextContent(/11\.000,00/);
+    expect(delta()).not.toHaveTextContent('%');
+  });
+
+  it('shows no change neutrally when the balance is carried forward unchanged', () => {
+    // Given the pot was last recorded in May and June has no new record
+    renderSavings(`/savings/${JUNE}`, [EMERGENCY], [balance(MAY, EMERGENCY.id, 10000)]);
+
+    // When the screen renders
+    // Then it reads as unchanged, in a neutral tone
+    expect(delta()).toHaveTextContent('0%');
+    expect(delta()).toHaveClass('text-gray-500');
+  });
+
+  it('hides the delta when neither month has any savings', () => {
+    // Given a pot with no recorded balance at all
+    renderSavings(`/savings/${JUNE}`, [EMERGENCY]);
+
+    // When the screen renders
+    // Then there is nothing to compare
+    expect(summary().queryByTestId('savings-delta')).not.toBeInTheDocument();
+  });
+
+  it('moves live as a balance is typed', async () => {
+    // Given May's 10.000 and June's 10.000, an unchanged month
+    renderSavings(
+      `/savings/${JUNE}`,
+      [EMERGENCY],
+      [balance(MAY, EMERGENCY.id, 10000), balance(JUNE, EMERGENCY.id, 10000)]
+    );
+    const user = userEvent.setup();
+    expect(delta()).toHaveTextContent('0%');
+
+    // When I replace June's balance with 12.000
+    await user.clear(balanceField());
+    await user.type(balanceField(), '12000');
+
+    // Then the delta moves to +20%
+    await waitFor(() => expect(delta()).toHaveTextContent('20%'));
   });
 });
 

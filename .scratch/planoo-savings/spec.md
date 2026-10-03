@@ -17,7 +17,7 @@ The household tracks money set aside (emergency, retirement) outside Planyoo. Th
 | Registry | Pots are a Settings registry with stable identity; balances are edited inline on the month screen | 0011 |
 | Removal | Removing a pot retires it — it stops counting in every month, unlike a removed Payer or Bank | 0011 |
 | Navigation | A fourth bottom-nav tab (`/savings/:month`); no top-bar "+" and no record editors | 0004 |
-| Derived number | Total Saved only — no target, no goal, no month-over-month delta | 0011 |
+| Derived numbers | Total Saved, and the month-over-month delta shown beneath it — no target, no goal | 0011 |
 
 ## Accepted residuals (documented, not bugs)
 
@@ -27,7 +27,7 @@ The household tracks money set aside (emergency, retirement) outside Planyoo. Th
 
 ## Rejected (do not re-litigate)
 
-One overwritten current balance per pot (discards the trend, which is the point); deriving balances from contributions and withdrawals (doubles the work and risks double-counting the same money as both an Outflow and an asset); folding certain Outflows in as internal transfers excluded from Account Net (redefines Account Net for a household whose savings vehicles are already ordinary Outflows); a target amount per pot (adds a field, a progress percentage and warning states beyond the request); a per-month pot list created like Spending Buckets (no stable identity, so carry-forward has nothing to hang on).
+One overwritten current balance per pot (discards the trend, which is the point); deriving balances from contributions and withdrawals (doubles the work and risks double-counting the same money as both an Outflow and an asset); folding certain Outflows in as internal transfers excluded from Account Net (redefines Account Net for a household whose savings vehicles are already ordinary Outflows); a target amount per pot (adds a field, a progress percentage and warning states beyond the request); a per-month pot list created like Spending Buckets (no stable identity, so carry-forward has nothing to hang on). The month-over-month delta *was* rejected here originally, but is now in scope as a request: it is shown under Total Saved (ADR-0011).
 
 ## Domain language
 

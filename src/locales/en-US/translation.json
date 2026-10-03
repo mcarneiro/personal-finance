@@ -165,6 +165,10 @@
     "emptyRegistryCta": "Go to Settings",
     "summary": "Savings summary",
     "total": "Total saved",
+    "increase": "Increase:",
+    "decrease": "Decrease:",
+    "noChange": "No change:",
+    "vsPrevious": "from the previous month",
     "independent": "Savings do not affect income, outflows or account net."
   },
   "settings": {

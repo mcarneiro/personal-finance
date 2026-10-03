@@ -1,4 +1,5 @@
 import type { Month, SavingsBalance, SavingsPot } from '../types';
+import { shiftMonth } from './month';
 
 /**
  * A pot's carried balance for a month, together with the month it was actually
@@ -59,4 +60,42 @@ export function totalSaved(
     (total, pot) => total + (potBalance(month, pot.id, balances)?.balance ?? 0),
     0
   );
+}
+
+/**
+ * One month's change in Total Saved from the month before it, as the pair the
+ * Savings screen shows under the headline: the signed absolute difference and
+ * the change as a percentage of the previous month's Total Saved.
+ */
+export interface SavingsDelta {
+  /** The signed change, current month minus previous month (so growth is positive). */
+  absolute: number;
+  /**
+   * The change as a percentage of the previous month's Total Saved, or `null`
+   * when that base is zero: a percentage against nothing has no meaning, so the
+   * screen shows the absolute change alone (growing from an empty month).
+   */
+  percent: number | null;
+}
+
+/**
+ * The month-over-month change in Total Saved (ADR-0011): both sides are derived
+ * from `totalSaved`, so the comparison can never drift from the headline, and
+ * both use the current active registry — a retired pot is excluded from the
+ * previous month too, exactly as it is from every month's headline. The previous
+ * month is the calendar month before the browsed one, and carry-forward means an
+ * unchanged month reads as a zero delta rather than a missing one.
+ */
+export function savingsDelta(
+  month: Month,
+  pots: SavingsPot[],
+  balances: SavingsBalance[]
+): SavingsDelta {
+  const current = totalSaved(month, pots, balances);
+  const previous = totalSaved(shiftMonth(month, -1), pots, balances);
+  const absolute = current - previous;
+  return {
+    absolute,
+    percent: previous === 0 ? null : (absolute / previous) * 100,
+  };
 }

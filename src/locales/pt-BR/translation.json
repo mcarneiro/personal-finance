@@ -165,6 +165,10 @@
     "emptyRegistryCta": "Ir para Ajustes",
     "summary": "Resumo das poupanças",
     "total": "Total guardado",
+    "increase": "Aumento:",
+    "decrease": "Queda:",
+    "noChange": "Sem variação:",
+    "vsPrevious": "em relação ao mês anterior",
     "independent": "As poupanças não afetam a renda, as saídas nem o saldo da conta."
   },
   "settings": {

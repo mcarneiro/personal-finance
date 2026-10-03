@@ -74,6 +74,10 @@ _Avoid_: Category, envelope, fund, account, bucket
 The observed balance of one Savings Pot in one month, typed in by hand from the real account or statement. It is never derived from contributions or withdrawals, and it is not linked to an Outflow.
 _Avoid_: Deposit, contribution, transfer, amount saved
 
+**Month-over-month delta**:
+The change in **Total Saved** from the previous calendar month to the browsed one, shown under the Total Saved headline as a percentage of the previous month's total plus the absolute difference. It is derived from the same carried balances as the headline, never stored, and a retired pot leaves both sides. When the previous month had no savings there is no percentage base, so only the absolute change is shown.
+_Avoid_: Growth rate, target, goal, progress
+
 ### Months
 
 **Month**:
