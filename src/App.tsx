@@ -17,7 +17,7 @@ import { useAppDispatch, useAppSelector } from './store/hooks';
 import { setSelectedMonth } from './store/appSlice';
 import { useDataSync } from './hooks/useDataSync';
 import { useGoogleAuth } from './contexts/GoogleAuthContext';
-import { isValidMonth } from './utils/month';
+import { getCurrentMonth, isValidMonth } from './utils/month';
 
 function App() {
   const navigate = useNavigate();
@@ -38,11 +38,16 @@ function App() {
 
   // Keep the shared browsed month in sync with the route: whenever a month-scoped
   // screen is opened (deep link, prev/next, or a Dashboard link) it becomes the
-  // month every month-scoped tab will open on.
+  // month every month-scoped tab will open on. Returning to the Dashboard resets
+  // it to the current month, since the Dashboard is the current-month home.
   useEffect(() => {
     const segment = location.pathname.split('/').filter(Boolean)[1];
     if (isValidMonth(segment)) {
       dispatch(setSelectedMonth(segment));
+      return;
+    }
+    if (location.pathname === '/') {
+      dispatch(setSelectedMonth(getCurrentMonth()));
     }
   }, [location.pathname, dispatch]);
 

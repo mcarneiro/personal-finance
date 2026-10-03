@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
 import i18n from './config/i18n';
 import { useGoogleAuth } from './contexts/GoogleAuthContext';
-import { getCurrentMonth } from './utils/month';
+import { getCurrentMonth, getMonthName } from './utils/month';
 import appReducer from './store/appSlice';
 import banksReducer from './store/banksSlice';
 import outflowsReducer from './store/outflowsSlice';
@@ -174,18 +174,21 @@ describe('month navigation', () => {
     expect(screen.getByRole('heading', { name: 'setembro de 2026' })).toBeInTheDocument();
   });
 
-  it('remembers the browsed month when a tab is reopened from the Dashboard', async () => {
-    // Given I browsed September on Outflows and went back home
+  it('resets to the current month when returning to the Dashboard', async () => {
+    // Given I browsed September on Outflows
     const user = userEvent.setup();
     renderApp('/outflows/2026-09');
+    expect(screen.getByRole('heading', { name: 'setembro de 2026' })).toBeInTheDocument();
+
+    // When I go back to the Dashboard and open the Plan tab
     await user.click(screen.getByRole('button', { name: 'Voltar' }));
     expect(screen.getByRole('heading', { name: 'Dashboard' })).toBeInTheDocument();
-
-    // When I open the Plan tab
     await user.click(screen.getByRole('button', { name: 'Plano' }));
 
-    // Then it opens on the month I was browsing, not the current calendar month
-    expect(screen.getByRole('heading', { name: 'setembro de 2026' })).toBeInTheDocument();
+    // Then it opens on the current calendar month, matching the month the Dashboard shows
+    expect(
+      screen.getByRole('heading', { name: getMonthName(getCurrentMonth(), 'pt-BR') })
+    ).toBeInTheDocument();
   });
 
   it('falls back to the current month when the month is malformed', () => {

@@ -61,7 +61,7 @@ A React app using Google Sheets as the database (same foundation as Stayoo) that
 
 #### 3. Month Navigation
 - Month-scoped routes (`/plan/:month`, `/outflows/:month`, `/income/:month`, `/savings/:month`) with prev/next navigation (Stayoo pattern)
-- The browsed month is **shared across the four tabs**: navigating to a month on any one screen sets the month the others open on (browse September on Outflows, and Plan, Income and Savings open on September too). It is session navigation state only, reset to the current month on a fresh load; the Dashboard stays current-month only
+- The browsed month is **shared across the four tabs**: navigating to a month on any one screen sets the month the others open on (browse September on Outflows, and Plan, Income and Savings open on September too). It is session navigation state only, reset to the current month on a fresh load and whenever you return to the current-month Dashboard
 
 #### 4. Income Management
 **Route:** `/income/:month`
