@@ -13,6 +13,7 @@ import pendingReducer from '../../store/pendingSlice';
 import planReducer from '../../store/planSlice';
 import settingsReducer from '../../store/settingsSlice';
 import { lastWrittenRecords, writtenRecords } from '../../test/pendingWrites';
+import { withPrivacyMode } from '../../test/privacy';
 import type { Card, CardSpending, Month, PlanItem } from '../../types';
 import { getCurrentMonth, shiftMonth } from '../../utils/month';
 import PlanScreen from './PlanScreen';
@@ -102,15 +103,17 @@ function renderPlan(
   });
 
   render(
-    <Provider store={store}>
-      <MemoryRouter initialEntries={[initialPath]}>
-        <Routes>
-          <Route path="/plan/:month" element={<PlanScreen />} />
-          <Route path="/plan/edit/:id" element={<p>Editor do teto</p>} />
-          <Route path="/plan/new/:month" element={<p>Novo teto</p>} />
-        </Routes>
-      </MemoryRouter>
-    </Provider>
+    withPrivacyMode(
+      <Provider store={store}>
+        <MemoryRouter initialEntries={[initialPath]}>
+          <Routes>
+            <Route path="/plan/:month" element={<PlanScreen />} />
+            <Route path="/plan/edit/:id" element={<p>Editor do teto</p>} />
+            <Route path="/plan/new/:month" element={<p>Novo teto</p>} />
+          </Routes>
+        </MemoryRouter>
+      </Provider>
+    )
   );
 
   return store;

@@ -22,6 +22,12 @@
     "savings": "Savings",
     "settings": "Settings"
   },
+  "privacy": {
+    "mask": "R$ ••••",
+    "hiddenValue": "Value hidden",
+    "hide": "Hide values",
+    "show": "Show values"
+  },
   "home": {
     "title": "Dashboard",
     "cashFlow": "Income and outflows",

@@ -18,6 +18,7 @@ import planReducer from '../../store/planSlice';
 import savingsReducer from '../../store/savingsSlice';
 import settingsReducer from '../../store/settingsSlice';
 import { writtenRecords } from '../../test/pendingWrites';
+import { withPrivacyMode } from '../../test/privacy';
 import type {
   Outflow,
   CardSpending,
@@ -103,18 +104,20 @@ function renderDashboard(data: DashboardData = {}) {
   });
 
   render(
-    <Provider store={store}>
-      <MemoryRouter initialEntries={['/']}>
-        <Routes>
-          <Route path="/" element={<DashboardScreen now={NOW} />} />
-          <Route path="/income/:month" element={<p>Tela da renda</p>} />
-          <Route path="/outflows/:month" element={<p>Tela de saídas</p>} />
-          <Route path="/plan/:month" element={<p>Tela do plano</p>} />
-          <Route path="/savings/:month" element={<p>Tela das poupanças</p>} />
-          <Route path="/outflows/edit/:id" element={<p>Editor da saída</p>} />
-        </Routes>
-      </MemoryRouter>
-    </Provider>
+    withPrivacyMode(
+      <Provider store={store}>
+        <MemoryRouter initialEntries={['/']}>
+          <Routes>
+            <Route path="/" element={<DashboardScreen now={NOW} />} />
+            <Route path="/income/:month" element={<p>Tela da renda</p>} />
+            <Route path="/outflows/:month" element={<p>Tela de saídas</p>} />
+            <Route path="/plan/:month" element={<p>Tela do plano</p>} />
+            <Route path="/savings/:month" element={<p>Tela das poupanças</p>} />
+            <Route path="/outflows/edit/:id" element={<p>Editor da saída</p>} />
+          </Routes>
+        </MemoryRouter>
+      </Provider>
+    )
   );
 
   return store;

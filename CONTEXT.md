@@ -97,3 +97,7 @@ _Avoid_: Draft, unsaved edit, dirty row
 **Lost Update**:
 A member's written change silently overwritten by a save made from a stale Working Copy. The save protocol exists to prevent this.
 _Avoid_: Overwrite, conflict, race
+
+**Privacy Mode**:
+A device-held display toggle that replaces every amount on screen — every total, every per-row value and every field label built from one — with a fixed mask (`R$ ••••`), so a household can hand the phone over without revealing how much money is in play. It masks only what is displayed, never a derived number or a stored value, and it leaves progress bars and the savings-trend columns at their real proportions. It is remembered on the device like the other view preferences, and it is always visibly engaged in the top bar. Opening a record's editor reveals that record's real value, because editing a hidden number is meaningless.
+_Avoid_: Hidden mode, incognito, eye toggle, hide amounts

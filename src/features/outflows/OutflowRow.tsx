@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import type { Outflow } from '../../types';
-import { formatCurrency } from '../../utils/currency';
+import { formatDisplayAmount } from '../../utils/currency';
 
 interface OutflowRowProps {
   outflow: Outflow;
@@ -14,6 +14,9 @@ interface OutflowRowProps {
   showStatus?: boolean;
   /** Id prefix so co-existing lists keep distinct checkbox ids. */
   idPrefix?: string;
+  /** Whether Privacy Mode is masking amounts, and the localized mask to draw. */
+  masked?: boolean;
+  mask?: string;
   onTogglePaid: (id: string) => void;
   onEdit: (id: string) => void;
 }
@@ -31,6 +34,8 @@ export default function OutflowRow({
   bankLabel,
   showStatus = true,
   idPrefix = 'paid',
+  masked = false,
+  mask,
   onTogglePaid,
   onEdit,
 }: OutflowRowProps) {
@@ -77,7 +82,7 @@ export default function OutflowRow({
               outflow.isPaid ? 'text-gray-400 line-through' : 'text-gray-900'
             }`}
           >
-            {formatCurrency(outflow.amount, locale)}
+            {formatDisplayAmount(outflow.amount, locale, masked, mask)}
           </span>
         </span>
         <span className="flex items-center justify-between gap-2">

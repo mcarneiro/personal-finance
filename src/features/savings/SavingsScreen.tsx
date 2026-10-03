@@ -6,8 +6,9 @@ import NeedsPotRegistryNotice from './NeedsPotRegistryNotice';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { deleteSavingsBalance, upsertSavingsBalance } from '../../store/savingsSlice';
 import { potBalance, savingsDelta, totalSaved } from '../../utils/savings';
-import { formatCurrency } from '../../utils/currency';
+import { formatDisplayAmount } from '../../utils/currency';
 import { getMonthName, isValidMonth } from '../../utils/month';
+import { usePrivacyMode } from '../../contexts/privacyMode';
 
 /**
  * The Savings screen for one month: the Total Saved headline, then every active
@@ -36,6 +37,8 @@ export default function SavingsScreen() {
   const dispatch = useAppDispatch();
   const pots = useAppSelector((state) => state.savings.items);
   const balances = useAppSelector((state) => state.savings.balances);
+  const { masked, mask } = usePrivacyMode();
+  const money = (amount: number) => formatDisplayAmount(amount, i18n.language, masked, mask);
 
   if (!isValidMonth(month)) {
     // MonthScaffold owns the redirect; nothing to list until it settles.
@@ -72,7 +75,7 @@ export default function SavingsScreen() {
       : deltaDirection < 0
         ? t('savings.decrease')
         : t('savings.noChange');
-  const deltaAmount = formatCurrency(Math.abs(delta.absolute), i18n.language);
+  const deltaAmount = money(Math.abs(delta.absolute));
   const deltaPercent =
     delta.percent === null
       ? null
@@ -93,7 +96,7 @@ export default function SavingsScreen() {
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium text-gray-700">{t('savings.total')}</span>
           <span data-testid="savings-total" className="text-lg font-bold text-gray-900">
-            {formatCurrency(total, i18n.language)}
+            {money(total)}
           </span>
         </div>
         {/* The change from the previous month, derived by `savingsDelta` on the
@@ -134,6 +137,8 @@ export default function SavingsScreen() {
                     label={t('savings.balanceLabel', { name: pot.name })}
                     value={carried?.balance ?? 0}
                     hasValue={carried !== undefined}
+                    masked={masked}
+                    mask={mask}
                     onCommit={(balance) =>
                       dispatch(upsertSavingsBalance({ month, potId: pot.id, balance }))
                     }

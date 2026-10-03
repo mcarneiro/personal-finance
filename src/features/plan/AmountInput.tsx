@@ -24,6 +24,13 @@ interface AmountInputProps {
    * simply "nothing yet").
    */
   hasValue?: boolean;
+  /**
+   * When Privacy Mode is on, the field shows the mask and is read-only: a hidden
+   * value is never edited blind. Leaving the mode restores the normal field.
+   */
+  masked?: boolean;
+  /** The localized mask to draw while `masked`. */
+  mask?: string;
 }
 
 /**
@@ -54,6 +61,8 @@ export default function AmountInput({
   onCommit,
   onClear,
   hasValue = false,
+  masked = false,
+  mask = 'R$ ••••',
 }: AmountInputProps) {
   const { i18n } = useTranslation();
   const [draft, setDraft] = useState(() => toDraft(value, i18n.language, hasValue));
@@ -111,12 +120,15 @@ export default function AmountInput({
       id={id}
       type="text"
       inputMode="decimal"
-      aria-label={label}
-      value={draft}
+      aria-label={masked ? `${label} — ${mask}` : label}
+      value={masked ? mask : draft}
+      readOnly={masked}
       onChange={handleChange}
       onBlur={handleBlur}
       placeholder="0"
-      className="w-28 rounded-lg border border-gray-300 px-3 py-2 text-right text-sm focus:border-transparent focus:ring-2 focus:ring-blue-500"
+      className={`w-28 rounded-lg border border-gray-300 px-3 py-2 text-right text-sm focus:border-transparent focus:ring-2 focus:ring-blue-500 ${
+        masked ? 'bg-gray-100 text-gray-500' : ''
+      }`}
     />
   );
 }

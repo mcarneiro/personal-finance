@@ -12,6 +12,7 @@ import { syncListenerMiddleware } from '../../store/middleware/syncListener';
 import pendingReducer from '../../store/pendingSlice';
 import settingsReducer from '../../store/settingsSlice';
 import { writtenChanges, writtenRecords } from '../../test/pendingWrites';
+import { withPrivacyMode } from '../../test/privacy';
 import type { SavingsBalance, SavingsPot } from '../../types';
 import SavingsScreen from './SavingsScreen';
 
@@ -61,14 +62,16 @@ function renderSavings(
   });
 
   render(
-    <Provider store={store}>
-      <MemoryRouter initialEntries={[initialPath]}>
-        <Routes>
-          <Route path="/savings/:month" element={<SavingsScreen />} />
-          <Route path="/settings" element={<p>Ajustes</p>} />
-        </Routes>
-      </MemoryRouter>
-    </Provider>
+    withPrivacyMode(
+      <Provider store={store}>
+        <MemoryRouter initialEntries={[initialPath]}>
+          <Routes>
+            <Route path="/savings/:month" element={<SavingsScreen />} />
+            <Route path="/settings" element={<p>Ajustes</p>} />
+          </Routes>
+        </MemoryRouter>
+      </Provider>
+    )
   );
 
   return store;

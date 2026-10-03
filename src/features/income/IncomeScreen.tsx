@@ -5,10 +5,11 @@ import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { addIncomeEntries } from '../../store/incomeSlice';
 import type { IncomeEntry } from '../../types';
 import { incomeTotal } from '../../utils/controlLoop';
-import { formatCurrency } from '../../utils/currency';
+import { formatDisplayAmount } from '../../utils/currency';
 import { copyIncomeEntries } from '../../utils/incomeCopy';
 import { isValidMonth, shiftMonth } from '../../utils/month';
 import { useCopyGuard } from '../../hooks/useCopyGuard';
+import { usePrivacyMode } from '../../contexts/privacyMode';
 
 /**
  * The Income screen for one month: entries with an amount and an optional
@@ -30,6 +31,8 @@ export default function IncomeScreen() {
     'income',
     month
   );
+  const { masked, mask } = usePrivacyMode();
+  const money = (amount: number) => formatDisplayAmount(amount, i18n.language, masked, mask);
 
   if (!isValidMonth(month)) {
     // MonthScaffold owns the redirect; nothing to list until it settles.
@@ -40,8 +43,7 @@ export default function IncomeScreen() {
   const lastMonthEntries = items.filter((entry) => entry.month === shiftMonth(month, -1));
 
   /** The entry's readable name: its source note, or the amount when unlabeled. */
-  const entryLabel = (entry: IncomeEntry) =>
-    entry.source || formatCurrency(entry.amount, i18n.language);
+  const entryLabel = (entry: IncomeEntry) => entry.source || money(entry.amount);
 
   return (
     <MonthScaffold basePath="/income">
@@ -52,7 +54,7 @@ export default function IncomeScreen() {
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium text-gray-700">{t('income.total')}</span>
           <span className="text-lg font-bold text-gray-900">
-            {formatCurrency(incomeTotal(month, items), i18n.language)}
+            {money(incomeTotal(month, items))}
           </span>
         </div>
         {/* Replicate only into an empty month: on a month that already has
@@ -104,7 +106,7 @@ export default function IncomeScreen() {
                     {entry.source || t('income.noSource')}
                   </span>
                   <span className="text-sm font-medium text-gray-900">
-                    {formatCurrency(entry.amount, i18n.language)}
+                    {money(entry.amount)}
                   </span>
                 </button>
               </li>

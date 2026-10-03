@@ -17,12 +17,13 @@ import {
   type OutflowFilter,
 } from '../../utils/outflowFilter';
 import { copyOutflows } from '../../utils/outflowCopy';
-import { formatCurrency } from '../../utils/currency';
+import { formatDisplayAmount } from '../../utils/currency';
 import { isValidMonth, shiftMonth } from '../../utils/month';
 import { useCopyGuard } from '../../hooks/useCopyGuard';
 import { usePersistentState } from '../../hooks/usePersistentState';
 import { usePersistentToggle } from '../../hooks/usePersistentToggle';
 import { useRegistryLabels } from '../../hooks/useRegistryLabels';
+import { usePrivacyMode } from '../../contexts/privacyMode';
 import NeedsRegistryNotice from './NeedsRegistryNotice';
 import OutflowFilterDrawer from './OutflowFilterDrawer';
 import OutflowRow from './OutflowRow';
@@ -89,6 +90,11 @@ export default function OutflowsScreen() {
   );
   // Resolve payer/bank names the same way the Dashboard does.
   const { payerLabel, bankLabel } = useRegistryLabels();
+  // Every amount here — the totals, the by-payer breakdown and each row — is a
+  // display value that Privacy Mode masks without touching the derived numbers.
+  const { masked, mask } = usePrivacyMode();
+  const money = (amount: number) =>
+    formatDisplayAmount(amount, i18n.language, masked, mask);
 
   if (!isValidMonth(month)) {
     // MonthScaffold owns the redirect; nothing to list until it settles.
@@ -128,7 +134,7 @@ export default function OutflowsScreen() {
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium text-gray-700">{t('outflows.outflowsTotal')}</span>
           <span className="text-sm font-medium text-gray-900">
-            {formatCurrency(outflowsTotal(month, outflows), i18n.language)}
+            {money(outflowsTotal(month, outflows))}
           </span>
         </div>
         <button
@@ -139,14 +145,12 @@ export default function OutflowsScreen() {
         >
           <span className="text-sm text-gray-700">{t('outflows.incomeTotal')}</span>
           <span className="text-sm font-medium text-blue-600">
-            {formatCurrency(incomeTotal(month, income), i18n.language)}
+            {money(incomeTotal(month, income))}
           </span>
         </button>
         <div className="mt-3 flex items-center justify-between border-t border-gray-100 pt-3">
           <span className="text-sm font-medium text-gray-700">{t('outflows.accountNet')}</span>
-          <span className="text-lg font-bold text-gray-900">
-            {formatCurrency(net, i18n.language)}
-          </span>
+          <span className="text-lg font-bold text-gray-900">{money(net)}</span>
         </div>
         {/* Replicate only into an empty month: on a month that already has
             outflows it would silently duplicate the whole list. The re-read below
@@ -225,6 +229,8 @@ export default function OutflowsScreen() {
                         payerLabel={payerLabel}
                         bankLabel={bankLabel}
                         showRemaining={showRemaining}
+                        masked={masked}
+                        mask={mask}
                       />
                     </li>
                   ))}
@@ -317,6 +323,8 @@ export default function OutflowsScreen() {
                   locale={i18n.language}
                   payerLabel={payerLabel}
                   bankLabel={bankLabel}
+                  masked={masked}
+                  mask={mask}
                   onTogglePaid={(id) => dispatch(toggleOutflowPaid(id))}
                   onEdit={(id) => navigate(`/outflows/edit/${id}`)}
                 />
@@ -356,19 +364,25 @@ function PayerGroupRow({
   payerLabel,
   bankLabel,
   showRemaining,
+  masked,
+  mask,
 }: {
   group: PayerGroup;
   locale: string;
   payerLabel: (id: string) => string;
   bankLabel: (id: string) => string;
   showRemaining: boolean;
+  masked: boolean;
+  mask: string;
 }) {
+  const money = (amount: number) => formatDisplayAmount(amount, locale, masked, mask);
+
   return (
     <div>
       <div className="flex items-center justify-between">
         <span className="text-sm font-medium text-gray-900">{payerLabel(group.payerId)}</span>
         <span className="text-sm font-medium text-gray-900">
-          {formatCurrency(showRemaining ? group.remaining : group.total, locale)}
+          {money(showRemaining ? group.remaining : group.total)}
         </span>
       </div>
       <ul className="mt-1 space-y-1">
@@ -379,7 +393,7 @@ function PayerGroupRow({
           >
             <span className="text-xs text-gray-600">{bankLabel(line.bankId)}</span>
             <span className="text-xs text-gray-600">
-              {formatCurrency(showRemaining ? line.remaining : line.total, locale)}
+              {money(showRemaining ? line.remaining : line.total)}
             </span>
           </li>
         ))}

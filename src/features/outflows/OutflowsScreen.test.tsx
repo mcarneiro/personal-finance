@@ -15,6 +15,7 @@ import pendingReducer from '../../store/pendingSlice';
 import payersReducer from '../../store/payersSlice';
 import settingsReducer from '../../store/settingsSlice';
 import { writtenRecords } from '../../test/pendingWrites';
+import { withPrivacyMode } from '../../test/privacy';
 import type { Bank, Outflow, IncomeEntry, Payer } from '../../types';
 import { formatCurrency } from '../../utils/currency';
 import { getCurrentMonth, shiftMonth } from '../../utils/month';
@@ -109,17 +110,19 @@ function renderOutflows(
   });
 
   render(
-    <Provider store={store}>
-      <MemoryRouter initialEntries={[initialPath]}>
-        <Routes>
-          <Route path="/outflows/:month" element={<OutflowsScreen />} />
-          <Route path="/outflows/edit/:id" element={<p>Editor da saída</p>} />
-          <Route path="/outflows/new/:month" element={<p>Nova saída</p>} />
-          <Route path="/income/:month" element={<p>Página de renda</p>} />
-          <Route path="/settings" element={<p>Ajustes</p>} />
-        </Routes>
-      </MemoryRouter>
-    </Provider>
+    withPrivacyMode(
+      <Provider store={store}>
+        <MemoryRouter initialEntries={[initialPath]}>
+          <Routes>
+            <Route path="/outflows/:month" element={<OutflowsScreen />} />
+            <Route path="/outflows/edit/:id" element={<p>Editor da saída</p>} />
+            <Route path="/outflows/new/:month" element={<p>Nova saída</p>} />
+            <Route path="/income/:month" element={<p>Página de renda</p>} />
+            <Route path="/settings" element={<p>Ajustes</p>} />
+          </Routes>
+        </MemoryRouter>
+      </Provider>
+    )
   );
 
   return store;

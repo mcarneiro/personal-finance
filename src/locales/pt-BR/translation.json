@@ -22,6 +22,12 @@
     "savings": "Poupanças",
     "settings": "Ajustes"
   },
+  "privacy": {
+    "mask": "R$ ••••",
+    "hiddenValue": "Valor oculto",
+    "hide": "Ocultar valores",
+    "show": "Mostrar valores"
+  },
   "home": {
     "title": "Dashboard",
     "cashFlow": "Renda e saídas",

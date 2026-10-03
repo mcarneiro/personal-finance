@@ -17,6 +17,7 @@ import payersReducer from './store/payersSlice';
 import planReducer from './store/planSlice';
 import savingsReducer from './store/savingsSlice';
 import settingsReducer from './store/settingsSlice';
+import { withPrivacyMode } from './test/privacy';
 
 // Auth is an external boundary; screens are tested with a signed-in household planner.
 vi.mock('./contexts/GoogleAuthContext', () => ({
@@ -85,11 +86,13 @@ function renderApp(initialPath: string, store = appStore()) {
   mockedUseGoogleAuth.mockReturnValue(authState());
 
   return render(
-    <Provider store={store}>
-      <MemoryRouter initialEntries={[initialPath]}>
-        <App />
-      </MemoryRouter>
-    </Provider>,
+    withPrivacyMode(
+      <Provider store={store}>
+        <MemoryRouter initialEntries={[initialPath]}>
+          <App />
+        </MemoryRouter>
+      </Provider>
+    ),
   );
 }
 
@@ -453,14 +456,145 @@ describe('startup gate', () => {
 
     // When the app opens on the plan
     render(
-      <Provider store={appStore()}>
-        <MemoryRouter initialEntries={['/plan/2026-06']}>
-          <App />
-        </MemoryRouter>
-      </Provider>,
+      withPrivacyMode(
+        <Provider store={appStore()}>
+          <MemoryRouter initialEntries={['/plan/2026-06']}>
+            <App />
+          </MemoryRouter>
+        </Provider>
+      ),
     );
 
     // Then onboarding is shown
     expect(screen.getByRole('heading', { name: 'Bem-vindo ao Planyoo' })).toBeInTheDocument();
+  });
+});
+
+describe('privacy mode', () => {
+  /** A store with a month of real income and outflows, so masking is observable. */
+  function seededStore() {
+    return configureStore({
+      reducer: {
+        app: appReducer,
+        cards: cardsReducer,
+        banks: banksReducer,
+        payers: payersReducer,
+        plan: planReducer,
+        outflows: outflowsReducer,
+        income: incomeReducer,
+        savings: savingsReducer,
+        settings: settingsReducer,
+      },
+      preloadedState: {
+        app: {
+          authInitialized: true,
+          dataLoading: false,
+          dataLoaded: true,
+          syncing: false,
+          offline: false,
+          selectedMonth: '2026-06',
+        },
+        settings: { sheetId: 'test-sheet' },
+        cards: { items: [{ id: 'card-1', name: 'cc guta' }] },
+        payers: { items: [{ id: 'p1', name: 'Marcelo' }] },
+        banks: { items: [{ id: 'b1', name: 'Nubank' }] },
+        income: {
+          items: [{ id: 'inc-1', month: '2026-06', amount: 10000, source: 'Salário' }],
+        },
+        outflows: {
+          items: [
+            {
+              id: 'out-1',
+              month: '2026-06',
+              name: 'Aluguel',
+              amount: 2500,
+              isPaid: false,
+              isFinal: true,
+              payerId: 'p1',
+              bankId: 'b1',
+            },
+          ],
+        },
+      },
+    });
+  }
+
+  beforeEach(async () => {
+    await setLanguage('pt-BR');
+    localStorage.clear();
+  });
+
+  it('shows the eye on the tabbed screens and hides it on the Dashboard-less editors', () => {
+    // Given the app is open on the Outflows screen
+    renderApp('/outflows/2026-06', seededStore());
+
+    // Then the privacy eye is offered with the "hide" action, not pressed yet
+    const eye = screen.getByRole('button', { name: 'Ocultar valores' });
+    expect(eye).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('masks every displayed amount once the eye is engaged', async () => {
+    // Given the app is open on the Outflows screen with real values
+    const user = userEvent.setup();
+    renderApp('/outflows/2026-06', seededStore());
+    expect(screen.getAllByText(/2\.500,00/).length).toBeGreaterThan(0);
+
+    // When I engage privacy mode
+    await user.click(screen.getByRole('button', { name: 'Ocultar valores' }));
+
+    // Then the totals and each row read the mask, never the real amount
+    expect(screen.getAllByText('R$ ••••').length).toBeGreaterThan(0);
+    expect(screen.queryAllByText(/2\.500,00/)).toHaveLength(0);
+    expect(screen.queryAllByText(/10\.000,00/)).toHaveLength(0);
+
+    // And the eye now offers the "show" action, unmistakably engaged
+    expect(screen.getByRole('button', { name: 'Mostrar valores' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+  });
+
+  it('keeps masking off the full-screen editors, revealing values to edit', async () => {
+    // Given privacy mode is engaged on the outflows list
+    const user = userEvent.setup();
+    renderApp('/outflows/2026-06', seededStore());
+    await user.click(screen.getByRole('button', { name: 'Ocultar valores' }));
+
+    // When I open a record's editor
+    await user.click(screen.getByRole('button', { name: 'Editar Aluguel' }));
+
+    // Then the editor shows the real amount for editing and offers no eye
+    expect(screen.getByDisplayValue('2500')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Mostrar valores' })).not.toBeInTheDocument();
+  });
+
+  it('renders inline amount inputs read-only while masked', async () => {
+    // Given the Plan screen is masked
+    const user = userEvent.setup();
+    renderApp('/plan/2026-06', seededStore());
+    await user.click(screen.getByRole('button', { name: 'Ocultar valores' }));
+
+    // Then the check-in field carries the mask and refuses typing
+    const field = screen.getByLabelText('Gasto do cartão cc guta — R$ ••••');
+    expect(field).toHaveAttribute('readonly');
+    expect(field).toHaveValue('R$ ••••');
+  });
+
+  it('remembers the mode across a reload', async () => {
+    // Given privacy mode was engaged
+    const user = userEvent.setup();
+    const first = renderApp('/outflows/2026-06', seededStore());
+    await user.click(screen.getByRole('button', { name: 'Ocultar valores' }));
+    first.unmount();
+
+    // When the app is opened again on this device
+    renderApp('/outflows/2026-06', seededStore());
+
+    // Then it reopens already masked, with the eye engaged
+    expect(screen.getByRole('button', { name: 'Mostrar valores' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+    expect(screen.getAllByText('R$ ••••').length).toBeGreaterThan(0);
   });
 });

@@ -6,6 +6,7 @@ import { GoogleOAuthProvider } from '@react-oauth/google';
 import App from './App.tsx';
 import { store } from './store';
 import { GoogleAuthProvider } from './contexts/GoogleAuthContext';
+import { PrivacyModeProvider } from './contexts/PrivacyModeProvider';
 import { GOOGLE_CONFIG } from './config/google';
 import './config/i18n'; // Initialize i18n
 import './index.css';
@@ -15,9 +16,11 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <GoogleOAuthProvider clientId={GOOGLE_CONFIG.CLIENT_ID}>
       <Provider store={store}>
         <GoogleAuthProvider>
-          <BrowserRouter>
-            <App />
-          </BrowserRouter>
+          <PrivacyModeProvider>
+            <BrowserRouter>
+              <App />
+            </BrowserRouter>
+          </PrivacyModeProvider>
         </GoogleAuthProvider>
       </Provider>
     </GoogleOAuthProvider>

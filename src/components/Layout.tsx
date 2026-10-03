@@ -2,6 +2,7 @@ import { ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAppSelector } from '../store/hooks';
+import { usePrivacyMode } from '../contexts/privacyMode';
 
 interface LayoutProps {
   children: ReactNode;
@@ -52,6 +53,10 @@ const SCREEN_TITLES: { prefix: string; labelKey: string; addLabelKey?: string }[
 
 const BACK_ICON = 'M15 19l-7-7 7-7';
 const ADD_ICON = 'M12 4v16m8-8H4';
+const EYE_ICON =
+  'M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z';
+const EYE_OFF_ICON =
+  'M3 3l18 18 M10.584 10.587a2 2 0 002.828 2.83 M9.363 5.365A9.466 9.466 0 0112 5c4.478 0 8.268 2.943 9.542 7a9.77 9.77 0 01-1.666 2.855 M6.228 6.228A9.77 9.77 0 002.458 12c1.274 4.057 5.064 7 9.542 7a9.47 9.47 0 003.332-.597';
 const SETTINGS_ICON =
   'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z';
 
@@ -59,13 +64,18 @@ const SETTINGS_ICON =
  * The app shell: a contextual top bar, the scrollable content, and the fixed
  * bottom navigation. The top bar shows the current screen's name — Dashboard on
  * the home page — and adds the Settings shortcut on home or a back button
- * everywhere else. The header and nav share the content's `max-w-md` column so
- * everything lines up on one axis.
+ * everywhere else. It also carries the app-wide Privacy Mode eye on every screen
+ * it wraps, immediately left of the right-hand action (the "+" where a screen has
+ * one, or Settings on home). Full-screen pages — Settings itself and the record
+ * editors — do not use this shell, so they never show the eye, which is where
+ * revealing a value to edit it is expected. The header and nav share the
+ * content's `max-w-md` column so everything lines up on one axis.
  */
 export default function Layout({ children }: LayoutProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useTranslation();
+  const { masked, toggle } = usePrivacyMode();
   // Tabs carry the shared browsed month, so switching screens keeps the month
   // rather than resetting to the calendar month (see ADR-0004).
   const selectedMonth = useAppSelector((state) => state.app.selectedMonth);
@@ -96,6 +106,31 @@ export default function Layout({ children }: LayoutProps) {
           <h1 className="min-w-0 flex-1 truncate text-xl font-bold text-gray-900">
             {screen ? t(screen.labelKey) : t('home.title')}
           </h1>
+
+          {/* Privacy Mode is app-wide, so it sits on every shelled screen. It is
+              drawn with a distinct filled, slashed eye while engaged — the only
+              cue that a remembered mode is on — immediately left of the screen's
+              own action. */}
+          <button
+            type="button"
+            onClick={toggle}
+            aria-label={t(masked ? 'privacy.show' : 'privacy.hide')}
+            aria-pressed={masked}
+            className={`rounded-lg p-2 transition-colors ${
+              masked
+                ? 'bg-gray-900 text-white hover:bg-gray-800'
+                : 'text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d={masked ? EYE_OFF_ICON : EYE_ICON}
+              />
+            </svg>
+          </button>
 
           {screen?.addLabelKey && month && (
             <button

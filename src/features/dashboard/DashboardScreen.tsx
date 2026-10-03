@@ -12,9 +12,10 @@ import {
 import { planPace, type PlanPaceLevel } from '../../utils/planPace';
 import { cashFlowBar, type CashFlowLevel } from '../../utils/cashFlowBar';
 import { orderOutflows } from '../../utils/outflowOrder';
-import { formatCurrency } from '../../utils/currency';
+import { formatDisplayAmount } from '../../utils/currency';
 import { getCurrentMonth, getMonthName } from '../../utils/month';
 import { useRegistryLabels } from '../../hooks/useRegistryLabels';
+import { usePrivacyMode } from '../../contexts/privacyMode';
 import BlockHeader from '../../components/BlockHeader';
 import OutflowRow from '../outflows/OutflowRow';
 import SavingsTrend from './SavingsTrend';
@@ -59,6 +60,11 @@ export default function DashboardScreen({ now = new Date() }: DashboardScreenPro
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const month = getCurrentMonth(now);
+  // Every amount on the Dashboard is a display value: Privacy Mode masks them
+  // without touching the derived numbers the control loop computes.
+  const { masked, mask } = usePrivacyMode();
+  const money = (amount: number) =>
+    formatDisplayAmount(amount, i18n.language, masked, mask);
 
   const planItems = useAppSelector((state) => state.plan.items);
   const cardSpending = useAppSelector((state) => state.plan.cardSpending);
@@ -112,9 +118,7 @@ export default function DashboardScreen({ now = new Date() }: DashboardScreenPro
             className="mt-3 flex w-full items-center justify-between text-left"
           >
             <span className="text-sm text-gray-700">{t('outflows.incomeTotal')}</span>
-            <span className="text-sm font-medium text-gray-900">
-              {formatCurrency(incomeValue, i18n.language)}
-            </span>
+            <span className="text-sm font-medium text-gray-900">{money(incomeValue)}</span>
           </button>
           <button
             type="button"
@@ -123,9 +127,7 @@ export default function DashboardScreen({ now = new Date() }: DashboardScreenPro
             className="flex w-full items-center justify-between text-left"
           >
             <span className="text-sm text-gray-700">{t('outflows.outflowsTotal')}</span>
-            <span className="text-sm font-medium text-gray-900">
-              {formatCurrency(outflowsValue, i18n.language)}
-            </span>
+            <span className="text-sm font-medium text-gray-900">{money(outflowsValue)}</span>
           </button>
 
           {/* The bar fills with the month's outflows toward the income ceiling and
@@ -150,15 +152,13 @@ export default function DashboardScreen({ now = new Date() }: DashboardScreenPro
               onClick={() => navigate(`/outflows/${month}`)}
               className="mt-2 text-left text-sm font-medium text-red-700"
             >
-              {t('home.cashFlowOver', { amount: formatCurrency(-net, i18n.language) })}
+              {t('home.cashFlowOver', { amount: money(-net) })}
             </button>
           )}
 
           <div className="mt-3 flex items-center justify-between border-t border-gray-100 pt-3">
             <span className="text-sm font-medium text-gray-700">{t('outflows.accountNet')}</span>
-            <span className="text-lg font-bold text-gray-900">
-              {formatCurrency(net, i18n.language)}
-            </span>
+            <span className="text-lg font-bold text-gray-900">{money(net)}</span>
           </div>
         </section>
       )}
@@ -171,15 +171,11 @@ export default function DashboardScreen({ now = new Date() }: DashboardScreenPro
           />
           <div className="mt-3 flex items-center justify-between">
             <span className="text-sm text-gray-700">{t('plan.total')}</span>
-            <span className="text-sm font-medium text-gray-900">
-              {formatCurrency(target, i18n.language)}
-            </span>
+            <span className="text-sm font-medium text-gray-900">{money(target)}</span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-sm text-gray-700">{t('plan.totalSpentSoFar')}</span>
-            <span className="text-sm font-medium text-gray-900">
-              {formatCurrency(spent, i18n.language)}
-            </span>
+            <span className="text-sm font-medium text-gray-900">{money(spent)}</span>
           </div>
 
           {/* The bar fills toward the plan and stops at it; a thin marker shows
@@ -211,7 +207,7 @@ export default function DashboardScreen({ now = new Date() }: DashboardScreenPro
               onClick={() => navigate(`/plan/${month}`)}
               className="mt-2 text-left text-sm font-medium text-amber-700"
             >
-              {t('home.planAhead', { amount: formatCurrency(pace.headroom, i18n.language) })}
+              {t('home.planAhead', { amount: money(pace.headroom) })}
             </button>
           )}
           {pace.level === 'over' && (
@@ -220,7 +216,7 @@ export default function DashboardScreen({ now = new Date() }: DashboardScreenPro
               onClick={() => navigate(`/plan/${month}`)}
               className="mt-2 text-left text-sm font-medium text-red-700"
             >
-              {t('home.planOver', { amount: formatCurrency(-pace.headroom, i18n.language) })}
+              {t('home.planOver', { amount: money(-pace.headroom) })}
             </button>
           )}
         </section>
@@ -247,6 +243,8 @@ export default function DashboardScreen({ now = new Date() }: DashboardScreenPro
                 bankLabel={bankLabel}
                 showStatus={false}
                 idPrefix="dashboard-paid"
+                masked={masked}
+                mask={mask}
                 onTogglePaid={(id) => dispatch(toggleOutflowPaid(id))}
                 onEdit={(id) => navigate(`/outflows/edit/${id}`)}
               />

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatCurrency, parseAmount } from '../currency';
+import { formatCurrency, formatDisplayAmount, parseAmount } from '../currency';
 
 describe('formatCurrency', () => {
   it('formats an amount as localized BRL in pt-BR', () => {
@@ -21,6 +21,37 @@ describe('formatCurrency', () => {
     // When it is formatted in the primary language
     // Then the sign is shown before the currency symbol
     expect(formatCurrency(-2304, 'pt-BR')).toMatch(/-R\$\s?2\.304,00/);
+  });
+});
+
+describe('formatDisplayAmount', () => {
+  it('mirrors formatCurrency when values are not hidden', () => {
+    // Given a value and Privacy Mode off
+    // When it is formatted for display
+    // Then it reads exactly like formatCurrency
+    expect(formatDisplayAmount(10750, 'pt-BR', false)).toBe(formatCurrency(10750, 'pt-BR'));
+  });
+
+  it('returns the mask when values are hidden, in pt-BR', () => {
+    // Given a value and Privacy Mode on
+    // When it is formatted for display
+    // Then the amount is replaced by the localized mask, keeping the currency symbol
+    expect(formatDisplayAmount(10750, 'pt-BR', true)).toBe('R$ ••••');
+  });
+
+  it('returns the mask in en-US too', () => {
+    // Given the same value under the secondary language
+    // When values are hidden
+    // Then the mask is language-aware but still carries the currency symbol
+    expect(formatDisplayAmount(10750, 'en-US', true)).toBe('R$ ••••');
+  });
+
+  it('masks sign and magnitude alike', () => {
+    // Given a negative and a zero amount
+    // When values are hidden
+    // Then neither the sign nor the value leaks
+    expect(formatDisplayAmount(-2304, 'pt-BR', true)).toBe('R$ ••••');
+    expect(formatDisplayAmount(0, 'pt-BR', true)).toBe('R$ ••••');
   });
 });
 

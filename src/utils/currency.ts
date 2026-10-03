@@ -7,12 +7,40 @@
 
 const CURRENCY = 'BRL';
 
+/**
+ * The placeholder shown in place of a value while Privacy Mode is on. It keeps
+ * the currency symbol but carries no magnitude or sign, so a masked screen never
+ * leaks how much money is in play. The word is supplied by the caller (the UI
+ * passes its translated mask) so the string lives in the locale files, not here.
+ */
+export const PRIVACY_MASK = 'R$ ••••';
+
 /** Format an amount as localized BRL currency, e.g. `R$ 10.750,00`. */
 export function formatCurrency(amount: number, locale: string = 'pt-BR'): string {
   return new Intl.NumberFormat(locale, {
     style: 'currency',
     currency: CURRENCY,
   }).format(amount);
+}
+
+/**
+ * Format an amount for display, honouring Privacy Mode. When `masked` is false
+ * this is exactly `formatCurrency` — the same number, the same locale rules, so
+ * nothing changes for an unengaged household. When `masked` is true the amount
+ * is replaced by `mask`, which defaults to the app's own placeholder: callers
+ * that translate it (every screen does) pass their localized string instead.
+ *
+ * It is deliberately a formatter, not a stateful component: masking is a
+ * display concern, so it is applied at the call site and the derived numbers in
+ * state are never touched (ADR-0001).
+ */
+export function formatDisplayAmount(
+  amount: number,
+  locale: string = 'pt-BR',
+  masked = false,
+  mask: string = PRIVACY_MASK
+): string {
+  return masked ? mask : formatCurrency(amount, locale);
 }
 
 /**

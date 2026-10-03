@@ -17,6 +17,7 @@ import payersReducer from './store/payersSlice';
 import pendingReducer from './store/pendingSlice';
 import planReducer from './store/planSlice';
 import settingsReducer, { setSheetId } from './store/settingsSlice';
+import { withPrivacyMode } from './test/privacy';
 import type { Outflow, PendingChanges, SheetData } from './types';
 import { getCurrentMonth } from './utils/month';
 
@@ -105,11 +106,13 @@ function renderApp(store: ReturnType<typeof createStore>, path = '/plan/2026-06'
   });
 
   return render(
-    <Provider store={store}>
-      <MemoryRouter initialEntries={[path]}>
-        <App />
-      </MemoryRouter>
-    </Provider>
+    withPrivacyMode(
+      <Provider store={store}>
+        <MemoryRouter initialEntries={[path]}>
+          <App />
+        </MemoryRouter>
+      </Provider>
+    )
   );
 }
 

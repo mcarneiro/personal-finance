@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import '../../config/i18n';
 import i18n from '../../config/i18n';
 import savingsReducer from '../../store/savingsSlice';
+import { withPrivacyMode } from '../../test/privacy';
 import type { SavingsBalance, SavingsPot } from '../../types';
 import SavingsTrend from './SavingsTrend';
 
@@ -30,14 +31,16 @@ function renderTrend(pots: SavingsPot[] = [], balances: SavingsBalance[] = []) {
   });
 
   render(
-    <Provider store={store}>
-      <MemoryRouter initialEntries={['/']}>
-        <Routes>
-          <Route path="/" element={<SavingsTrend now={NOW} />} />
-          <Route path="/savings/:month" element={<p>Tela das poupanças</p>} />
-        </Routes>
-      </MemoryRouter>
-    </Provider>
+    withPrivacyMode(
+      <Provider store={store}>
+        <MemoryRouter initialEntries={['/']}>
+          <Routes>
+            <Route path="/" element={<SavingsTrend now={NOW} />} />
+            <Route path="/savings/:month" element={<p>Tela das poupanças</p>} />
+          </Routes>
+        </MemoryRouter>
+      </Provider>
+    )
   );
 
   return store;

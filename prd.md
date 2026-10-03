@@ -217,6 +217,12 @@ Onboarding validates the connected sheet and creates any missing tabs with the h
 
 The app shell is a mobile-first Layout: a contextual top bar (with an optional screen-declared "+" for adding a record to the browsed month), the scrollable content column, and a fixed bottom navigation with four tabs (Plan, Outflows, Income, Savings). Creating and editing an outflow, spending bucket or income entry happens on a full-screen record editor with its own header and no bottom nav, like Settings; savings pots are managed in Settings and their balances are edited inline, so the Savings screen has no "+" and no editors. The shell and navigation conventions are recorded in ADR-0004.
 
+### Privacy Mode
+
+Every shelled screen — the Dashboard and the four month-scoped tabs — carries a **Privacy Mode** eye in the top bar, immediately left of that screen's own action (the "+" where the screen has one, or Settings on home). Tapping it replaces every displayed amount with a fixed mask (`R$ ••••`, translated per language) and leaves the real values untouched in state and on the sheet: the summary totals, the per-row amounts, the by-payer and by-bank subtotals, the savings-trend readout, and any translated label or aria-label built from an amount (the Dashboard's overage callouts, the Income row's amount-as-fallback name, the trend column's label). Progress bars and the savings-trend columns keep their real proportions — the mask is about digits, not shapes.
+
+Inline amount fields (card check-ins, remaining estimates, savings balances) render the mask and become read-only while the mode is on, so a hidden value is never edited blind. Record editors — full-screen pages outside the shell — deliberately show real values and offer no eye, since opening a record is an explicit intent to see and change that number. The mode is remembered on the device like the other view preferences (ADR-0001) and its engaged state is visible at a glance through a slashed, filled eye; there is no toast. It never writes to the sheet and never changes a derived number.
+
 ## Control Loop Specification
 
 ```

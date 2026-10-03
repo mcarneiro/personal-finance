@@ -3,7 +3,8 @@ import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { setCardSpendingTotal } from '../../store/planSlice';
 import type { Month } from '../../types';
 import { totalSpent } from '../../utils/controlLoop';
-import { formatCurrency } from '../../utils/currency';
+import { formatDisplayAmount } from '../../utils/currency';
+import { usePrivacyMode } from '../../contexts/privacyMode';
 import AmountInput from './AmountInput';
 
 interface CardCheckInProps {
@@ -22,6 +23,7 @@ export default function CardCheckIn({ month }: CardCheckInProps) {
   const dispatch = useAppDispatch();
   const cards = useAppSelector((state) => state.cards.items);
   const cardSpending = useAppSelector((state) => state.plan.cardSpending);
+  const { masked, mask } = usePrivacyMode();
 
   return (
     <section
@@ -45,6 +47,8 @@ export default function CardCheckIn({ month }: CardCheckInProps) {
                   id={`card-spending-${card.id}`}
                   label={t('plan.cardSpending', { name: card.name })}
                   value={entry ? entry.total : 0}
+                  masked={masked}
+                  mask={mask}
                   onCommit={(total) =>
                     dispatch(setCardSpendingTotal({ month, cardId: card.id, total }))
                   }
@@ -58,7 +62,7 @@ export default function CardCheckIn({ month }: CardCheckInProps) {
       <div className="mt-3 flex items-center justify-between border-t border-gray-100 pt-3">
         <span className="text-sm font-medium text-gray-700">{t('plan.totalSpentSoFar')}</span>
         <span className="text-sm font-semibold text-gray-900">
-          {formatCurrency(totalSpent(month, cardSpending), i18n.language)}
+          {formatDisplayAmount(totalSpent(month, cardSpending), i18n.language, masked, mask)}
         </span>
       </div>
     </section>

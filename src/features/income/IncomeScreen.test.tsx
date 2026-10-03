@@ -12,6 +12,7 @@ import { syncListenerMiddleware } from '../../store/middleware/syncListener';
 import pendingReducer from '../../store/pendingSlice';
 import settingsReducer from '../../store/settingsSlice';
 import { writtenRecords } from '../../test/pendingWrites';
+import { withPrivacyMode } from '../../test/privacy';
 import type { IncomeEntry } from '../../types';
 import { getCurrentMonth, shiftMonth } from '../../utils/month';
 import IncomeScreen from './IncomeScreen';
@@ -65,17 +66,18 @@ function renderIncome(initialPath = `/income/${JUNE}`, items: IncomeEntry[] = []
   });
 
   render(
-    <Provider store={store}>
-      <MemoryRouter initialEntries={[initialPath]}>
-        <Routes>
-          <Route path="/income/:month" element={<IncomeScreen />} />
-          <Route path="/income/edit/:id" element={<p>Editor da renda</p>} />
-          <Route path="/income/new/:month" element={<p>Nova renda</p>} />
-        </Routes>
-      </MemoryRouter>
-    </Provider>
+    withPrivacyMode(
+      <Provider store={store}>
+        <MemoryRouter initialEntries={[initialPath]}>
+          <Routes>
+            <Route path="/income/:month" element={<IncomeScreen />} />
+            <Route path="/income/edit/:id" element={<p>Editor da renda</p>} />
+            <Route path="/income/new/:month" element={<p>Nova renda</p>} />
+          </Routes>
+        </MemoryRouter>
+      </Provider>
+    )
   );
-
   return store;
 }
 

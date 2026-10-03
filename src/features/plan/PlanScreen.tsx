@@ -4,10 +4,11 @@ import MonthScaffold from '../../components/MonthScaffold';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { addPlanItems, updatePlanItem } from '../../store/planSlice';
 import { planResult, planTotal, projectedResult } from '../../utils/controlLoop';
-import { formatCurrency } from '../../utils/currency';
+import { formatDisplayAmount } from '../../utils/currency';
 import { isPastMonth, isValidMonth, shiftMonth } from '../../utils/month';
 import { copyPlanItems } from '../../utils/planCopy';
 import { useCopyGuard } from '../../hooks/useCopyGuard';
+import { usePrivacyMode } from '../../contexts/privacyMode';
 import AmountInput from './AmountInput';
 import CardCheckIn from './CardCheckIn';
 
@@ -33,6 +34,8 @@ export default function PlanScreen() {
     'plan',
     month
   );
+  const { masked, mask } = usePrivacyMode();
+  const money = (amount: number) => formatDisplayAmount(amount, i18n.language, masked, mask);
 
   if (!isValidMonth(month)) {
     // MonthScaffold owns the redirect; nothing to compose until it settles.
@@ -63,7 +66,7 @@ export default function PlanScreen() {
             headlineValue < 0 ? 'text-red-600' : 'text-green-600'
           }`}
         >
-          {formatCurrency(headlineValue, i18n.language)}
+          {money(headlineValue)}
         </p>
       </section>
 
@@ -74,7 +77,7 @@ export default function PlanScreen() {
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium text-gray-700">{t('plan.total')}</span>
           <span className="text-lg font-bold text-gray-900">
-            {formatCurrency(planTotal(month, items), i18n.language)}
+            {money(planTotal(month, items))}
           </span>
         </div>
         {/* Seed only an empty month: on a month that already has items a copy
@@ -128,7 +131,7 @@ export default function PlanScreen() {
                     {item.name}
                   </span>
                   <span className="text-sm font-medium text-gray-900">
-                    {formatCurrency(item.amount, i18n.language)}
+                    {money(item.amount)}
                   </span>
                 </button>
 
@@ -141,6 +144,8 @@ export default function PlanScreen() {
                     id={`estimate-${item.id}`}
                     label={t('plan.remainingEstimate', { name: item.name })}
                     value={item.remainingEstimate}
+                    masked={masked}
+                    mask={mask}
                     onCommit={(remainingEstimate) =>
                       dispatch(updatePlanItem({ ...item, remainingEstimate }))
                     }

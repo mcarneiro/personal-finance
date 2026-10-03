@@ -4,9 +4,10 @@ import { useNavigate } from 'react-router-dom';
 import BlockHeader from '../../components/BlockHeader';
 import { useAppSelector } from '../../store/hooks';
 import type { Month } from '../../types';
-import { formatCurrency } from '../../utils/currency';
+import { formatDisplayAmount } from '../../utils/currency';
 import { getCurrentMonth, getMonthName, getShortMonthName } from '../../utils/month';
 import { potTrendSeries, trendMaxTotals, trendTotal, trendWindow } from '../../utils/savingsTrend';
+import { usePrivacyMode } from '../../contexts/privacyMode';
 import { potPaletteClass } from './potPalette';
 
 /** The id the expanded column points at with `aria-controls`. */
@@ -49,6 +50,11 @@ export default function SavingsTrend({ now = new Date() }: SavingsTrendProps) {
 
   const pots = useAppSelector((state) => state.savings.items);
   const balances = useAppSelector((state) => state.savings.balances);
+  // The chart's heights (deliberately unmasked) are a proportion, but every
+  // amount it renders or announces — the column label and the readout — is
+  // masked while Privacy Mode is on.
+  const { masked, mask } = usePrivacyMode();
+  const money = (amount: number) => formatDisplayAmount(amount, i18n.language, masked, mask);
 
   const [selectedMonth, setSelectedMonth] = useState<Month | null>(null);
 
@@ -79,7 +85,7 @@ export default function SavingsTrend({ now = new Date() }: SavingsTrendProps) {
           const columnPercent = Math.min(100, (total / maxTotals) * 100);
           const label = t('home.savingsColumn', {
             month: getMonthName(trendMonth, i18n.language),
-            amount: formatCurrency(total, i18n.language),
+            amount: money(total),
           });
           const isSelected = selectedMonth === trendMonth;
 
@@ -143,7 +149,7 @@ export default function SavingsTrend({ now = new Date() }: SavingsTrendProps) {
           <div className="mt-2 flex items-center justify-between">
             <span className="text-sm font-medium text-gray-700">{t('savings.total')}</span>
             <span data-testid="readout-total" className="text-lg font-bold text-gray-900">
-              {formatCurrency(trendTotal(selectedMonth, pots, balances), i18n.language)}
+              {money(trendTotal(selectedMonth, pots, balances))}
             </span>
           </div>
           <ul className="mt-2 divide-y divide-gray-100">
@@ -173,7 +179,7 @@ export default function SavingsTrend({ now = new Date() }: SavingsTrendProps) {
                       muted ? 'text-gray-400' : 'text-gray-900'
                     }`}
                   >
-                    {formatCurrency(segment.value, i18n.language)}
+                    {money(segment.value)}
                   </span>
                 </li>
               );
