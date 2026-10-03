@@ -1,4 +1,6 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import type { Month } from '../types';
+import { getCurrentMonth } from '../utils/month';
 
 interface AppState {
   authInitialized: boolean;
@@ -11,6 +13,14 @@ interface AppState {
    * UI surfaces "offline — showing last saved data" instead of hiding it.
    */
   offline: boolean;
+  /**
+   * The month the month-scoped screens are browsing. It is shared across the
+   * Plan, Outflows, Income and Savings tabs, so switching tabs keeps the month
+   * you were on instead of jumping back to the calendar month. It resets to the
+   * current month on a fresh load. This is navigation state only — never synced
+   * to the sheet (ADR-0001).
+   */
+  selectedMonth: Month;
 }
 
 const initialState: AppState = {
@@ -19,6 +29,7 @@ const initialState: AppState = {
   dataLoaded: false,
   syncing: false,
   offline: false,
+  selectedMonth: getCurrentMonth(),
 };
 
 const appSlice = createSlice({
@@ -46,10 +57,19 @@ const appSlice = createSlice({
     setOffline: (state, action: PayloadAction<boolean>) => {
       state.offline = action.payload;
     },
+    setSelectedMonth: (state, action: PayloadAction<Month>) => {
+      state.selectedMonth = action.payload;
+    },
   },
 });
 
-export const { setAuthInitialized, setDataLoading, setDataLoaded, setSyncing, setOffline } =
-  appSlice.actions;
+export const {
+  setAuthInitialized,
+  setDataLoading,
+  setDataLoaded,
+  setSyncing,
+  setOffline,
+  setSelectedMonth,
+} = appSlice.actions;
 
 export default appSlice.reducer;

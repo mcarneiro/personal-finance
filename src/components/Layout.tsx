@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useAppSelector } from '../store/hooks';
 
 interface LayoutProps {
   children: ReactNode;
@@ -65,6 +66,9 @@ export default function Layout({ children }: LayoutProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useTranslation();
+  // Tabs carry the shared browsed month, so switching screens keeps the month
+  // rather than resetting to the calendar month (see ADR-0004).
+  const selectedMonth = useAppSelector((state) => state.app.selectedMonth);
 
   const isHome = location.pathname === '/';
   const screen = SCREEN_TITLES.find(({ prefix }) => location.pathname.startsWith(prefix));
@@ -132,7 +136,7 @@ export default function Layout({ children }: LayoutProps) {
               <button
                 key={item.path}
                 type="button"
-                onClick={() => navigate(item.path)}
+                onClick={() => navigate(`${item.path}/${selectedMonth}`)}
                 aria-current={isActive ? 'page' : undefined}
                 className={`flex flex-col items-center gap-1 rounded-lg px-4 py-2 transition-colors ${
                   isActive ? 'text-blue-600' : 'text-gray-600 hover:text-gray-900'

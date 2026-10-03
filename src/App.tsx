@@ -13,14 +13,16 @@ import IncomeEditor from './features/income/IncomeEditor';
 import SavingsScreen from './features/savings/SavingsScreen';
 import SettingsScreen from './features/settings/SettingsScreen';
 import Onboarding from './features/onboarding/Onboarding';
-import { useAppSelector } from './store/hooks';
+import { useAppDispatch, useAppSelector } from './store/hooks';
+import { setSelectedMonth } from './store/appSlice';
 import { useDataSync } from './hooks/useDataSync';
 import { useGoogleAuth } from './contexts/GoogleAuthContext';
-import { getCurrentMonth } from './utils/month';
+import { isValidMonth } from './utils/month';
 
 function App() {
   const navigate = useNavigate();
   const location = useLocation();
+  const dispatch = useAppDispatch();
   const { t } = useTranslation();
   const sheetId = useAppSelector((state) => state.settings.sheetId);
   const authInitialized = useAppSelector((state) => state.app.authInitialized);
@@ -28,10 +30,21 @@ function App() {
   const dataLoaded = useAppSelector((state) => state.app.dataLoaded);
   const syncing = useAppSelector((state) => state.app.syncing);
   const offline = useAppSelector((state) => state.app.offline);
+  const selectedMonth = useAppSelector((state) => state.app.selectedMonth);
   const { isSignedIn, sessionExpired, clearSessionExpired } = useGoogleAuth();
 
   // Load data from the connected sheet on start; writes go through the sync middleware.
   useDataSync();
+
+  // Keep the shared browsed month in sync with the route: whenever a month-scoped
+  // screen is opened (deep link, prev/next, or a Dashboard link) it becomes the
+  // month every month-scoped tab will open on.
+  useEffect(() => {
+    const segment = location.pathname.split('/').filter(Boolean)[1];
+    if (isValidMonth(segment)) {
+      dispatch(setSelectedMonth(segment));
+    }
+  }, [location.pathname, dispatch]);
 
   // Centralized navigation - single source of truth. This effect must run before
   // any early return (Rules of Hooks).
@@ -58,8 +71,6 @@ function App() {
   if (!authInitialized || (isSignedIn && sheetId && !dataLoaded && dataLoading)) {
     return <LoadingScreen />;
   }
-
-  const currentMonth = getCurrentMonth();
 
   return (
     <>
@@ -118,7 +129,7 @@ function App() {
             </Layout>
           }
         />
-        <Route path="/plan" element={<Navigate to={`/plan/${currentMonth}`} replace />} />
+        <Route path="/plan" element={<Navigate to={`/plan/${selectedMonth}`} replace />} />
         <Route
           path="/plan/:month"
           element={
@@ -130,7 +141,7 @@ function App() {
         {/* Record editors are full-screen pages: their own header, no bottom nav. */}
         <Route path="/plan/new/:month" element={<BucketEditor />} />
         <Route path="/plan/edit/:id" element={<BucketEditor />} />
-        <Route path="/outflows" element={<Navigate to={`/outflows/${currentMonth}`} replace />} />
+        <Route path="/outflows" element={<Navigate to={`/outflows/${selectedMonth}`} replace />} />
         <Route
           path="/outflows/:month"
           element={
@@ -141,7 +152,7 @@ function App() {
         />
         <Route path="/outflows/new/:month" element={<OutflowEditor />} />
         <Route path="/outflows/edit/:id" element={<OutflowEditor />} />
-        <Route path="/income" element={<Navigate to={`/income/${currentMonth}`} replace />} />
+        <Route path="/income" element={<Navigate to={`/income/${selectedMonth}`} replace />} />
         <Route
           path="/income/:month"
           element={
@@ -154,7 +165,7 @@ function App() {
         <Route path="/income/edit/:id" element={<IncomeEditor />} />
         {/* Savings is a month-scoped ledger tab: pots live in Settings, so there
             are no `/savings/new` or `/savings/edit` routes. */}
-        <Route path="/savings" element={<Navigate to={`/savings/${currentMonth}`} replace />} />
+        <Route path="/savings" element={<Navigate to={`/savings/${selectedMonth}`} replace />} />
         <Route
           path="/savings/:month"
           element={

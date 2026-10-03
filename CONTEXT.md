@@ -77,7 +77,7 @@ _Avoid_: Deposit, contribution, transfer, amount saved
 ### Months
 
 **Month**:
-The YYYY-MM period every Spending Plan, Card Spending, Outflow, Income Entry, and Savings Balance belongs to. It is the unit of navigation and the period a Plan Result is computed over.
+The YYYY-MM period every Spending Plan, Card Spending, Outflow, Income Entry, and Savings Balance belongs to. It is the unit of navigation and the period a Plan Result is computed over. The month being browsed is **shared** across the Plan, Outflows, Income and Savings screens, so switching tabs keeps it.
 _Avoid_: Billing cycle, period, month key
 
 ### Household collaboration

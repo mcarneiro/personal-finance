@@ -18,6 +18,7 @@ import pendingReducer from './store/pendingSlice';
 import planReducer from './store/planSlice';
 import settingsReducer, { setSheetId } from './store/settingsSlice';
 import type { Outflow, PendingChanges, SheetData } from './types';
+import { getCurrentMonth } from './utils/month';
 
 vi.mock('./contexts/GoogleAuthContext', () => ({
   useGoogleAuth: vi.fn(),
@@ -73,7 +74,15 @@ function createStore({ pending = {}, app = {} }: StoreOptions = {}) {
       pending: pendingReducer,
     },
     preloadedState: {
-      app: { authInitialized: true, dataLoading: false, dataLoaded: false, syncing: false, offline: false, ...app },
+      app: {
+        authInitialized: true,
+        dataLoading: false,
+        dataLoaded: false,
+        syncing: false,
+        offline: false,
+        selectedMonth: getCurrentMonth(),
+        ...app,
+      },
       settings: { sheetId: 'test-sheet' },
       pending: { changes: pending },
     },

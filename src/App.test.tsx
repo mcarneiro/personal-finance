@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
 import i18n from './config/i18n';
 import { useGoogleAuth } from './contexts/GoogleAuthContext';
+import { getCurrentMonth } from './utils/month';
 import appReducer from './store/appSlice';
 import banksReducer from './store/banksSlice';
 import outflowsReducer from './store/outflowsSlice';
@@ -67,7 +68,14 @@ function appStore({ dataLoading = false, dataLoaded = true } = {}) {
       settings: settingsReducer,
     },
     preloadedState: {
-      app: { authInitialized: true, dataLoading, dataLoaded, syncing: false, offline: false },
+      app: {
+        authInitialized: true,
+        dataLoading,
+        dataLoaded,
+        syncing: false,
+        offline: false,
+        selectedMonth: getCurrentMonth(),
+      },
       settings: { sheetId: 'test-sheet' },
     },
   });
@@ -144,6 +152,40 @@ describe('month navigation', () => {
 
     // Then the savings screen shows July 2026
     expect(screen.getByRole('heading', { name: 'julho de 2026' })).toBeInTheDocument();
+  });
+
+  it('keeps the browsed month when switching tabs', async () => {
+    // Given the app is open on the Outflows for September 2026
+    const user = userEvent.setup();
+    renderApp('/outflows/2026-09');
+    expect(screen.getByRole('heading', { name: 'setembro de 2026' })).toBeInTheDocument();
+
+    // When I switch to the Savings tab
+    await user.click(screen.getByRole('button', { name: 'Poupanças' }));
+
+    // Then Savings opens on September too
+    expect(screen.getByRole('heading', { name: 'setembro de 2026' })).toBeInTheDocument();
+
+    // And Income and Plan stay in sync with the same month
+    await user.click(screen.getByRole('button', { name: 'Renda' }));
+    expect(screen.getByRole('heading', { name: 'setembro de 2026' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Plano' }));
+    expect(screen.getByRole('heading', { name: 'setembro de 2026' })).toBeInTheDocument();
+  });
+
+  it('remembers the browsed month when a tab is reopened from the Dashboard', async () => {
+    // Given I browsed September on Outflows and went back home
+    const user = userEvent.setup();
+    renderApp('/outflows/2026-09');
+    await user.click(screen.getByRole('button', { name: 'Voltar' }));
+    expect(screen.getByRole('heading', { name: 'Dashboard' })).toBeInTheDocument();
+
+    // When I open the Plan tab
+    await user.click(screen.getByRole('button', { name: 'Plano' }));
+
+    // Then it opens on the month I was browsing, not the current calendar month
+    expect(screen.getByRole('heading', { name: 'setembro de 2026' })).toBeInTheDocument();
   });
 
   it('falls back to the current month when the month is malformed', () => {
