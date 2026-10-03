@@ -34,9 +34,11 @@ import OutflowRow from './OutflowRow';
  * income total and the account net (income − outflows). The income total is a
  * shortcut to the same month on the Income screen. Below the totals sits the
  * by-payer spending summary, collapsed by default, then the month's outflows
- * ordered final-first, open-first and alphabetically. A outflow whose value is not
- * final is flagged with a warning before its name and sinks to the bottom, so a
- * replicated month gathers the variable amounts still needing review. A small
+ * ordered open-first, final-first among the open, and alphabetically; paid
+ * outflows form a single bottom tier sorted by name, since final status no longer
+ * matters once settled. A outflow whose value is not final is flagged with a
+ * warning before its name, so a replicated month gathers the variable amounts
+ * still needing review behind the confirmed open ones. A small
  * filter icon between the summary and the list opens a right-side drawer that
  * narrows the list by payer and/or bank (OR within a facet, AND across facets);
  * that filter is view state only — a device preference remembered locally, so

@@ -245,12 +245,12 @@ describe('Outflows', () => {
     expect(within(confirmedRow).queryByText('⚠️')).not.toBeInTheDocument();
   });
 
-  it('sinks outflows still awaiting a final value below the confirmed ones', () => {
-    // Given a confirmed paid outflow and two unconfirmed open outflows
+  it('sinks paid outflows below the open ones, whatever their final status', () => {
+    // Given a confirmed open outflow, an unconfirmed open one and a confirmed paid one
     renderOutflows(`/outflows/${JUNE}`, [
       outflow({ month: JUNE, name: 'Água', amount: 90, isFinal: false }),
       outflow({ month: JUNE, name: 'Internet', amount: 110, isPaid: true, isFinal: true }),
-      outflow({ month: JUNE, name: 'Luz', amount: 150, isFinal: false }),
+      outflow({ month: JUNE, name: 'Luz', amount: 150, isFinal: true }),
     ]);
 
     // When the list renders
@@ -258,11 +258,12 @@ describe('Outflows', () => {
       .getAllByRole('checkbox')
       .map((box) => box.getAttribute('aria-label'));
 
-    // Then the confirmed outflow leads and the unconfirmed ones follow, alphabetical
+    // Then the open confirmed outflow leads, the open unconfirmed one follows,
+    // and the paid outflow sinks to the end
     expect(rows).toEqual([
-      'Marcar como em aberto: Internet',
-      'Marcar como paga: Água',
       'Marcar como paga: Luz',
+      'Marcar como paga: Água',
+      'Marcar como em aberto: Internet',
     ]);
   });
 

@@ -39,8 +39,8 @@ describe('orderOutflows', () => {
     ]);
   });
 
-  it('sinks outflows without a final value to the end, whatever their paid status', () => {
-    // Given a final and a non-final outflow in each paid state
+  it('sinks paid outflows to the end, whatever their final status', () => {
+    // Given an open and a paid outflow in each final state
     const outflows = [
       outflow('Água'), // final, open
       outflow('Gym', true, false), // not final, paid
@@ -51,14 +51,25 @@ describe('orderOutflows', () => {
     // When the list is ordered
     const ordered = orderOutflows(outflows, 'pt-BR');
 
-    // Then every final outflow leads (open before paid, alphabetical), then every
-    // outflow still awaiting a final value (open before paid, alphabetical)
+    // Then every open outflow leads (final before non-final, alphabetical), then
+    // every paid outflow (alphabetical)
     expect(ordered.map((entry) => entry.name)).toEqual([
       'Água',
-      'Internet',
       'Luz',
       'Gym',
+      'Internet',
     ]);
+  });
+
+  it('ignores final status once paid, sorting the paid rows alphabetically', () => {
+    // Given two paid outflows whose final status disagrees with their names
+    const outflows = [outflow('Zebra', true), outflow('Abacaxi', true, false)];
+
+    // When the list is ordered
+    const ordered = orderOutflows(outflows, 'pt-BR');
+
+    // Then the paid rows read purely alphabetically
+    expect(ordered.map((entry) => entry.name)).toEqual(['Abacaxi', 'Zebra']);
   });
 
   it('keeps open before paid within the not-final group', () => {

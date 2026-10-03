@@ -49,7 +49,7 @@ A single expected payment out of a household account during a month — a utilit
 _Avoid_: Bill, expense, payment, obligation, spending bucket
 
 **Final Value**:
-The flag marking an Outflow's amount as confirmed for the month. An Outflow starts — and every replicated copy arrives — without it, so variable amounts are flagged for review until someone confirms them. Outflows without it are shown with a warning and grouped at the end of the list. It is a workflow marker only and never changes a total.
+The flag marking an Outflow's amount as confirmed for the month. An Outflow starts — and every replicated copy arrives — without it, so variable amounts are flagged for review until someone confirms them. Outflows without it are shown with a warning and, while open, follow the confirmed ones; paid outflows sink to the end of the list. It is a workflow marker only and never changes a total.
 _Avoid_: Confirmed value, locked, settled, paid
 
 **Payer**:
