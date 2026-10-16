@@ -71,7 +71,7 @@ export default function OutflowRow({
               </span>
             )}
             {outflow.isInvestment && (
-              <span className="shrink-0 rounded-full bg-teal-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-teal-700">
+              <span className="shrink-0 rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-700">
                 {t('outflows.investmentTag')}
               </span>
             )}

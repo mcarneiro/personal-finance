@@ -236,11 +236,11 @@ describe('Dashboard — income / outflows', () => {
     });
 
     // Then the fill is half the bar, split into a green Payment slice and a
-    // lighter teal Investment slice, in that order
+    // lighter blue Investment slice, in that order
     const slices = cashFlowSliceEls();
     expect(slices).toHaveLength(2);
     expect(slices[0]).toHaveClass('bg-green-500');
-    expect(slices[1]).toHaveClass('bg-teal-300');
+    expect(slices[1]).toHaveClass('bg-blue-300');
     expect(slices[0]).toHaveStyle({ width: '75%' });
     expect(slices[1]).toHaveStyle({ width: '25%' });
   });

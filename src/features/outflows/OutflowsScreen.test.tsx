@@ -640,12 +640,12 @@ describe('Outflows — shared cash-flow card', () => {
       [incomeEntry(JUNE, 2000, 'Salário')]
     );
 
-    // Then the card's bar shows a lighter green Payment slice then a teal Investment slice
+    // Then the card's bar shows a lighter green Payment slice then a blue Investment slice
     const bar = screen.getByRole('progressbar', { name: /Total das saídas/ });
     const slices = Array.from((bar.firstElementChild as HTMLElement).children) as HTMLElement[];
     expect(slices).toHaveLength(2);
     expect(slices[0]).toHaveClass('bg-green-300');
-    expect(slices[1]).toHaveClass('bg-teal-500');
+    expect(slices[1]).toHaveClass('bg-blue-600');
   });
 
   it('keeps the replicate button inside the card, below the numbers', () => {

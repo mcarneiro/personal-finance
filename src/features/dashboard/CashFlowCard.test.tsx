@@ -169,12 +169,12 @@ describe('CashFlowCard', () => {
     });
 
     // Then three slices render in order, each a Payment green (lighter when
-    // unconfirmed) then an Investment teal, sized by its share
+    // unconfirmed) then an Investment blue, sized by its share
     const els = sliceEls();
     expect(els).toHaveLength(3);
     expect(els[0]).toHaveClass('bg-green-500');
     expect(els[1]).toHaveClass('bg-green-300');
-    expect(els[2]).toHaveClass('bg-teal-500');
+    expect(els[2]).toHaveClass('bg-blue-600');
     expect(els[0]).toHaveStyle({ width: '50%' });
     expect(els[1]).toHaveStyle({ width: '25%' });
     expect(els[2]).toHaveStyle({ width: '25%' });
@@ -213,7 +213,7 @@ describe('CashFlowCard', () => {
     expect(sliceEls()[1]).toHaveClass('bg-green-300');
   });
 
-  it('draws an all-Investment month teal, lighter when unconfirmed', () => {
+  it('draws an all-Investment month blue, lighter when unconfirmed', () => {
     // Given only Investments, one confirmed and one not
     renderCard({
       outflows: 1000,
@@ -223,9 +223,9 @@ describe('CashFlowCard', () => {
       ],
     });
 
-    // Then both slices are Investment teal, the unconfirmed one a lighter tint
-    expect(sliceEls()[0]).toHaveClass('bg-teal-500');
-    expect(sliceEls()[1]).toHaveClass('bg-teal-300');
+    // Then both slices are Investment blue, the unconfirmed one a lighter tint
+    expect(sliceEls()[0]).toHaveClass('bg-blue-600');
+    expect(sliceEls()[1]).toHaveClass('bg-blue-300');
   });
 
   it('draws an unconfirmed-only month in the lighter tint alone', () => {
@@ -252,10 +252,10 @@ describe('CashFlowCard', () => {
       ],
     });
 
-    // Then the Payment is red and the Investment keeps its teal
+    // Then the Payment is red and the Investment keeps its blue
     expect(bar()).toHaveAttribute('aria-valuenow', '100');
     expect(sliceEls()[0]).toHaveClass('bg-red-600');
-    expect(sliceEls()[1]).toHaveClass('bg-teal-500');
+    expect(sliceEls()[1]).toHaveClass('bg-blue-600');
   });
 
   it('describes the composition in the bar label', () => {

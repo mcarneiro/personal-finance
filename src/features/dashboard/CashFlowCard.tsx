@@ -11,17 +11,17 @@ import { usePrivacyMode } from '../../contexts/privacyMode';
 
 /**
  * The cash-flow bar's slice colours. A Payment takes the bar's own green,
- * turning red once the month is over income; an Investment is teal; an
- * unconfirmed slice is the lighter tint of its kind's colour. Held here with
- * `sliceColor`, the way `potPalette` holds the savings palette.
+ * turning red once the month is over income; an Investment is the app's button
+ * blue; an unconfirmed slice is the lighter tint of its kind's colour. Held here
+ * with `sliceColor`, the way `potPalette` holds the savings palette.
  */
 const CASH_FLOW_SLICE_COLOR = {
   paymentUnder: 'bg-green-500',
   paymentOver: 'bg-red-600',
   paymentUnderUnconfirmed: 'bg-green-300',
   paymentOverUnconfirmed: 'bg-red-300',
-  investment: 'bg-teal-500',
-  investmentUnconfirmed: 'bg-teal-300',
+  investment: 'bg-blue-600',
+  investmentUnconfirmed: 'bg-blue-300',
 } as const;
 
 /** The bar class for one slice, given the month's under/over level. */
