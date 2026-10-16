@@ -27,11 +27,11 @@ The sum of all Card Spending totals in a month. It is the actual side compared a
 _Avoid_: Gastos, card total
 
 **Remaining Estimate**:
-An editable estimate of what is still expected to be spent in a spending bucket until the end of the month.
+What is still expected to be spent in a spending bucket until the end of the month — typed by the household, or, while the field is left empty in the month being lived, projected from the bucket cap and the calendar. A bucket left empty contributes its cap spread over the days still to come, so it drains to nothing by month end; any recorded non-zero value is the household's own and wins.
 _Avoid_: Previsão, forecast, prediction
 
 **Projected Result**:
-The Spending Plan total minus Total Spent minus all Remaining Estimates. It is the live expectation of the Plan Result.
+The Spending Plan total minus Total Spent minus all Remaining Estimates. It is the live expectation of the Plan Result. Each bucket contributes the Remaining Estimate it carries — the typed one, or the projected one while the field is empty.
 _Avoid_: Sobra, projection, forecast
 
 **Plan Result**:

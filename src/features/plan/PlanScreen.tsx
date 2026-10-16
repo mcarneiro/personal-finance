@@ -3,7 +3,12 @@ import { useNavigate, useParams } from 'react-router-dom';
 import MonthScaffold from '../../components/MonthScaffold';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { addPlanItems, updatePlanItem } from '../../store/planSlice';
-import { planResult, planTotal, projectedResult } from '../../utils/controlLoop';
+import {
+  autoRemainingEstimate,
+  planResult,
+  planTotal,
+  projectedResult,
+} from '../../utils/controlLoop';
 import { formatDisplayAmount } from '../../utils/currency';
 import { isPastMonth, isValidMonth, shiftMonth } from '../../utils/month';
 import { copyPlanItems } from '../../utils/planCopy';
@@ -20,8 +25,18 @@ import CardCheckIn from './CardCheckIn';
  * past months. Every derived number comes from the control-loop utilities and is
  * never stored; every mutation syncs through the debounced middleware onto the
  * sheet.
+ *
+ * A bucket left unestimated contributes its pro-rata share of the cap for the
+ * current month (see `autoRemainingEstimate`), hinted muted in the field, so the
+ * card check-in is the only input the household has to keep typing. The clock is
+ * a parameter for the same reason as the Dashboard's: the fallback drains with
+ * the calendar, so a test pins "now" instead of depending on the day it runs.
  */
-export default function PlanScreen() {
+interface PlanScreenProps {
+  now?: Date;
+}
+
+export default function PlanScreen({ now = new Date() }: PlanScreenProps) {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { month } = useParams<{ month: string }>();
@@ -48,11 +63,11 @@ export default function PlanScreen() {
   // Past months are history: their headline is the final Plan Result, so stale
   // remaining estimates can never distort it. The current (and future) months
   // show the live Projected Result.
-  const isHistory = isPastMonth(month);
+  const isHistory = isPastMonth(month, now);
   const headlineLabel = t(isHistory ? 'plan.planResult' : 'plan.projectedResult');
   const headlineValue = isHistory
     ? planResult(month, items, cardSpending)
-    : projectedResult(month, items, cardSpending);
+    : projectedResult(month, items, cardSpending, now);
 
   return (
     <MonthScaffold basePath="/plan">
@@ -137,12 +152,15 @@ export default function PlanScreen() {
 
                 {/* The remaining-estimate check-in is the core control loop, so
                     it stays inline — a sibling of the row button, never nested
-                    inside it. */}
+                    inside it. An empty field hints the automatic value (muted),
+                    which is what the projection counts for the current month. */}
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-xs text-gray-500">{t('plan.remainingEstimateLabel')}</span>
                   <AmountInput
                     id={`estimate-${item.id}`}
                     label={t('plan.remainingEstimate', { name: item.name })}
+                    autoLabel={t('plan.remainingEstimateAuto', { name: item.name })}
+                    autoValue={autoRemainingEstimate(item, now)}
                     value={item.remainingEstimate}
                     masked={masked}
                     mask={mask}

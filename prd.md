@@ -84,8 +84,8 @@ A React app using Google Sheets as the database (same foundation as Stayoo) that
 - **Plan composition**: spending buckets (name + cap). User-defined names. Add via the top-bar "+" and tap a row's name/amount to edit both on a **full-screen editor** (`/plan/new/:month`, `/plan/edit/:id`); delete lives on the editor behind a confirmation modal, while the remaining-estimate check-in stays inline on the list
 - **Copy-last-month button**: one tap seeds the new month's plan from last month's; then edit freely (does not copy remaining estimates or card totals — those start at zero). The copy re-reads the target month from the sheet first and, if it is no longer empty, copies nothing and says so — so two members cannot double-replicate (ADR-0008)
 - **Card check-in**: one editable current total per card; Total Spent = sum. Totals are current-state — overwritten at each check-in, no snapshot history in V1
-- **Remaining Estimates**: one editable estimate per bucket ("still expected until month end")
-- **Projected Result**: plan total − Total Spent − Σ remaining estimates — the live sobra, green when positive, red when negative
+- **Remaining Estimates**: one editable estimate per bucket ("still expected until month end"). A bucket left empty is **not** zero: for the month being lived it falls back to its cap spread over the days still to come (today counts as elapsed, the same calendar the Dashboard's pace uses), shown muted in the field and draining to nothing by month end. Any recorded non-zero value wins, so estimated and projected buckets mix; clearing the field hands the bucket back to the projection. A past or future month never projects — only the current month does — so the card check-in is the only input the household has to keep typing (ADR-0012)
+- **Projected Result**: plan total − Total Spent − Σ remaining estimates (each bucket's typed or projected estimate) — the live sobra, green when positive, red when negative. With nothing typed it is `Plan Total × monthProgress − Total Spent`, the same arithmetic as the Dashboard's pace
 - When the estimates are zero the projection **is** the final Plan Result; for past months the Plan Result is the headline
 
 #### 7. Dashboard (home)
@@ -139,7 +139,8 @@ export interface PlanItem {
   month: string;                // YYYY-MM
   name: string;                 // "Mercado/Farmácia", "Netflix"
   amount: number;               // bucket cap
-  remainingEstimate: number;    // default 0
+  remainingEstimate: number;    // default 0; 0 means "not estimated" — the
+                                // current month projects the cap pro-rata
 }
 
 export interface CardSpending {
@@ -208,7 +209,7 @@ Onboarding validates the connected sheet and creates any missing tabs with the h
 
 ### Key Screens
 1. **Dashboard** (`/`) — the app entry point and the household's current-month home: the income/outflows bars with Account Net, the Spending Plan's progress with its pace bar and over-plan callout, the Outflows still open to pay, and the 12-month savings trend chart you can tap for a per-pot breakdown. It is current-month only (no month navigation) — history lives on the month-scoped screens. Its top bar shows the title "Dashboard" and the Settings shortcut; every other screen's top bar shows a back button and that screen's name.
-2. **Spending Plan** (`/plan/:month`) — spending buckets, check-in inputs, remaining estimates, Projected Result headline. Tap a bucket to edit on `/plan/edit/:id`; add via the top-bar "+" (`/plan/new/:month`)
+2. **Spending Plan** (`/plan/:month`) — spending buckets, check-in inputs, remaining estimates (empty ones showing their projected, muted value), Projected Result headline. Tap a bucket to edit on `/plan/edit/:id`; add via the top-bar "+" (`/plan/new/:month`)
 3. **Outflows** (`/outflows/:month`) — outflow list with paid toggles, income total, account net, the by-payer summary, and the replicate-last-month button. Outflows awaiting a final value are flagged with a ⚠️ and follow the confirmed open ones; paid outflows sink to the end of the list. Tap a row to edit on `/outflows/edit/:id`; add via the top-bar "+" (`/outflows/new/:month`)
 4. **Income** (`/income/:month`) — entries, total, replicate button. Tap a row to edit on `/income/edit/:id`; add via the top-bar "+" (`/income/new/:month`)
 5. **Savings** (`/savings/:month`) — each active pot with its inline monthly balance, the Total Saved headline, and a Settings callout when the pot registry is empty. Balances carry forward from the most recent recorded month
@@ -235,12 +236,22 @@ Total Saved       = Σ active pots' balances, each carried forward from its
                     most recent recorded month                (month)
 ```
 
+A bucket's remaining estimate is its typed value, or — while the field is empty
+and the month is the current one — its pro-rata share `cap × (daysLeft / daysInMonth)`
+with today counted as elapsed. So an untouched current month projects
+`Plan Total × monthProgress − Total Spent`, and by the last day the fallback has
+drained to zero and the projection is the Plan Result (ADR-0012).
+
 **Worked example** (June, from the current sheet):
 - Plan Total = 10.750
 - Check-in 25/06: cc guta 2.899 + cc uv 9.432 + cc ml 473 → Total Spent = 12.804
 - Remaining Estimates: restaurante 250 → Σ = 250
 - Projected Result = 10.750 − 12.804 − 250 = **−2.304** (over plan, red)
 - June closes with estimates at 0 → Plan Result = 10.750 − June's final total spent
+
+The worked example is a **past** month, so its empty buckets contribute nothing:
+the fallback only ever applies to the current month, and the historical sobra is
+reproduced unchanged.
 
 ## Deployment
 
@@ -270,7 +281,7 @@ Total Saved       = Σ active pots' balances, each carried forward from its
 |------|------------|
 | Google Sheets API rate limits | Caching, batch operations, exponential backoff (Stayoo pattern) |
 | Card totals go stale between check-ins | Check-in UX must stay under 30 s; Total Spent is labeled "so far" |
-| Stale remaining estimates inflate the projection | Past months show the Plan Result as headline, not the projection |
+| Stale remaining estimates inflate the projection | Past months show the Plan Result as headline, not the projection; and for the current month an unestimated bucket projects pro-rata from its cap instead of counting as zero, so an untouched field can no longer read as "this bucket is done" (ADR-0012) |
 | Concurrent edits from multiple devices | Row-scoped writes (ADR-0008): each save re-reads the affected tabs' id column and writes only the changed rows — appends for new records, blank-in-place for deletes — so another member's rows are never rewritten. Local Pending Changes always win and retry on the next pull or save (throttled ~30 s); two members editing the same row at the same moment can still lose one edit and coordinate verbally |
 | Existing sheet with unexpected columns | Initialization only creates missing tabs; warn on unexpected columns |
 

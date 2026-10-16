@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { Outflow, CardSpending, IncomeEntry, Month, PlanItem } from '../../types';
 import {
   accountNet,
+  autoRemainingEstimate,
+  effectiveRemainingEstimate,
   outflowsTotal,
   incomeTotal,
   planResult,
@@ -12,6 +14,15 @@ import {
 
 const MONTH: Month = '2026-06';
 const OTHER_MONTH: Month = '2026-05';
+const NEXT_MONTH: Month = '2026-07';
+
+/**
+ * A clock pinned mid-June, so the automatic fallback is exercised without the
+ * test depending on the day the suite happens to run.
+ */
+const MID_JUNE: Date = new Date(2026, 5, 15, 12, 0, 0);
+/** A clock after June, on which the month's automatic fallback has gone quiet. */
+const AFTER_JUNE: Date = new Date(2026, 7, 15, 12, 0, 0);
 
 /** Build a spending bucket pinned to a month, with the remaining estimate defaulting to zero. */
 function planItem(
@@ -134,7 +145,92 @@ describe('projectedResult', () => {
       0,
     ],
   ])('Given %s the Projected Result is %s', (_name, items, cardSpending, expected) => {
-    expect(projectedResult(MONTH, items, cardSpending)).toBe(expected);
+    expect(projectedResult(MONTH, items, cardSpending, AFTER_JUNE)).toBe(expected);
+  });
+});
+
+describe('autoRemainingEstimate', () => {
+  // Given a bucket whose field is left empty
+  // When the automatic Remaining Estimate it falls back to is computed
+  // Then it is the share of its cap still to come, not zero
+  it('is the pro-rata share of the cap still to come', () => {
+    // Given a 2000 bucket on 15 June, half the month still to come
+    expect(autoRemainingEstimate(planItem(MONTH, 'Mercado', 2000), MID_JUNE)).toBe(1000);
+  });
+
+  // Given the fallback is a current-month assist
+  // When a bucket belongs to any other month
+  // Then nothing is projected for it
+  it('is nothing for a bucket in a past or a future month', () => {
+    expect(autoRemainingEstimate(planItem(OTHER_MONTH, 'Mercado', 2000), MID_JUNE)).toBe(0);
+    expect(autoRemainingEstimate(planItem(NEXT_MONTH, 'Mercado', 2000), MID_JUNE)).toBe(0);
+  });
+});
+
+describe('effectiveRemainingEstimate', () => {
+  // Given a bucket the household has estimated itself
+  // When the Remaining Estimate it contributes is computed
+  // Then its own number wins, whatever it is — a recorded 0 is the only empty
+  it('keeps any recorded non-zero estimate, including one that is not positive', () => {
+    expect(effectiveRemainingEstimate(planItem(MONTH, 'Mercado', 2000, 250), MID_JUNE)).toBe(250);
+    expect(effectiveRemainingEstimate(planItem(MONTH, 'Mercado', 2000, -50), MID_JUNE)).toBe(-50);
+  });
+
+  // Given a bucket with no recorded estimate
+  // When the Remaining Estimate it contributes is computed
+  // Then it is the automatic one
+  it('falls back to the automatic estimate while the field is empty', () => {
+    expect(effectiveRemainingEstimate(planItem(MONTH, 'Mercado', 2000), MID_JUNE)).toBe(1000);
+  });
+});
+
+describe('projectedResult with the automatic fallback', () => {
+  // Given a month's buckets and a mid-month clock
+  // When computing the Projected Result
+  // Then an empty field contributes its pro-rata share instead of zero
+  it('projects the empty buckets from their caps and the calendar', () => {
+    // Given a 2000 bucket with nothing spent, half of June still to come
+    // When computing the projection
+    // Then half the cap is still expected
+    expect(projectedResult(MONTH, [planItem(MONTH, 'Mercado', 2000)], [], MID_JUNE)).toBe(1000);
+  });
+
+  // Given some buckets estimated by the household and some left empty
+  // When computing the Projected Result
+  // Then the two sources mix, each bucket contributing its own value
+  it('mixes typed estimates with the automatic ones', () => {
+    const items = [
+      planItem(MONTH, 'Mercado', 2000),
+      planItem(MONTH, 'Restaurante', 1200, 250),
+    ];
+
+    // Plan Total 3200 − 0 spent − (1000 automatic + 250 typed) = 1950
+    expect(projectedResult(MONTH, items, [], MID_JUNE)).toBe(1950);
+  });
+
+  // Given a month other than the browsed current one
+  // When computing the Projected Result
+  // Then only the typed estimates count, so the fallback never fabricates history
+  it('leaves past and future months to their typed estimates', () => {
+    expect(projectedResult(OTHER_MONTH, [planItem(OTHER_MONTH, 'Mercado', 2000)], [], MID_JUNE)).toBe(
+      2000
+    );
+    expect(projectedResult(NEXT_MONTH, [planItem(NEXT_MONTH, 'Mercado', 2000)], [], MID_JUNE)).toBe(
+      2000
+    );
+  });
+
+  // Given the last day of the month
+  // When computing the Projected Result
+  // Then the fallback has drained to nothing and the projection is the Plan Result
+  it('drains to the final Plan Result on the last day of the month', () => {
+    const items = [planItem(MONTH, 'Mercado', 2000)];
+    const cardSpending = [cardTotal(MONTH, 'cc-guta', 800)];
+    const lastDay = new Date(2026, 5, 30, 12, 0, 0);
+
+    expect(projectedResult(MONTH, items, cardSpending, lastDay)).toBe(
+      planResult(MONTH, items, cardSpending)
+    );
   });
 });
 
@@ -280,7 +376,7 @@ describe('the June 2026 trace from the real historical sheet', () => {
     expect(planTotal(MONTH, items)).toBe(10750);
     expect(totalSpent(MONTH, cardSpending)).toBe(12804);
     expect(planResult(MONTH, items, cardSpending)).toBe(-2054);
-    expect(projectedResult(MONTH, items, cardSpending)).toBe(-2304);
+    expect(projectedResult(MONTH, items, cardSpending, AFTER_JUNE)).toBe(-2304);
   });
 });
 
@@ -295,7 +391,7 @@ describe('at month end', () => {
     ];
     const cardSpending = [cardTotal(MONTH, 'cc-guta', 2899)];
 
-    expect(projectedResult(MONTH, items, cardSpending)).toBe(
+    expect(projectedResult(MONTH, items, cardSpending, AFTER_JUNE)).toBe(
       planResult(MONTH, items, cardSpending)
     );
   });

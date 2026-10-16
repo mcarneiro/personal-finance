@@ -2,14 +2,14 @@
 
 ## Product
 
-Planyoo is a household card-spending planner. It plans card spending in spending buckets, tracks weekly card check-ins and per-bucket remaining estimates, projects the month result live, and tracks income and outflows. Data lives in Google Sheets.
+Planyoo is a household card-spending planner. It plans card spending in spending buckets, tracks weekly card check-ins and per-bucket remaining estimates (an empty bucket projects from its cap as the current month runs, so only the check-in must be typed), projects the month result live, and tracks income and outflows. Data lives in Google Sheets.
 
 ## Domain
 
 - `CONTEXT.md` is the domain glossary — the source of truth for what words mean. Keep it in sync when terms change.
 - Monthly payment obligations (a bill, an investment contribution, a maintenance cost) are named **Outflows** — see ADR-0010 (`docs/adr/0010-monthly-payments-are-outflows.md`).
 - Money set aside in named containers (emergency, retirement) is tracked as **Savings Pots** with a hand-updated monthly **Savings Balance** each — see ADR-0011 (`docs/adr/0011-savings-is-a-monthly-snapshot-ledger.md`). Savings is deliberately independent of Outflows and Account Net.
-- `docs/adr/` records the hard decisions. Notably: card spending is tracked as per-card running totals, never as purchases (ADR-0002).
+- `docs/adr/` records the hard decisions. Notably: card spending is tracked as per-card running totals, never as purchases (ADR-0002), and an empty Remaining Estimate is projected from the bucket cap for the current month rather than counted as zero (ADR-0012).
 
 ## Architecture
 

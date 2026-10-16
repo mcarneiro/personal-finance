@@ -53,6 +53,20 @@ export function monthProgress(month: Month, now: Date = new Date()): number {
 }
 
 /**
+ * The fraction of `month` still to come at `now`: the complement of
+ * `monthProgress`, so counting today as already elapsed. Unlike `monthProgress`,
+ * it is **zero for any month other than the current one** — a past month is fully
+ * spent and a future month, though untouched, falls back to nothing rather than
+ * claiming its whole cap. It is the share of a bucket's cap the automatic
+ * Remaining Estimate fallback spreads across the days left, and it only ever
+ * applies to the month being browsed.
+ */
+export function remainingFraction(month: Month, now: Date = new Date()): number {
+  if (month !== formatMonth(now)) return 0;
+  return 1 - monthProgress(month, now);
+}
+
+/**
  * Classify the month's spend pace. Over plan the moment spent passes the plan;
  * otherwise ahead when spend% runs more than `PACE_AHEAD_THRESHOLD` ahead of
  * month%; otherwise under. A zero plan yields no ratio and no flag — the

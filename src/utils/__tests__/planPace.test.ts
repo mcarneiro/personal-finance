@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Month } from '../../types';
-import { PACE_AHEAD_THRESHOLD, monthProgress, planPace } from '../planPace';
+import { PACE_AHEAD_THRESHOLD, monthProgress, planPace, remainingFraction } from '../planPace';
 
 const JUNE: Month = '2026-06';
 const MAY: Month = '2026-05';
@@ -36,6 +36,33 @@ describe('monthProgress', () => {
     // Then May is done and July has not begun
     expect(monthProgress(MAY, now)).toBe(1);
     expect(monthProgress(JULY, now)).toBe(0);
+  });
+});
+
+describe('remainingFraction', () => {
+  // Given a bucket's cap and where the month is
+  // When measuring how much of the month is still to come
+  // Then it is the complement of the elapsed fraction
+  it.each([
+    ['the first day of a 30-day month', JUNE, dayOf(JUNE, 1), 29 / 30],
+    ['mid-month', JUNE, dayOf(JUNE, 15), 0.5],
+    ['the last day', JUNE, dayOf(JUNE, 30), 0],
+    ['a 31-day month at the same day', JULY, dayOf(JULY, 15), 16 / 31],
+  ])('reads the remaining fraction for %s', (_label, month, now, expected) => {
+    expect(remainingFraction(month, now)).toBeCloseTo(expected, 10);
+  });
+
+  // Given the automatic fallback is a current-month assist
+  // When asked about a month other than "now"'s
+  // Then a past month (already elapsed) and a future one (not started) both fall back to nothing
+  it('reads any other month as fully spent, so only the browsed current month falls back', () => {
+    // Given now is mid-June
+    const now = dayOf(JUNE, 15);
+
+    // When measuring May and July
+    // Then neither has anything still to come
+    expect(remainingFraction(MAY, now)).toBe(0);
+    expect(remainingFraction(JULY, now)).toBe(0);
   });
 });
 

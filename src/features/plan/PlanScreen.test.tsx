@@ -74,7 +74,23 @@ const junePlan: PlanItem[] = [
 interface RenderOptions {
   cards?: Card[];
   cardSpending?: CardSpending[];
+  /**
+   * The screen's clock. The Remaining Estimate fallback drains with the
+   * calendar, so every render pins "now": the default is the last day of the
+   * current month, where the fallback has drained to nothing and the screen
+   * reads exactly as it did before the fallback existed. Tests about the
+   * fallback pass a mid-month clock of their own.
+   */
+  now?: Date;
 }
+
+/** Noon on the last day of `month`, where the automatic fallback has drained. */
+function endOfMonth(month: Month): Date {
+  const [year, monthIndex] = month.split('-').map(Number);
+  return new Date(year, monthIndex, 0, 12, 0, 0);
+}
+
+const END_OF_CURRENT = endOfMonth(CURRENT);
 
 /**
  * Renders the Spending Plan screen with a real store and the real debounced
@@ -84,7 +100,7 @@ interface RenderOptions {
 function renderPlan(
   initialPath = `/plan/${JUNE}`,
   items: PlanItem[] = [],
-  { cards = [], cardSpending = [] }: RenderOptions = {}
+  { cards = [], cardSpending = [], now = END_OF_CURRENT }: RenderOptions = {}
 ) {
   const store = configureStore({
     reducer: {
@@ -107,7 +123,7 @@ function renderPlan(
       <Provider store={store}>
         <MemoryRouter initialEntries={[initialPath]}>
           <Routes>
-            <Route path="/plan/:month" element={<PlanScreen />} />
+            <Route path="/plan/:month" element={<PlanScreen now={now} />} />
             <Route path="/plan/edit/:id" element={<p>Editor do teto</p>} />
             <Route path="/plan/new/:month" element={<p>Novo teto</p>} />
           </Routes>
@@ -425,6 +441,96 @@ describe('Remaining estimates', () => {
         expect(written.some((item) => item.name === 'Internet')).toBe(false);
       },
       { timeout: 2500 }
+    );
+  });
+});
+
+describe('Remaining estimates, automatic', () => {
+  // Mid-June: half of a 30-day month still to come, so the fallback of a
+  // 2000 bucket is exactly 1000.
+  const MID_JUNE = new Date(2026, 5, 15, 12, 0, 0);
+  const midJune = { now: MID_JUNE };
+
+  it('fills an empty estimate from the bucket cap and the calendar, muted in the field', () => {
+    // Given a 2000 bucket with nothing typed, on 15 June
+    renderPlan(
+      `/plan/${JUNE}`,
+      [planItem({ month: JUNE, name: 'Mercado', amount: 2000 })],
+      midJune
+    );
+
+    // Then the field is empty but hints half the cap, under its automatic name
+    const field = screen.getByLabelText('Restante estimado automático — Mercado');
+    expect(field).toHaveValue('');
+    expect(field).toHaveAttribute('placeholder', '1000');
+
+    // And the Projected Result counts that automatic half = 1.000
+    expect(headline('Resultado projetado').getByText(/1\.000,00/)).toBeInTheDocument();
+  });
+
+  it('lets my own estimate override the automatic one', async () => {
+    // Given a 2000 bucket falling back to 1000 on 15 June
+    renderPlan(
+      `/plan/${JUNE}`,
+      [planItem({ month: JUNE, name: 'Mercado', amount: 2000 })],
+      midJune
+    );
+    const user = userEvent.setup();
+
+    // When I record what is still expected
+    await user.type(screen.getByLabelText('Restante estimado automático — Mercado'), '400');
+
+    // Then my number is what the projection counts: 2000 − 400 = 1.600
+    expect(headline('Resultado projetado').getByText(/1\.600,00/)).toBeInTheDocument();
+    expect(screen.getByLabelText('Restante estimado — Mercado')).toHaveValue('400');
+  });
+
+  it('hands the bucket back to the automatic value when I clear my estimate', async () => {
+    // Given a 2000 bucket with my own 400 estimate on 15 June
+    renderPlan(
+      `/plan/${JUNE}`,
+      [planItem({ month: JUNE, name: 'Mercado', amount: 2000, remainingEstimate: 400 })],
+      midJune
+    );
+    const user = userEvent.setup();
+    expect(headline('Resultado projetado').getByText(/1\.600,00/)).toBeInTheDocument();
+
+    // When I clear the field and leave it
+    await user.clear(screen.getByLabelText('Restante estimado — Mercado'));
+    await user.tab();
+
+    // Then the projection falls back to the automatic half = 1.000
+    expect(headline('Resultado projetado').getByText(/1\.000,00/)).toBeInTheDocument();
+    expect(screen.getByLabelText('Restante estimado automático — Mercado')).toHaveAttribute(
+      'placeholder',
+      '1000'
+    );
+  });
+
+  it('does not fall back for a past month, whose stored estimates stand', () => {
+    // Given a bucket in a past month with nothing estimated, on 15 June
+    renderPlan(
+      `/plan/${PREVIOUS}`,
+      [planItem({ month: PREVIOUS, name: 'Mercado', amount: 2000 })],
+      midJune
+    );
+
+    // Then the field hints nothing — an automatic value is a current-month
+    // assist, never fabricated for history
+    expect(screen.getByLabelText('Restante estimado — Mercado')).toHaveAttribute(
+      'placeholder',
+      '0'
+    );
+  });
+
+  it('does not fall back for a future month, so a month not started is never projected', () => {
+    // Given a bucket in a future month with nothing estimated, on 15 June
+    renderPlan(`/plan/${NEXT}`, [planItem({ month: NEXT, name: 'Mercado', amount: 2000 })], midJune);
+
+    // Then the field hints nothing rather than claiming the whole cap
+    expect(screen.getByLabelText('Restante estimado — Mercado')).toHaveAttribute(
+      'placeholder',
+      '0'
     );
   });
 });

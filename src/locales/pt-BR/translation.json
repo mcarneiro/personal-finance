@@ -82,6 +82,7 @@
     "totalSpentSoFar": "Total gasto até agora",
     "remainingEstimateLabel": "Restante estimado",
     "remainingEstimate": "Restante estimado — {{name}}",
+    "remainingEstimateAuto": "Restante estimado automático — {{name}}",
     "buckets": "Tetos de gastos",
     "bucketNameLabel": "Nome do teto",
     "bucketAmountLabel": "Limite do teto",

@@ -82,6 +82,7 @@
     "totalSpentSoFar": "Total spent so far",
     "remainingEstimateLabel": "Remaining estimate",
     "remainingEstimate": "Remaining estimate — {{name}}",
+    "remainingEstimateAuto": "Automatic remaining estimate — {{name}}",
     "buckets": "Spending buckets",
     "bucketNameLabel": "Bucket name",
     "bucketAmountLabel": "Bucket cap",

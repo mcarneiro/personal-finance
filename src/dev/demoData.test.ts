@@ -10,6 +10,14 @@ import {
 } from '../utils/controlLoop';
 import { DEMO_MONTHS, JUNE_CHECKIN } from './demoData';
 
+/**
+ * The fixtures are all past months (June–September 2026), so the automatic
+ * Remaining Estimate fallback is inert for them and the sobra values recorded in
+ * the sheet stand unchanged. The clock is pinned after them so this verification
+ * run never depends on the day it happens to run.
+ */
+const AFTER_THE_FIXTURES = new Date('2026-10-01T12:00:00');
+
 describe('demo data — the real-data verification run (ticket 09)', () => {
   // Given the seeded demo months (the real June trace plus simulated
   // July/August/September on the same plan)
@@ -21,7 +29,9 @@ describe('demo data — the real-data verification run (ticket 09)', () => {
 
     expect(planTotal(month, planItems)).toBe(expected.planTotal);
     expect(totalSpent(month, cardSpending)).toBe(expected.totalSpent);
-    expect(projectedResult(month, planItems, cardSpending)).toBe(expected.projectedResult);
+    expect(projectedResult(month, planItems, cardSpending, AFTER_THE_FIXTURES)).toBe(
+      expected.projectedResult
+    );
     expect(planResult(month, planItems, cardSpending)).toBe(expected.planResult);
     expect(outflowsTotal(month, outflows)).toBe(expected.outflowsTotal);
     expect(incomeTotal(month, income)).toBe(expected.incomeTotal);
@@ -44,7 +54,12 @@ describe('demo data — the real-data verification run (ticket 09)', () => {
   // Then it is −2.304 (over plan, red)
   it('the 25/06 check-in projects −2.304', () => {
     expect(
-      projectedResult(JUNE_CHECKIN.month, JUNE_CHECKIN.planItems, JUNE_CHECKIN.cardSpending)
+      projectedResult(
+        JUNE_CHECKIN.month,
+        JUNE_CHECKIN.planItems,
+        JUNE_CHECKIN.cardSpending,
+        AFTER_THE_FIXTURES
+      )
     ).toBe(-2304);
   });
 });

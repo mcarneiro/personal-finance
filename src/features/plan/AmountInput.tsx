@@ -31,6 +31,18 @@ interface AmountInputProps {
   masked?: boolean;
   /** The localized mask to draw while `masked`. */
   mask?: string;
+  /**
+   * The automatic value the field carries while the household has left it empty
+   * — the Remaining Estimate fallback. It is shown as a muted hint, never
+   * committed, so typing still beats it and clearing hands the field back to it.
+   * Absent for the fields that have no automatic source.
+   */
+  autoValue?: number;
+  /**
+   * The accessible name while `autoValue` is showing, so the value's automatic
+   * provenance is not conveyed by colour alone. Defaults to `label`.
+   */
+  autoLabel?: string;
 }
 
 /**
@@ -47,12 +59,27 @@ function toDraft(value: number, locale: string, hasValue: boolean): string {
 }
 
 /**
+ * How the automatic value reads while the household has not typed its own: the
+ * same ungrouped digits as a typed amount so the two read alike, capped at cents
+ * because the projection's exact fraction is not worth staring at.
+ */
+function toAutoDraft(value: number, locale: string): string {
+  return new Intl.NumberFormat(locale, {
+    useGrouping: false,
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
+/**
  * A small money field for live edits — card check-ins, remaining estimates and
  * the monthly savings balances. The text is held as a draft so pt-BR comma
  * decimals survive mid-typing (e.g. `2,5`), and every parseable keystroke is
  * committed immediately so the totals move as you type. A blank field committed
  * on blur means zero, unless the caller provides `onClear` (savings), where it
  * means "remove this month's record" and a typed `0` is a real recorded zero.
+ * By the same rule, a field with no `hasValue` and no `onClear` renders a zero
+ * as empty, so a typed `0` blanks itself on blur instead of sitting there
+ * looking like a recorded value.
  */
 export default function AmountInput({
   id,
@@ -63,6 +90,8 @@ export default function AmountInput({
   hasValue = false,
   masked = false,
   mask = 'R$ ••••',
+  autoValue,
+  autoLabel,
 }: AmountInputProps) {
   const { i18n } = useTranslation();
   const [draft, setDraft] = useState(() => toDraft(value, i18n.language, hasValue));
@@ -71,6 +100,10 @@ export default function AmountInput({
   // parent; our own edits are already recorded here so they are never clobbered
   // mid-typing.
   const synced = useRef({ value, hasValue });
+
+  // The automatic value is a hint, not a value: it shows only while the field
+  // holds nothing of its own, and a zero fallback has nothing to hint.
+  const showsAuto = value === 0 && autoValue !== undefined && autoValue !== 0;
 
   useEffect(() => {
     if (value !== synced.current.value || hasValue !== synced.current.hasValue) {
@@ -97,7 +130,17 @@ export default function AmountInput({
   };
 
   const handleBlur = () => {
-    if (parseAmount(draft) !== null) return;
+    const parsed = parseAmount(draft);
+    if (parsed !== null) {
+      // A committed zero where the field has no `hasValue` reads as empty: that
+      // is how the field already renders a zero from state, so blanking the
+      // draft keeps the two in step and lets an automatic hint show through.
+      // Without this, a bare `0` would sit on screen reading as a recorded
+      // "nothing more" while the value is in fact empty. The savings check-in
+      // is excluded: there a typed zero is a real recorded zero (`onClear`).
+      if (parsed === 0 && !hasValue && onClear === undefined) setDraft('');
+      return;
+    }
     if (draft.trim() === '') {
       if (onClear) {
         onClear();
@@ -120,15 +163,15 @@ export default function AmountInput({
       id={id}
       type="text"
       inputMode="decimal"
-      aria-label={masked ? `${label} — ${mask}` : label}
+      aria-label={masked ? `${label} — ${mask}` : showsAuto ? autoLabel ?? label : label}
       value={masked ? mask : draft}
       readOnly={masked}
       onChange={handleChange}
       onBlur={handleBlur}
-      placeholder="0"
+      placeholder={masked ? mask : showsAuto ? toAutoDraft(autoValue, i18n.language) : '0'}
       className={`w-28 rounded-lg border border-gray-300 px-3 py-2 text-right text-sm focus:border-transparent focus:ring-2 focus:ring-blue-500 ${
         masked ? 'bg-gray-100 text-gray-500' : ''
-      }`}
+      }${showsAuto ? ' placeholder:italic placeholder:text-gray-400' : ''}`}
     />
   );
 }
