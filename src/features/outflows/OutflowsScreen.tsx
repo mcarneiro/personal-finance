@@ -5,7 +5,7 @@ import MonthScaffold from '../../components/MonthScaffold';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { addOutflows, toggleOutflowPaid } from '../../store/outflowsSlice';
 import { accountNet, outflowsTotal, incomeTotal } from '../../utils/controlLoop';
-import { cashFlowBar } from '../../utils/cashFlowBar';
+import { cashFlowBar, cashFlowSlices } from '../../utils/cashFlowBar';
 import { outflowsByPayerAndBank, type BankTotal, type PayerGroup } from '../../utils/outflowSummary';
 import { orderOutflows } from '../../utils/outflowOrder';
 import {
@@ -34,8 +34,9 @@ import OutflowRow from './OutflowRow';
  * The Outflows screen for one month: payment obligations added by hand (name,
  * amount, payer, bank — the card bill is just another outflow with its real
  * statement value), each with a paid toggle, led by the same income-and-outflows
- * `CashFlowCard` the Dashboard renders (Income Total, Outflows Total, the bar and
- * the Account Net — Income first, as on the Dashboard). The income total is a
+ * `CashFlowCard` the Dashboard renders (Income Total, Outflows Total, the bar —
+ * composed of the month's confirmed/unconfirmed Payments and Investments — and
+ * the Account Net; Income first, as on the Dashboard). The income total is a
  * shortcut to the same month on the Income screen. The replicate-last-month
  * button and the copy notices sit inside the card, below its numbers. Below the
  * card sits the by-payer spending summary, collapsed by default, then the month's
@@ -142,6 +143,7 @@ export default function OutflowsScreen() {
         outflows={outflowsValue}
         net={net}
         bar={cashFlowBar(incomeValue, outflowsValue)}
+        slices={cashFlowSlices(month, monthOutflows)}
         label={t('outflows.summary')}
       >
         {/* Replicate only into an empty month: on a month that already has

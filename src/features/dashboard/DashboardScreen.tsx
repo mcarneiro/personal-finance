@@ -10,7 +10,7 @@ import {
   totalSpent,
 } from '../../utils/controlLoop';
 import { planPace, type PlanPaceLevel } from '../../utils/planPace';
-import { cashFlowBar } from '../../utils/cashFlowBar';
+import { cashFlowBar, cashFlowSlices } from '../../utils/cashFlowBar';
 import { orderOutflows } from '../../utils/outflowOrder';
 import { formatDisplayAmount } from '../../utils/currency';
 import { getCurrentMonth, getMonthName } from '../../utils/month';
@@ -40,16 +40,18 @@ interface DashboardScreenProps {
  * The household Dashboard — the app's entry point, for the current month only.
  * It gathers the four things the household looks at together: the income/outflows
  * picture (the shared `CashFlowCard` — the Outflows screen's Income Total and
- * Outflows Total as a single bar filled by the outflows toward the income, plus
+ * Outflows Total as a single bar filled by the outflows toward the income and
+ * composed of the month's confirmed/unconfirmed Payments and Investments, plus
  * Account Net, with the heading and the over-income caption the card shows only
  * here), the Spending Plan's progress (Plan Total and Total Spent as a filled
  * bar, coloured against how far through the month we are, with an over-plan
  * callout), the Outflows still open to pay, each with a paid toggle, and the
  * savings trend (the rolling 12-month stacked chart, its own `SavingsTrend`
  * block). No numbers are stored here: the totals come from the control-loop
- * utilities, the pace from `planPace`, the bar from `cashFlowBar`, and the list
- * from the same order and paid action the Outflows screen uses. History review
- * stays on the month-scoped screens, so the Dashboard never navigates months.
+ * utilities, the pace from `planPace`, the bar from `cashFlowBar`, its slices
+ * from `cashFlowSlices`, and the list from the same order and paid action the
+ * Outflows screen uses. History review stays on the month-scoped screens, so the
+ * Dashboard never navigates months.
  */
 export default function DashboardScreen({ now = new Date() }: DashboardScreenProps) {
   const { t, i18n } = useTranslation();
@@ -106,6 +108,7 @@ export default function DashboardScreen({ now = new Date() }: DashboardScreenPro
           outflows={outflowsValue}
           net={net}
           bar={cashFlow}
+          slices={cashFlowSlices(month, outflows)}
           label={t('home.cashFlow')}
           showHeading
           showOverCaption

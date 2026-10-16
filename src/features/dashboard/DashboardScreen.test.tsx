@@ -139,8 +139,16 @@ function planFill(): HTMLElement {
 
 /** The cash-flow bar's coloured fill, for asserting the over/under colour binding. */
 function cashFlowFill(): HTMLElement {
-  const bar = screen.getByRole('progressbar', { name: 'Total das saídas' });
-  return bar.firstElementChild as HTMLElement;
+  const bar = screen.getByRole('progressbar', { name: /Total das saídas/ });
+  // The bar's first child is the fill container; its first child is the first slice.
+  return bar.firstElementChild!.firstElementChild as HTMLElement;
+}
+
+/** The cash-flow bar's slice elements, left to right. */
+function cashFlowSliceEls(): HTMLElement[] {
+  const bar = screen.getByRole('progressbar', { name: /Total das saídas/ });
+  const fill = bar.firstElementChild as HTMLElement;
+  return Array.from(fill.children) as HTMLElement[];
 }
 
 beforeEach(async () => {
@@ -176,7 +184,7 @@ describe('Dashboard — income / outflows', () => {
 
     // Then the totals and net show, with a single bar a quarter full and green
     expect(screen.getByRole('region', { name: 'Renda e saídas' })).toBeInTheDocument();
-    expect(screen.getByRole('progressbar', { name: 'Total das saídas' })).toHaveAttribute(
+    expect(screen.getByRole('progressbar', { name: /Total das saídas/ })).toHaveAttribute(
       'aria-valuenow',
       '25'
     );
@@ -193,7 +201,7 @@ describe('Dashboard — income / outflows', () => {
     });
 
     // Then the bar is full and red, and the callout names the 1.200 over
-    expect(screen.getByRole('progressbar', { name: 'Total das saídas' })).toHaveAttribute(
+    expect(screen.getByRole('progressbar', { name: /Total das saídas/ })).toHaveAttribute(
       'aria-valuenow',
       '100'
     );
@@ -208,12 +216,33 @@ describe('Dashboard — income / outflows', () => {
     });
 
     // Then the bar is full and red and the overage callout shows
-    expect(screen.getByRole('progressbar', { name: 'Total das saídas' })).toHaveAttribute(
+    expect(screen.getByRole('progressbar', { name: /Total das saídas/ })).toHaveAttribute(
       'aria-valuenow',
       '100'
     );
     expect(cashFlowFill()).toHaveClass('bg-red-600');
     expect(screen.getByText(/500,00 acima da renda/)).toBeInTheDocument();
+  });
+
+  it('composes the bar from the month\'s Payments and Investments', () => {
+    // Given 2.000 of outflows against 4.000 of income: 1.500 confirmed Payment
+    // and 500 unconfirmed Investment
+    renderDashboard({
+      income: [incomeEntry(4000, 'Salário')],
+      outflows: [
+        outflow({ id: 'luz', name: 'Luz', amount: 1500 }),
+        outflow({ id: 'aporte', name: 'Aporte', amount: 500, isInvestment: true, isFinal: false }),
+      ],
+    });
+
+    // Then the fill is half the bar, split into a green Payment slice and a
+    // lighter teal Investment slice, in that order
+    const slices = cashFlowSliceEls();
+    expect(slices).toHaveLength(2);
+    expect(slices[0]).toHaveClass('bg-green-500');
+    expect(slices[1]).toHaveClass('bg-teal-300');
+    expect(slices[0]).toHaveStyle({ width: '75%' });
+    expect(slices[1]).toHaveStyle({ width: '25%' });
   });
 
   it('opens the income screen from its row', async () => {

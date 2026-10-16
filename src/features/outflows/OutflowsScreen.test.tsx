@@ -140,7 +140,8 @@ const byPayer = () => within(screen.getByRole('region', { name: 'Saídas por res
 
 /** The shared card's coloured bar fill, for asserting the over/under colour binding. */
 const cardFill = () =>
-  screen.getByRole('progressbar', { name: 'Total das saídas' }).firstElementChild as HTMLElement;
+  screen.getByRole('progressbar', { name: /Total das saídas/ }).firstElementChild!
+    .firstElementChild as HTMLElement;
 
 /** The expand/collapse toggle for the by-payer spending summary. */
 const summaryToggle = () =>
@@ -599,7 +600,7 @@ describe('Outflows — shared cash-flow card', () => {
     expect(appearsBefore(incomeLine, outflowsLine)).toBe(true);
 
     // And the bar is filled by the outflows toward the income, green
-    expect(screen.getByRole('progressbar', { name: 'Total das saídas' })).toHaveAttribute(
+    expect(screen.getByRole('progressbar', { name: /Total das saídas/ })).toHaveAttribute(
       'aria-valuenow',
       '25'
     );
@@ -619,12 +620,32 @@ describe('Outflows — shared cash-flow card', () => {
 
     // When the card renders
     // Then the bar is full and red, but the caption the Dashboard shows is absent
-    expect(screen.getByRole('progressbar', { name: 'Total das saídas' })).toHaveAttribute(
+    expect(screen.getByRole('progressbar', { name: /Total das saídas/ })).toHaveAttribute(
       'aria-valuenow',
       '100'
     );
     expect(cardFill()).toHaveClass('bg-red-600');
     expect(screen.queryByText(/acima da renda/)).not.toBeInTheDocument();
+  });
+
+  it('composes the bar from the month\'s Payments and Investments', () => {
+    // Given June's 1.000 of outflows are 500 Payment and 500 Investment, and the
+    // 500 Payment is still unconfirmed
+    renderOutflows(
+      `/outflows/${JUNE}`,
+      [
+        outflow({ month: JUNE, name: 'Luz', amount: 500, isFinal: false }),
+        outflow({ month: JUNE, name: 'Aporte', amount: 500, isInvestment: true }),
+      ],
+      [incomeEntry(JUNE, 2000, 'Salário')]
+    );
+
+    // Then the card's bar shows a lighter green Payment slice then a teal Investment slice
+    const bar = screen.getByRole('progressbar', { name: /Total das saídas/ });
+    const slices = Array.from((bar.firstElementChild as HTMLElement).children) as HTMLElement[];
+    expect(slices).toHaveLength(2);
+    expect(slices[0]).toHaveClass('bg-green-300');
+    expect(slices[1]).toHaveClass('bg-teal-500');
   });
 
   it('keeps the replicate button inside the card, below the numbers', () => {
