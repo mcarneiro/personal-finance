@@ -138,6 +138,10 @@ const summaryRow = (label: string) =>
 /** The by-payer spending summary region. */
 const byPayer = () => within(screen.getByRole('region', { name: 'Saídas por responsável' }));
 
+/** The shared card's coloured bar fill, for asserting the over/under colour binding. */
+const cardFill = () =>
+  screen.getByRole('progressbar', { name: 'Total das saídas' }).firstElementChild as HTMLElement;
+
 /** The expand/collapse toggle for the by-payer spending summary. */
 const summaryToggle = () =>
   screen.getByRole('button', { name: 'Saídas por responsável' });
@@ -576,6 +580,81 @@ describe('Outflows', () => {
     // And the by-payer summary reads empty once opened
     await user.click(summaryToggle());
     expect(byPayer().getByText('Adicione saídas para ver o resumo por responsável.')).toBeInTheDocument();
+  });
+});
+
+describe('Outflows — shared cash-flow card', () => {
+  it('leads with income, then outflows, with the Dashboard bar and no heading', () => {
+    // Given June has 12.000 of income and 3.000 of outflows
+    renderOutflows(
+      `/outflows/${JUNE}`,
+      [outflow({ month: JUNE, name: 'Luz', amount: 3000 })],
+      [incomeEntry(JUNE, 12000, 'Salário')]
+    );
+
+    // When the shared card renders
+    // Then income leads the outflows, exactly as on the Dashboard
+    const incomeLine = screen.getByText('Total da renda');
+    const outflowsLine = screen.getByText('Total das saídas');
+    expect(appearsBefore(incomeLine, outflowsLine)).toBe(true);
+
+    // And the bar is filled by the outflows toward the income, green
+    expect(screen.getByRole('progressbar', { name: 'Total das saídas' })).toHaveAttribute(
+      'aria-valuenow',
+      '25'
+    );
+    expect(cardFill()).toHaveClass('bg-green-500');
+
+    // And the card carries no heading, since the page already names the month
+    expect(summary().queryByRole('heading')).not.toBeInTheDocument();
+  });
+
+  it('drops the over-income caption, which would link back to this screen', () => {
+    // Given June's outflows pass its income
+    renderOutflows(
+      `/outflows/${JUNE}`,
+      [outflow({ month: JUNE, name: 'Luz', amount: 13200 })],
+      [incomeEntry(JUNE, 12000, 'Salário')]
+    );
+
+    // When the card renders
+    // Then the bar is full and red, but the caption the Dashboard shows is absent
+    expect(screen.getByRole('progressbar', { name: 'Total das saídas' })).toHaveAttribute(
+      'aria-valuenow',
+      '100'
+    );
+    expect(cardFill()).toHaveClass('bg-red-600');
+    expect(screen.queryByText(/acima da renda/)).not.toBeInTheDocument();
+  });
+
+  it('keeps the replicate button inside the card, below the numbers', () => {
+    // Given May has an outflow and June is still empty
+    renderOutflows(`/outflows/${JUNE}`, [outflow({ month: MAY, name: 'Luz', amount: 150 })]);
+
+    // When June renders
+    const region = screen.getByRole('region', { name: 'Resumo do mês' });
+    const replicate = within(region).getByRole('button', {
+      name: 'Replicar saídas do mês anterior',
+    });
+
+    // Then the replicate affordance sits in the card, after Account Net
+    expect(appearsBefore(within(region).getByText('Saldo da conta'), replicate)).toBe(true);
+  });
+
+  it('keeps the copy notices inside the card', async () => {
+    // Given I see June as empty, but the sheet now holds a June outflow
+    renderOutflows(`/outflows/${JUNE}`, [outflow({ month: MAY, name: 'Luz', amount: 150 })]);
+    vi.mocked(googleSheetsService.readOutflows).mockResolvedValue([
+      outflow({ month: JUNE, name: 'Internet', amount: 110 }),
+    ]);
+    const user = userEvent.setup();
+
+    // When I tap replicate and the copy guard blocks it
+    await user.click(screen.getByRole('button', { name: 'Replicar saídas do mês anterior' }));
+
+    // Then the notice sits inside the shared card
+    const region = screen.getByRole('region', { name: 'Resumo do mês' });
+    expect(await within(region).findByRole('alert')).toHaveTextContent(/Nada foi copiado/);
   });
 });
 

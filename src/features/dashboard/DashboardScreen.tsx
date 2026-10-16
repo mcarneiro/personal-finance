@@ -10,7 +10,7 @@ import {
   totalSpent,
 } from '../../utils/controlLoop';
 import { planPace, type PlanPaceLevel } from '../../utils/planPace';
-import { cashFlowBar, type CashFlowLevel } from '../../utils/cashFlowBar';
+import { cashFlowBar } from '../../utils/cashFlowBar';
 import { orderOutflows } from '../../utils/outflowOrder';
 import { formatDisplayAmount } from '../../utils/currency';
 import { getCurrentMonth, getMonthName } from '../../utils/month';
@@ -18,18 +18,13 @@ import { useRegistryLabels } from '../../hooks/useRegistryLabels';
 import { usePrivacyMode } from '../../contexts/privacyMode';
 import BlockHeader from '../../components/BlockHeader';
 import OutflowRow from '../outflows/OutflowRow';
+import CashFlowCard from './CashFlowCard';
 import SavingsTrend from './SavingsTrend';
 
 /** The plan bar's colour per pace level. */
 const BAR_COLOR: Record<PlanPaceLevel, string> = {
   under: 'bg-green-500',
   ahead: 'bg-amber-500',
-  over: 'bg-red-600',
-};
-
-/** The cash-flow bar's colour per level. */
-const CASH_FLOW_BAR_COLOR: Record<CashFlowLevel, string> = {
-  under: 'bg-green-500',
   over: 'bg-red-600',
 };
 
@@ -44,16 +39,17 @@ interface DashboardScreenProps {
 /**
  * The household Dashboard — the app's entry point, for the current month only.
  * It gathers the four things the household looks at together: the income/outflows
- * picture (the Outflows screen's Income Total and Outflows Total as a single bar
- * filled by the outflows toward the income, plus Account Net), the Spending Plan's
- * progress (Plan Total and Total Spent as a filled bar, coloured against how far
- * through the month we are, with an over-plan callout), the Outflows still
- * open to pay, each with a paid toggle, and the savings trend (the rolling
- * 12-month stacked chart, its own `SavingsTrend` block).
- * No numbers are stored here: the totals come from the control-loop utilities,
- * the pace from `planPace`, and the list from the same order and paid action the
- * Outflows screen uses. History review stays on the month-scoped screens, so the
- * Dashboard never navigates months.
+ * picture (the shared `CashFlowCard` — the Outflows screen's Income Total and
+ * Outflows Total as a single bar filled by the outflows toward the income, plus
+ * Account Net, with the heading and the over-income caption the card shows only
+ * here), the Spending Plan's progress (Plan Total and Total Spent as a filled
+ * bar, coloured against how far through the month we are, with an over-plan
+ * callout), the Outflows still open to pay, each with a paid toggle, and the
+ * savings trend (the rolling 12-month stacked chart, its own `SavingsTrend`
+ * block). No numbers are stored here: the totals come from the control-loop
+ * utilities, the pace from `planPace`, the bar from `cashFlowBar`, and the list
+ * from the same order and paid action the Outflows screen uses. History review
+ * stays on the month-scoped screens, so the Dashboard never navigates months.
  */
 export default function DashboardScreen({ now = new Date() }: DashboardScreenProps) {
   const { t, i18n } = useTranslation();
@@ -98,69 +94,22 @@ export default function DashboardScreen({ now = new Date() }: DashboardScreenPro
 
   const barColor = BAR_COLOR[pace.level];
   const cashFlow = cashFlowBar(incomeValue, outflowsValue);
-  const cashFlowFillPercent = Math.round(cashFlow.ratio * 100);
-  const cashFlowColor = CASH_FLOW_BAR_COLOR[cashFlow.level];
 
   return (
     <div className="mx-auto w-full max-w-md px-4 py-6">
       <p className="text-sm font-medium text-gray-500">{getMonthName(month, i18n.language)}</p>
 
       {showCashFlow && (
-        <section
-          aria-label={t('home.cashFlow')}
-          className="mt-4 rounded-lg bg-white p-4 shadow-sm"
-        >
-          <h2 className="text-sm font-semibold text-gray-900">{t('home.cashFlow')}</h2>
-          <button
-            type="button"
-            onClick={() => navigate(`/income/${month}`)}
-            aria-label={t('home.viewIncome')}
-            className="mt-3 flex w-full items-center justify-between text-left"
-          >
-            <span className="text-sm text-gray-700">{t('outflows.incomeTotal')}</span>
-            <span className="text-sm font-medium text-gray-900">{money(incomeValue)}</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => navigate(`/outflows/${month}`)}
-            aria-label={t('home.viewOutflows')}
-            className="flex w-full items-center justify-between text-left"
-          >
-            <span className="text-sm text-gray-700">{t('outflows.outflowsTotal')}</span>
-            <span className="text-sm font-medium text-gray-900">{money(outflowsValue)}</span>
-          </button>
-
-          {/* The bar fills with the month's outflows toward the income ceiling and
-              stops at it; it turns red and caps once outflows pass the income. */}
-          <div
-            role="progressbar"
-            aria-label={t('outflows.outflowsTotal')}
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={cashFlowFillPercent}
-            className="relative mt-3 h-2 w-full overflow-hidden rounded-full bg-gray-100"
-          >
-            <div
-              className={`h-full rounded-full ${cashFlowColor}`}
-              style={{ width: `${cashFlowFillPercent}%` }}
-            />
-          </div>
-
-          {cashFlow.level === 'over' && (
-            <button
-              type="button"
-              onClick={() => navigate(`/outflows/${month}`)}
-              className="mt-2 text-left text-sm font-medium text-red-700"
-            >
-              {t('home.cashFlowOver', { amount: money(-net) })}
-            </button>
-          )}
-
-          <div className="mt-3 flex items-center justify-between border-t border-gray-100 pt-3">
-            <span className="text-sm font-medium text-gray-700">{t('outflows.accountNet')}</span>
-            <span className="text-lg font-bold text-gray-900">{money(net)}</span>
-          </div>
-        </section>
+        <CashFlowCard
+          month={month}
+          income={incomeValue}
+          outflows={outflowsValue}
+          net={net}
+          bar={cashFlow}
+          label={t('home.cashFlow')}
+          showHeading
+          showOverCaption
+        />
       )}
 
       {showPlan && (

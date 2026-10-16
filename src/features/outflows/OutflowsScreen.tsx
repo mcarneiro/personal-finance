@@ -5,6 +5,7 @@ import MonthScaffold from '../../components/MonthScaffold';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { addOutflows, toggleOutflowPaid } from '../../store/outflowsSlice';
 import { accountNet, outflowsTotal, incomeTotal } from '../../utils/controlLoop';
+import { cashFlowBar } from '../../utils/cashFlowBar';
 import { outflowsByPayerAndBank, type BankTotal, type PayerGroup } from '../../utils/outflowSummary';
 import { orderOutflows } from '../../utils/outflowOrder';
 import {
@@ -24,6 +25,7 @@ import { usePersistentState } from '../../hooks/usePersistentState';
 import { usePersistentToggle } from '../../hooks/usePersistentToggle';
 import { useRegistryLabels } from '../../hooks/useRegistryLabels';
 import { usePrivacyMode } from '../../contexts/privacyMode';
+import CashFlowCard from '../dashboard/CashFlowCard';
 import NeedsRegistryNotice from './NeedsRegistryNotice';
 import OutflowFilterDrawer from './OutflowFilterDrawer';
 import OutflowRow from './OutflowRow';
@@ -31,14 +33,16 @@ import OutflowRow from './OutflowRow';
 /**
  * The Outflows screen for one month: payment obligations added by hand (name,
  * amount, payer, bank — the card bill is just another outflow with its real
- * statement value), each with a paid toggle, plus the month's outflows total,
- * income total and the account net (income − outflows). The income total is a
- * shortcut to the same month on the Income screen. Below the totals sits the
- * by-payer spending summary, collapsed by default, then the month's outflows
- * ordered open-first, final-first among the open, and alphabetically; paid
- * outflows form a single bottom tier sorted by name, since final status no longer
- * matters once settled. A outflow whose value is not final is flagged with a
- * warning before its name, so a replicated month gathers the variable amounts
+ * statement value), each with a paid toggle, led by the same income-and-outflows
+ * `CashFlowCard` the Dashboard renders (Income Total, Outflows Total, the bar and
+ * the Account Net — Income first, as on the Dashboard). The income total is a
+ * shortcut to the same month on the Income screen. The replicate-last-month
+ * button and the copy notices sit inside the card, below its numbers. Below the
+ * card sits the by-payer spending summary, collapsed by default, then the month's
+ * outflows ordered open-first, final-first among the open, and alphabetically;
+ * paid outflows form a single bottom tier sorted by name, since final status no
+ * longer matters once settled. A outflow whose value is not final is flagged with
+ * a warning before its name, so a replicated month gathers the variable amounts
  * still needing review behind the confirmed open ones. A small
  * filter icon between the summary and the list opens a right-side drawer that
  * narrows the list by payer and/or bank (OR within a facet, AND across facets);
@@ -90,11 +94,10 @@ export default function OutflowsScreen() {
   );
   // Resolve payer/bank names the same way the Dashboard does.
   const { payerLabel, bankLabel } = useRegistryLabels();
-  // Every amount here — the totals, the by-payer breakdown and each row — is a
-  // display value that Privacy Mode masks without touching the derived numbers.
+  // Every amount the list and the by-payer summary show — and the shared card's,
+  // which reads Privacy Mode itself — is a display value that Privacy Mode masks
+  // without touching the derived numbers.
   const { masked, mask } = usePrivacyMode();
-  const money = (amount: number) =>
-    formatDisplayAmount(amount, i18n.language, masked, mask);
 
   if (!isValidMonth(month)) {
     // MonthScaffold owns the redirect; nothing to list until it settles.
@@ -103,6 +106,8 @@ export default function OutflowsScreen() {
 
   const monthOutflows = outflows.filter((outflow) => outflow.month === month);
   const lastMonthOutflows = outflows.filter((outflow) => outflow.month === shiftMonth(month, -1));
+  const incomeValue = incomeTotal(month, income);
+  const outflowsValue = outflowsTotal(month, outflows);
   const net = accountNet(month, income, outflows);
   const spending = outflowsByPayerAndBank(month, outflows, banks, payers);
   const filterOptions = outflowFilterOptions(monthOutflows, banks, payers);
@@ -127,31 +132,18 @@ export default function OutflowsScreen() {
 
   return (
     <MonthScaffold basePath="/outflows">
-      <section
-        aria-label={t('outflows.summary')}
-        className="mt-4 rounded-lg bg-white p-4 shadow-sm"
+      {/* The month's income and outflows picture is the shared `CashFlowCard` the
+          Dashboard renders, with no heading (the page already names the month)
+          and no over-income caption (it would link to this screen). The
+          Replicate button and the copy notices sit below the card's numbers. */}
+      <CashFlowCard
+        month={month}
+        income={incomeValue}
+        outflows={outflowsValue}
+        net={net}
+        bar={cashFlowBar(incomeValue, outflowsValue)}
+        label={t('outflows.summary')}
       >
-        <div className="flex items-center justify-between">
-          <span className="text-sm font-medium text-gray-700">{t('outflows.outflowsTotal')}</span>
-          <span className="text-sm font-medium text-gray-900">
-            {money(outflowsTotal(month, outflows))}
-          </span>
-        </div>
-        <button
-          type="button"
-          onClick={() => navigate(`/income/${month}`)}
-          aria-label={t('outflows.viewIncome')}
-          className="mt-2 flex w-full items-center justify-between rounded-md text-left transition-colors hover:bg-gray-50"
-        >
-          <span className="text-sm text-gray-700">{t('outflows.incomeTotal')}</span>
-          <span className="text-sm font-medium text-blue-600">
-            {money(incomeTotal(month, income))}
-          </span>
-        </button>
-        <div className="mt-3 flex items-center justify-between border-t border-gray-100 pt-3">
-          <span className="text-sm font-medium text-gray-700">{t('outflows.accountNet')}</span>
-          <span className="text-lg font-bold text-gray-900">{money(net)}</span>
-        </div>
         {/* Replicate only into an empty month: on a month that already has
             outflows it would silently duplicate the whole list. The re-read below
             guards against another member's copy landing first. */}
@@ -180,7 +172,7 @@ export default function OutflowsScreen() {
             {t('common.copyCheckFailed')}
           </p>
         )}
-      </section>
+      </CashFlowCard>
 
       <section
         aria-label={t('outflows.byPayerSummary')}
