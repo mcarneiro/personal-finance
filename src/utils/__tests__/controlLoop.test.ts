@@ -48,6 +48,7 @@ function outflow(month: Month, name: string, amount: number, isPaid = false): Ou
     amount,
     isPaid,
     isFinal: true,
+    isInvestment: false,
     payerId: '',
     bankId: '',
   };

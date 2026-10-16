@@ -32,6 +32,7 @@ function outflow(id: string, overrides: Partial<Outflow> = {}): Outflow {
     amount: 100,
     isPaid: false,
     isFinal: true,
+    isInvestment: false,
     payerId: 'payer-1',
     bankId: 'bank-1',
     ...overrides,

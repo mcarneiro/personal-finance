@@ -7,6 +7,7 @@ export interface OutflowDraft {
   name: string;
   amount: number;
   isFinal: boolean;
+  isInvestment: boolean;
   payerId: string;
   bankId: string;
 }
@@ -22,6 +23,7 @@ interface OutflowFormProps {
   initialName?: string;
   initialAmount?: number;
   initialIsFinal?: boolean;
+  initialIsInvestment?: boolean;
   initialPayerId?: string;
   initialBankId?: string;
   autoFocusName?: boolean;
@@ -36,7 +38,8 @@ interface OutflowFormProps {
  * as loose text (pt-BR comma or en-US dot) and only become submittable once they
  * parse. Payer/bank are chosen from the registries maintained in Settings. The
  * final-value checkbox is optional and unset by default, marking the amount as
- * confirmed for the month.
+ * confirmed for the month; the Investment checkbox is likewise optional and
+ * unset by default, marking the outflow as an Investment rather than a Payment.
  */
 export default function OutflowForm({
   formId,
@@ -48,6 +51,7 @@ export default function OutflowForm({
   initialName = '',
   initialAmount,
   initialIsFinal = false,
+  initialIsInvestment = false,
   initialPayerId = '',
   initialBankId = '',
   autoFocusName = false,
@@ -58,6 +62,7 @@ export default function OutflowForm({
   const [name, setName] = useState(initialName);
   const [amount, setAmount] = useState(initialAmount === undefined ? '' : String(initialAmount));
   const [isFinal, setIsFinal] = useState(initialIsFinal);
+  const [isInvestment, setIsInvestment] = useState(initialIsInvestment);
   const [payerId, setPayerId] = useState(initialPayerId);
   const [bankId, setBankId] = useState(initialBankId);
 
@@ -68,16 +73,18 @@ export default function OutflowForm({
   const nameId = `${formId}-name`;
   const amountId = `${formId}-amount`;
   const finalId = `${formId}-final`;
+  const investmentId = `${formId}-investment`;
   const payerIdField = `${formId}-payer`;
   const bankIdField = `${formId}-bank`;
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
     if (!canSubmit || parsedAmount === null) return;
-    onSubmit({ name: name.trim(), amount: parsedAmount, isFinal, payerId, bankId });
+    onSubmit({ name: name.trim(), amount: parsedAmount, isFinal, isInvestment, payerId, bankId });
     setName('');
     setAmount('');
     setIsFinal(false);
+    setIsInvestment(false);
     setPayerId('');
     setBankId('');
   };
@@ -155,17 +162,31 @@ export default function OutflowForm({
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
-        <input
-          id={finalId}
-          type="checkbox"
-          checked={isFinal}
-          onChange={(event) => setIsFinal(event.target.checked)}
-          className="h-4 w-4 rounded border-gray-300"
-        />
-        <label htmlFor={finalId} className="text-sm text-gray-700">
-          {t('outflows.finalValueLabel')}
-        </label>
+      <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
+          <input
+            id={finalId}
+            type="checkbox"
+            checked={isFinal}
+            onChange={(event) => setIsFinal(event.target.checked)}
+            className="h-4 w-4 rounded border-gray-300"
+          />
+          <label htmlFor={finalId} className="text-sm text-gray-700">
+            {t('outflows.finalValueLabel')}
+          </label>
+        </div>
+        <div className="flex items-center gap-2">
+          <input
+            id={investmentId}
+            type="checkbox"
+            checked={isInvestment}
+            onChange={(event) => setIsInvestment(event.target.checked)}
+            className="h-4 w-4 rounded border-gray-300"
+          />
+          <label htmlFor={investmentId} className="text-sm text-gray-700">
+            {t('outflows.investmentLabel')}
+          </label>
+        </div>
       </div>
 
       <div className="flex items-center gap-2">

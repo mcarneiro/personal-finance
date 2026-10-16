@@ -96,14 +96,14 @@ describe('GoogleSheetsService schema round-trip', () => {
     expect(outflows.map((outflow) => outflow.isPaid)).toEqual([true, false]);
   });
 
-  it('reads a outflow row with its payer, bank and final-value references', async () => {
+  it('reads a outflow row with its payer, bank, final-value and investment flags', async () => {
     // Given the sheet stores the new columns
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue(
         jsonResponse({
           values: [
-            ['b1', '2026-06', 'Luz', 120, 'TRUE', 'payer-marcelo', 'bank-nubank', 'TRUE'],
+            ['b1', '2026-06', 'Luz', 120, 'TRUE', 'payer-marcelo', 'bank-nubank', 'TRUE', 'TRUE'],
           ],
         })
       )
@@ -112,7 +112,7 @@ describe('GoogleSheetsService schema round-trip', () => {
     // When the outflows tab is read
     const outflows = await service.readOutflows('sheet-1');
 
-    // Then the references and the final-value flag survive the round trip
+    // Then the references, the final-value flag and the kind survive the round trip
     expect(outflows).toEqual([
       {
         id: 'b1',
@@ -121,14 +121,15 @@ describe('GoogleSheetsService schema round-trip', () => {
         amount: 120,
         isPaid: true,
         isFinal: true,
+        isInvestment: true,
         payerId: 'payer-marcelo',
         bankId: 'bank-nubank',
       },
     ]);
   });
 
-  it('reads a legacy five-column outflow row as unset references and not final', async () => {
-    // Given a row written before the payer/bank/final columns existed
+  it('reads a legacy five-column outflow row as unset references, not final and a Payment', async () => {
+    // Given a row written before the payer/bank/final/investment columns existed
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue(
@@ -140,17 +141,39 @@ describe('GoogleSheetsService schema round-trip', () => {
     const outflows = await service.readOutflows('sheet-1');
 
     // Then the missing cells default to unset rather than corrupting the row,
-    // and the absent final-value flag reads as not final
+    // the absent final-value flag reads as not final, and the absent kind reads
+    // as a Payment
     expect(outflows[0]).toMatchObject({
       name: 'Luz',
       isFinal: false,
+      isInvestment: false,
       payerId: '',
       bankId: '',
     });
   });
 
-  it('writes outflows with their payer, bank and final-value flag', async () => {
-    // Given a final outflow assigned to a payer and bank, and an empty id column
+  it('reads a blank is_investment cell as a Payment', async () => {
+    // Given a row whose kind cell was never written
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        jsonResponse({
+          values: [
+            ['b1', '2026-06', 'Luz', 120, 'FALSE', 'payer-marcelo', 'bank-nubank', 'TRUE', ''],
+          ],
+        })
+      )
+    );
+
+    // When the outflows tab is read
+    const outflows = await service.readOutflows('sheet-1');
+
+    // Then the blank kind reads as a Payment
+    expect(outflows[0].isInvestment).toBe(false);
+  });
+
+  it('writes outflows with their payer, bank, final-value and investment flags', async () => {
+    // Given a final Investment assigned to a payer and bank, and an empty id column
     const fetchMock = vi.fn().mockImplementation((url: string) =>
       String(url).includes('values:batchGet')
         ? Promise.resolve(jsonResponse({ valueRanges: [{ values: [] }] }))
@@ -171,6 +194,7 @@ describe('GoogleSheetsService schema round-trip', () => {
             amount: 120,
             isPaid: false,
             isFinal: true,
+            isInvestment: true,
             payerId: 'payer-marcelo',
             bankId: 'bank-nubank',
           },
@@ -178,7 +202,7 @@ describe('GoogleSheetsService schema round-trip', () => {
       },
     });
 
-    // Then the row carries all eight columns, in order
+    // Then the row carries all nine columns, in order
     const update = fetchMock.mock.calls.find(
       ([url, options]) =>
         String(url).includes('values:batchUpdate') && (options as RequestInit)?.method === 'POST'
@@ -186,8 +210,8 @@ describe('GoogleSheetsService schema round-trip', () => {
     const body = JSON.parse(String((update?.[1] as RequestInit).body));
     expect(body.data).toEqual([
       {
-        range: 'outflows!A2:H2',
-        values: [['b1', '2026-06', 'Luz', 120, 'FALSE', 'payer-marcelo', 'bank-nubank', 'TRUE']],
+        range: 'outflows!A2:I2',
+        values: [['b1', '2026-06', 'Luz', 120, 'FALSE', 'payer-marcelo', 'bank-nubank', 'TRUE', 'TRUE']],
       },
     ]);
   });
@@ -400,7 +424,7 @@ describe('initializeSheets schema migration', () => {
         JSON.parse(String((options as RequestInit).body)).values[0]
       );
     expect(headerWrites).toEqual([
-      ['id', 'month', 'name', 'amount', 'is_paid', 'payer_id', 'bank_id', 'is_final'],
+      ['id', 'month', 'name', 'amount', 'is_paid', 'payer_id', 'bank_id', 'is_final', 'is_investment'],
     ]);
 
     // While a tab whose header already matches is left alone
@@ -561,7 +585,7 @@ describe('pullAll', () => {
     payers: ['id', 'name'],
     plan: ['id', 'month', 'name', 'amount', 'remaining_estimate'],
     card_spending: ['id', 'month', 'card_id', 'total'],
-    outflows: ['id', 'month', 'name', 'amount', 'is_paid', 'payer_id', 'bank_id', 'is_final'],
+    outflows: ['id', 'month', 'name', 'amount', 'is_paid', 'payer_id', 'bank_id', 'is_final', 'is_investment'],
     income: ['id', 'month', 'amount', 'source'],
     savings_pots: ['id', 'name'],
     savings_balances: ['id', 'month', 'pot_id', 'balance'],
@@ -576,7 +600,7 @@ describe('pullAll', () => {
       card_spending: [HEADERS.card_spending, ['cs1', '2026-06', 'c1', 100]],
       outflows: [
         HEADERS.outflows,
-        ['b1', '2026-06', 'Luz', 120, 'FALSE', 'payer-1', 'bank-1', 'TRUE'],
+        ['b1', '2026-06', 'Luz', 120, 'FALSE', 'payer-1', 'bank-1', 'TRUE', 'FALSE'],
       ],
       income: [HEADERS.income, ['i1', '2026-06', 3000, 'Salário']],
       savings_pots: [HEADERS.savings_pots, ['pot-1', 'Emergência']],
@@ -634,6 +658,7 @@ describe('pullAll', () => {
         amount: 120,
         isPaid: false,
         isFinal: true,
+        isInvestment: false,
         payerId: 'payer-1',
         bankId: 'bank-1',
       },
@@ -792,6 +817,7 @@ describe('pullAll', () => {
         amount: 120,
         isPaid: false,
         isFinal: false,
+        isInvestment: false,
         payerId: '',
         bankId: '',
       },
@@ -883,6 +909,7 @@ describe('pullAll', () => {
         amount: 120,
         isPaid: false,
         isFinal: false,
+        isInvestment: false,
         payerId: '',
         bankId: '',
       },
@@ -962,6 +989,7 @@ describe('writePendingChanges', () => {
     amount: 120,
     isPaid: false,
     isFinal: true,
+    isInvestment: false,
     payerId: 'payer-marcelo',
     bankId: 'bank-nubank',
     ...overrides,
@@ -984,8 +1012,8 @@ describe('writePendingChanges', () => {
     // And only b2's row (row 3) was written, in contract order
     expect(batchUpdateBody(fetchMock).data).toEqual([
       {
-        range: 'outflows!A3:H3',
-        values: [['b2', '2026-06', 'Luz', 175, 'FALSE', 'payer-marcelo', 'bank-nubank', 'TRUE']],
+        range: 'outflows!A3:I3',
+        values: [['b2', '2026-06', 'Luz', 175, 'FALSE', 'payer-marcelo', 'bank-nubank', 'TRUE', 'FALSE']],
       },
     ]);
   });
@@ -1000,7 +1028,7 @@ describe('writePendingChanges', () => {
     });
 
     // Then it is written to the first row after the last one
-    expect(batchUpdateBody(fetchMock).data[0].range).toBe('outflows!A5:H5');
+    expect(batchUpdateBody(fetchMock).data[0].range).toBe('outflows!A5:I5');
   });
 
   it('overwrites the existing row when a create collides with a sheet id', async () => {
@@ -1015,8 +1043,8 @@ describe('writePendingChanges', () => {
     // Then it updates the existing row rather than appending a duplicate
     expect(batchUpdateBody(fetchMock).data).toEqual([
       {
-        range: 'outflows!A3:H3',
-        values: [['b2', '2026-06', 'Luz', 999, 'FALSE', 'payer-marcelo', 'bank-nubank', 'TRUE']],
+        range: 'outflows!A3:I3',
+        values: [['b2', '2026-06', 'Luz', 999, 'FALSE', 'payer-marcelo', 'bank-nubank', 'TRUE', 'FALSE']],
       },
     ]);
   });
@@ -1032,7 +1060,7 @@ describe('writePendingChanges', () => {
 
     // Then its row is cleared in place
     expect(batchUpdateBody(fetchMock).data).toEqual([
-      { range: 'outflows!A3:H3', values: [['', '', '', '', '', '', '', '']] },
+      { range: 'outflows!A3:I3', values: [['', '', '', '', '', '', '', '', '']] },
     ]);
   });
 
@@ -1068,7 +1096,7 @@ describe('writePendingChanges', () => {
     expect(read).toContain('cards!A2:A');
     expect(batchUpdateBody(fetchMock).data.map((entry: { range: string }) => entry.range)).toEqual([
       'cards!A2:B2',
-      'outflows!A2:H2',
+      'outflows!A2:I2',
     ]);
   });
 

@@ -28,6 +28,7 @@ function outflow(
     amount,
     isPaid,
     isFinal: true,
+    isInvestment: false,
     payerId,
     bankId,
   };

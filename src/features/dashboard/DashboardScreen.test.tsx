@@ -54,7 +54,15 @@ function cardTotal(cardId: string, total: number, month = JUNE): CardSpending {
 }
 
 function outflow(overrides: Partial<Outflow> & Pick<Outflow, 'id' | 'name' | 'amount'>): Outflow {
-  return { month: JUNE, isPaid: false, isFinal: true, payerId: '', bankId: '', ...overrides };
+  return {
+    month: JUNE,
+    isPaid: false,
+    isFinal: true,
+    isInvestment: false,
+    payerId: '',
+    bankId: '',
+    ...overrides,
+  };
 }
 
 function incomeEntry(amount: number, source?: string, month = JUNE): IncomeEntry {
@@ -329,6 +337,24 @@ describe('Dashboard — open outflows', () => {
     expect(rows).toEqual(['Editar Água', 'Editar Luz', 'Editar Zulu']);
     expect(screen.queryByText('Internet')).not.toBeInTheDocument();
     expect(screen.queryByText('Conta de maio')).not.toBeInTheDocument();
+  });
+
+  it('tags an open Investment row and leaves a Payment untagged', () => {
+    // Given an open Investment and an open Payment
+    renderDashboard({
+      outflows: [
+        outflow({ id: 'aporte', name: 'Aporte', amount: 500, isInvestment: true }),
+        outflow({ id: 'luz', name: 'Luz', amount: 100 }),
+      ],
+    });
+
+    // When the block renders
+    const investmentRow = screen.getByText('Aporte').closest('li') as HTMLElement;
+    const paymentRow = screen.getByText('Luz').closest('li') as HTMLElement;
+
+    // Then only the Investment carries the kind tag
+    expect(within(investmentRow).getByText('Investimento')).toBeInTheDocument();
+    expect(within(paymentRow).queryByText('Investimento')).not.toBeInTheDocument();
   });
 
   it('marks a outflow paid and removes it from the Dashboard', async () => {

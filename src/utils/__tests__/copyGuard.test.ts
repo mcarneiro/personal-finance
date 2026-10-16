@@ -13,6 +13,7 @@ function outflow(month: string, name: string): Outflow {
     amount: 10,
     isPaid: false,
     isFinal: false,
+    isInvestment: false,
     payerId: '',
     bankId: '',
   };

@@ -13,6 +13,7 @@ function outflow(overrides: Partial<Outflow>): Outflow {
     amount: 150,
     isPaid: false,
     isFinal: true,
+    isInvestment: false,
     payerId: 'payer-marcelo',
     bankId: 'bank-nubank',
     ...overrides,
@@ -68,6 +69,21 @@ describe('copyOutflows', () => {
     const copies = copyOutflows(source, JUNE);
 
     // Then the new month's copy is flagged as still awaiting review
+    expect(copies[0].isFinal).toBe(false);
+  });
+
+  it('carries the Payment/Investment kind while still resetting paid and final', () => {
+    // Given last month's outflow was a paid, final Investment
+    const source = [outflow({ id: 'a', isPaid: true, isFinal: true, isInvestment: true })];
+
+    // When I replicate it
+    const copies = copyOutflows(source, JUNE);
+
+    // Then the kind carries (a recurring contribution stays an Investment)...
+    expect(copies[0].isInvestment).toBe(true);
+
+    // ...but paid and final still reset
+    expect(copies[0].isPaid).toBe(false);
     expect(copies[0].isFinal).toBe(false);
   });
 

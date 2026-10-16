@@ -44,7 +44,7 @@ export const SHEET_CONFIGS = {
   },
   outflows: {
     name: 'outflows',
-    columns: ['id', 'month', 'name', 'amount', 'is_paid', 'payer_id', 'bank_id', 'is_final'],
+    columns: ['id', 'month', 'name', 'amount', 'is_paid', 'payer_id', 'bank_id', 'is_final', 'is_investment'],
   },
   income: {
     name: 'income',

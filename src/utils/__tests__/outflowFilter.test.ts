@@ -25,6 +25,7 @@ function outflow(name: string, amount: number, payerId: string, bankId: string):
     amount,
     isPaid: false,
     isFinal: true,
+    isInvestment: false,
     payerId,
     bankId,
   };

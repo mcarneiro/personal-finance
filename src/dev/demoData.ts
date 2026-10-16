@@ -62,7 +62,8 @@ function outflow(
   payerId: string,
   bankId: string,
   isPaid = false,
-  isFinal = true
+  isFinal = true,
+  isInvestment = false
 ): Outflow {
   const slug = name
     .toLowerCase()
@@ -70,7 +71,7 @@ function outflow(
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/(^-|-$)/g, '');
-  return { id: `outflow-${month}-${slug}`, month, name, amount, isPaid, isFinal, payerId, bankId };
+  return { id: `outflow-${month}-${slug}`, month, name, amount, isPaid, isFinal, isInvestment, payerId, bankId };
 }
 
 /** Build an income entry pinned to a month. */

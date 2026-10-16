@@ -44,6 +44,7 @@ function outflow(overrides: Partial<Outflow> & Pick<Outflow, 'month' | 'name' | 
     id: `${overrides.month}-${overrides.name}`,
     isPaid: false,
     isFinal: true,
+    isInvestment: false,
     payerId: 'payer-marcelo',
     bankId: 'bank-nubank',
     ...overrides,
@@ -203,6 +204,77 @@ describe('Outflow editor', () => {
     // Then the outflow is written back as awaiting a final value, same id
     await expectOutflowsWritten((written) =>
       written.some((entry) => entry.id === `${JUNE}-Luz` && !entry.isFinal)
+    );
+  });
+
+  it('saves a new outflow as a Payment by default', async () => {
+    // Given the editor is open to add a outflow to June
+    renderEditor(`/outflows/new/${JUNE}`);
+    const user = userEvent.setup();
+
+    // When I fill the required fields without ticking the Investment box
+    await user.type(screen.getByLabelText('Nome da saída'), 'Luz');
+    await user.type(screen.getByLabelText('Valor da saída'), '150');
+    await choosePayerAndBank(user);
+    await user.click(screen.getByRole('button', { name: 'Salvar' }));
+
+    // Then the new outflow is written as a Payment
+    await expectOutflowsWritten((written) =>
+      written.some((entry) => entry.month === JUNE && entry.name === 'Luz' && !entry.isInvestment)
+    );
+  });
+
+  it('saves a new outflow as an Investment when the Investment box is ticked', async () => {
+    // Given the editor is open to add a outflow to June
+    renderEditor(`/outflows/new/${JUNE}`);
+    const user = userEvent.setup();
+
+    // When I fill the required fields and tick the Investment box
+    await user.type(screen.getByLabelText('Nome da saída'), 'Aporte');
+    await user.type(screen.getByLabelText('Valor da saída'), '500');
+    await choosePayerAndBank(user);
+    await user.click(screen.getByLabelText('Investimento'));
+    await user.click(screen.getByRole('button', { name: 'Salvar' }));
+
+    // Then the new outflow is written as an Investment
+    await expectOutflowsWritten((written) =>
+      written.some((entry) => entry.month === JUNE && entry.name === 'Aporte' && entry.isInvestment)
+    );
+  });
+
+  it('prefills an existing Investment and saves it back as an Investment', async () => {
+    // Given June has an Investment outflow
+    renderEditor(`/outflows/edit/${JUNE}-Aporte`, [
+      outflow({ month: JUNE, name: 'Aporte', amount: 500, isInvestment: true }),
+    ]);
+    const user = userEvent.setup();
+
+    // Then the Investment box arrives ticked
+    expect(screen.getByLabelText('Investimento')).toBeChecked();
+
+    // When I save without changing the kind
+    await user.click(screen.getByRole('button', { name: 'Salvar' }));
+
+    // Then the outflow is written back as an Investment, same id
+    await expectOutflowsWritten((written) =>
+      written.some((entry) => entry.id === `${JUNE}-Aporte` && entry.isInvestment)
+    );
+  });
+
+  it('unticking the Investment box turns an Investment back into a Payment', async () => {
+    // Given June has an Investment outflow
+    renderEditor(`/outflows/edit/${JUNE}-Aporte`, [
+      outflow({ month: JUNE, name: 'Aporte', amount: 500, isInvestment: true }),
+    ]);
+    const user = userEvent.setup();
+
+    // When I untick the Investment box and save
+    await user.click(screen.getByLabelText('Investimento'));
+    await user.click(screen.getByRole('button', { name: 'Salvar' }));
+
+    // Then the outflow is written back as a Payment, same id
+    await expectOutflowsWritten((written) =>
+      written.some((entry) => entry.id === `${JUNE}-Aporte` && !entry.isInvestment)
     );
   });
 

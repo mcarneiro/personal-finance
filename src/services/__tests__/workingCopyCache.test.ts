@@ -20,6 +20,7 @@ function snapshot(overrides: Partial<SheetData> = {}): SheetData {
         amount: 120,
         isPaid: false,
         isFinal: true,
+        isInvestment: false,
         payerId: 'payer-1',
         bankId: 'bank-1',
       },

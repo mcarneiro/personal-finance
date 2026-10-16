@@ -109,6 +109,8 @@
     "amountLabel": "Valor da saída",
     "finalValueLabel": "Valor final",
     "notFinal": "Valor não final",
+    "investmentLabel": "Investimento",
+    "investmentTag": "Investimento",
     "addOutflow": "Adicionar saída",
     "newTitle": "Nova saída",
     "editTitle": "Editar saída",

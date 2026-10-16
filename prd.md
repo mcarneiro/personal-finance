@@ -72,8 +72,9 @@ A React app using Google Sheets as the database (same foundation as Stayoo) that
 
 #### 5. Outflows Management
 **Route:** `/outflows/:month`
-- Outflows: add (name, amount, payer, bank, final value), toggle paid, edit, delete — no auto-generation (the card bill is entered by hand). Add via the top-bar "+" and tap a row to edit both on a **full-screen editor** (`/outflows/new/:month`, `/outflows/edit/:id`); delete lives on the editor behind a confirmation modal, never inline in the list. The list reads **open outflows first, then paid**; among the open, **final values first, then outflows still awaiting one**, each group **alphabetical by name** — the paid group is a single tier sorted alphabetically, final status no longer mattering once settled. A **replicate-last-month button** seeds an empty month from last month's outflows; copies carry name, amount, payer and bank, but always arrive **unpaid and not final** (ADR-0003). The copy re-reads the target month from the sheet first and, if it is no longer empty, copies nothing and says so — so two members cannot double-replicate (ADR-0008)
+- Outflows: add (name, amount, payer, bank, final value, kind), toggle paid, edit, delete — no auto-generation (the card bill is entered by hand). Add via the top-bar "+" and tap a row to edit both on a **full-screen editor** (`/outflows/new/:month`, `/outflows/edit/:id`); delete lives on the editor behind a confirmation modal, never inline in the list. The list reads **open outflows first, then paid**; among the open, **final values first, then outflows still awaiting one**, each group **alphabetical by name** — the paid group is a single tier sorted alphabetically, final status no longer mattering once settled. A **replicate-last-month button** seeds an empty month from last month's outflows; copies carry name, amount, payer and bank, but always arrive **unpaid and not final** (ADR-0003). The copy re-reads the target month from the sheet first and, if it is no longer empty, copies nothing and says so — so two members cannot double-replicate (ADR-0008)
 - **Final value**: each outflow carries a **Final value** flag, set on the editor (unset by default). It marks the amount as confirmed for the month. Outflows whose value is not final are flagged with a ⚠️ before their name and, while open, follow the confirmed ones, so the variable amounts that still need updating after a replicate sit behind the confirmed open obligations and above nothing but paid rows. The flag is a workflow marker only — it never changes a total (ADR-0006)
+- **Payment or Investment**: each outflow also carries a kind — a **Payment** (the default, money that leaves the house) or an **Investment** (money moved into an asset the household keeps). It is set with an **Investment** checkbox on the editor and marked by a small **Investment** tag on the row, on the Outflows list and the Dashboard's open-outflows list alike. It is display-only — it never changes Outflows Total, Account Net or the by-payer summary — and it carries over on replicate, so a recurring contribution stays an Investment (no kind filter or kind-split summary exists). The kind is what the Dashboard's cash-flow bar aggregates into Payments and Investments (ADR-0013)
 - **Payer and bank are required**: every outflow records who pays it and which registered bank it is paid from; unset or since-removed references still render and still count. When the payer or bank registry is empty, the Outflows list and the editor show a highlighted callout with a shortcut straight to Settings instead of an unusable form
 - **Card bill**: entered by hand as a regular outflow when the statement arrives; its amount is the real statement value (covers the previous month's card spending). Installments, fees and refunds are absorbed by the statement value — never modeled
 - Shows: outflows total, a clickable **income total** that opens the same month on the Income screen, **account net** = income − outflows, and a **by-payer summary** (per payer, broken down by bank). The summary sits below the totals and above the outflows and is **collapsed by default**, expanding on tap — its expanded/collapsed state is remembered on the device. A small toggle inside the summary — remembered on the device — swaps each payer's and each bank's value from the full total to the **amount still to pay** (that payer's or bank's open outflows)
@@ -157,6 +158,7 @@ export interface Outflow {
   amount: number;
   isPaid: boolean;
   isFinal: boolean;             // amount confirmed for the month; default false
+  isInvestment: boolean;        // kind: false is a Payment, true an Investment; default false
   payerId: string;              // references a registered Payer
   bankId: string;               // references a registered Bank
 }
@@ -192,7 +194,7 @@ export interface SavingsBalance {
 | `payers` | id, name |
 | `plan` | id, month, name, amount, remaining_estimate |
 | `card_spending` | id, month, card_id, total |
-| `outflows` | id, month, name, amount, is_paid, payer_id, bank_id, is_final |
+| `outflows` | id, month, name, amount, is_paid, payer_id, bank_id, is_final, is_investment |
 | `income` | id, month, amount, source |
 | `savings_pots` | id, name |
 | `savings_balances` | id, month, pot_id, balance |

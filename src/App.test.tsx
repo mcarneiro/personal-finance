@@ -510,6 +510,7 @@ describe('privacy mode', () => {
               amount: 2500,
               isPaid: false,
               isFinal: true,
+              isInvestment: false,
               payerId: 'p1',
               bankId: 'b1',
             },

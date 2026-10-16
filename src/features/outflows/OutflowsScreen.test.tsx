@@ -67,6 +67,7 @@ function outflow(
     id: `${overrides.month}-${overrides.name}`,
     isPaid: false,
     isFinal: true,
+    isInvestment: false,
     payerId: 'payer-marcelo',
     bankId: 'bank-nubank',
     ...overrides,
@@ -246,6 +247,22 @@ describe('Outflows', () => {
     // Then only the unconfirmed outflow carries the warning
     expect(within(unconfirmedRow).getByText('⚠️')).toBeInTheDocument();
     expect(within(confirmedRow).queryByText('⚠️')).not.toBeInTheDocument();
+  });
+
+  it('tags an Investment row and leaves a Payment untagged', () => {
+    // Given an Investment outflow and a Payment outflow
+    renderOutflows(`/outflows/${JUNE}`, [
+      outflow({ month: JUNE, name: 'Aporte', amount: 500, isInvestment: true }),
+      outflow({ month: JUNE, name: 'Luz', amount: 150 }),
+    ]);
+
+    // When the list renders
+    const investmentRow = screen.getByText('Aporte').closest('li') as HTMLElement;
+    const paymentRow = screen.getByText('Luz').closest('li') as HTMLElement;
+
+    // Then only the Investment carries the kind tag
+    expect(within(investmentRow).getByText('Investimento')).toBeInTheDocument();
+    expect(within(paymentRow).queryByText('Investimento')).not.toBeInTheDocument();
   });
 
   it('sinks paid outflows below the open ones, whatever their final status', () => {

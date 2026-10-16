@@ -58,6 +58,14 @@ export interface Outflow {
    */
   isFinal: boolean;
   /**
+   * The kind of Outflow: `false` is a Payment (money that leaves the house) and
+   * `true` is an Investment (money moved into an asset the household keeps).
+   * Display-only, like `isFinal` — it never changes a total. Defaults to
+   * `false` (Payment) wherever an outflow is created, so a blank or legacy
+   * sheet cell reads back as a Payment.
+   */
+  isInvestment: boolean;
+  /**
    * The registered payer and bank, referenced by id so renaming a registry
    * entry flows through. `''` means unset — legacy rows written before these
    * fields existed, or a registry entry that was later removed.

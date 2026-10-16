@@ -64,6 +64,7 @@ export default function OutflowEditor() {
             initialName={outflow?.name}
             initialAmount={outflow?.amount}
             initialIsFinal={outflow?.isFinal}
+            initialIsInvestment={outflow?.isInvestment}
             initialPayerId={outflow?.payerId}
             initialBankId={outflow?.bankId}
             autoFocusName={!isEdit}

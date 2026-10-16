@@ -109,6 +109,8 @@
     "amountLabel": "Outflow amount",
     "finalValueLabel": "Final value",
     "notFinal": "Value not final",
+    "investmentLabel": "Investment",
+    "investmentTag": "Investment",
     "addOutflow": "Add outflow",
     "newTitle": "New outflow",
     "editTitle": "Edit outflow",

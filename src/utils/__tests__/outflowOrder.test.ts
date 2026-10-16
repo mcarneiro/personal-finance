@@ -12,6 +12,7 @@ function outflow(name: string, isPaid = false, isFinal = true): Outflow {
     amount: 100,
     isPaid,
     isFinal,
+    isInvestment: false,
     payerId: 'payer-marcelo',
     bankId: 'bank-nubank',
   };

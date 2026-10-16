@@ -24,8 +24,9 @@ interface OutflowRowProps {
 /**
  * One outflow row: the paid toggle (a sibling of the row button — a checkbox nested
  * in a button is invalid and awkward for a screen reader), the ⚠️ not-final
- * flag, the name and amount, and the payer · bank line. Shared by the Outflows
- * screen and the Dashboard so a outflow reads the same in both.
+ * flag, the Investment tag, the name and amount, and the payer · bank line.
+ * Shared by the Outflows screen and the Dashboard so a outflow reads the same in
+ * both.
  */
 export default function OutflowRow({
   outflow,
@@ -67,6 +68,11 @@ export default function OutflowRow({
                 className="shrink-0 text-sm"
               >
                 ⚠️
+              </span>
+            )}
+            {outflow.isInvestment && (
+              <span className="shrink-0 rounded-full bg-teal-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-teal-700">
+                {t('outflows.investmentTag')}
               </span>
             )}
             <span

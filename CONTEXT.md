@@ -45,12 +45,20 @@ An amount of money expected to arrive during a month, recorded with an optional 
 _Avoid_: Salary, revenue, income record
 
 **Outflow**:
-A single expected payment out of a household account during a month — a utility bill, an investment contribution or a maintenance cost — including its amount, whether its value is **Final Value**, who pays it (**Payer**), which **Bank** it is paid from, and whether it has been paid. It includes the card bill, a single value originating from the previous month's card spending. It does not belong to a spending bucket, and it is never **Card Spending**.
-_Avoid_: Bill, expense, payment, obligation, spending bucket
+A single expected payment out of a household account during a month — a utility bill, an investment contribution or a maintenance cost — including its amount, whether its value is **Final Value**, whether it is a **Payment** or an **Investment**, who pays it (**Payer**), which **Bank** it is paid from, and whether it has been paid. It includes the card bill, a single value originating from the previous month's card spending. It does not belong to a spending bucket, and it is never **Card Spending**.
+_Avoid_: Bill, expense, obligation, spending bucket
 
 **Final Value**:
 The flag marking an Outflow's amount as confirmed for the month. An Outflow starts — and every replicated copy arrives — without it, so variable amounts are flagged for review until someone confirms them. Outflows without it are shown with a warning and, while open, follow the confirmed ones; paid outflows sink to the end of the list. It is a workflow marker only and never changes a total.
 _Avoid_: Confirmed value, locked, settled, paid
+
+**Payment**:
+The default kind of **Outflow**: money that leaves the household for good. It is a marker only and never changes a total.
+_Avoid_: Expense, spending, card spending
+
+**Investment**:
+An **Outflow** whose money moves into an asset the household keeps instead of leaving it — a recurring contribution, for example. Like **Final Value** it is a marker only and never changes a total, but unlike Final Value it travels with a replicated outflow, because it describes what the outflow is.
+_Avoid_: Savings Pot, Savings Balance, transfer
 
 **Payer**:
 A named household member responsible for paying an Outflow. Payers form a registry the household maintains in Settings; an Outflow references one by id, so renaming a payer flows through to its outflows.
