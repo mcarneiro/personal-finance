@@ -44,7 +44,6 @@ function authState(overrides: Partial<ReturnType<typeof useGoogleAuth>> = {}) {
     persistAuth: false,
     setPersistAuth: vi.fn(),
     sessionExpired: false,
-    clearSessionExpired: vi.fn(),
     ...overrides,
   };
 }

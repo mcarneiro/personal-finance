@@ -38,7 +38,6 @@ function authState(overrides: Partial<ReturnType<typeof useGoogleAuth>> = {}) {
     persistAuth: false,
     setPersistAuth: vi.fn(),
     sessionExpired: false,
-    clearSessionExpired: vi.fn(),
     ...overrides,
   };
 }
@@ -116,6 +115,32 @@ describe('Onboarding', () => {
       await screen.findByText('Informe uma URL de Planilha Google válida.')
     ).toBeInTheDocument();
     expect(googleSheetsService.initializeSheets).not.toHaveBeenCalled();
+  });
+
+  it('highlights the expired session on the welcome page without a dismissal', () => {
+    // Given a signed-out user whose session expired with a sheet already connected
+    mockedUseGoogleAuth.mockReturnValue(authState({ sessionExpired: true }));
+    renderOnboarding('spreadsheet-abc');
+
+    // Then the welcome page itself shows the expiry notice, on a yellow alert...
+    const notice = screen.getByRole('status');
+    expect(notice).toHaveClass('bg-yellow-100');
+    expect(notice).toHaveTextContent('Sessão expirada');
+    expect(notice).toHaveTextContent('Sua sessão expirou. Entre novamente para acessar seus dados.');
+
+    // ...with only the normal sign-in action, nothing to dismiss
+    expect(screen.queryByRole('button', { name: 'Dispensar aviso' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Entrar com Google' })).toBeInTheDocument();
+  });
+
+  it('still highlights the notice when the browser dropped the session without a stored expiry', () => {
+    // Given a signed-out user with a connected sheet and no detectable expiry
+    // (the default session-only login is gone after the browser is closed)
+    mockedUseGoogleAuth.mockReturnValue(authState({ sessionExpired: false }));
+    renderOnboarding('spreadsheet-abc');
+
+    // Then the welcome page still says the session ended, highlighted
+    expect(screen.getByRole('status')).toHaveTextContent('Sessão expirada');
   });
 
   it('waits for the app to load when a sheet is already connected', () => {

@@ -50,7 +50,6 @@ function signedInAuth() {
     persistAuth: false,
     setPersistAuth: vi.fn(),
     sessionExpired: false,
-    clearSessionExpired: vi.fn(),
   };
 }
 

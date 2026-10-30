@@ -11,9 +11,7 @@
     "copyCheckFailed": "Não foi possível verificar o mês antes de copiar. Nada foi copiado."
   },
   "session": {
-    "title": "Sessão expirada",
-    "message": "Sua sessão expirou. Entre novamente para continuar.",
-    "dismiss": "Dispensar aviso"
+    "title": "Sessão expirada"
   },
   "navigation": {
     "plan": "Plano",

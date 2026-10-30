@@ -16,7 +16,6 @@ interface GoogleAuthContextType {
   persistAuth: boolean;
   setPersistAuth: (persist: boolean) => void;
   sessionExpired: boolean;
-  clearSessionExpired: () => void;
 }
 
 const GoogleAuthContext = createContext<GoogleAuthContextType | undefined>(undefined);
@@ -80,10 +79,6 @@ export function GoogleAuthProvider({ children }: { children: ReactNode }) {
   });
   const [error, setError] = useState<string | null>(null);
   const [sessionExpired, setSessionExpired] = useState(false);
-
-  const clearSessionExpired = () => {
-    setSessionExpired(false);
-  };
 
   // Check for expired token on mount
   useEffect(() => {
@@ -197,6 +192,8 @@ export function GoogleAuthProvider({ children }: { children: ReactNode }) {
         setUserEmail(userInfo.email);
         setIsSignedIn(true);
         setError(null);
+        // The user is signed in again, so the expiry notice no longer applies.
+        setSessionExpired(false);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch user info');
         setIsSignedIn(false);
@@ -230,10 +227,8 @@ export function GoogleAuthProvider({ children }: { children: ReactNode }) {
     setTokenExpiresAt(null);
     setError(null);
 
-    // Set sessionExpired flag if it's due to expiration
-    if (reason === 'expired') {
-      setSessionExpired(true);
-    }
+    // Only an actual expiry keeps the flag; a deliberate sign-out clears it.
+    setSessionExpired(reason === 'expired');
 
     // Clear from both storages to ensure complete logout
     localStorage.removeItem('googleAuth_isSignedIn');
@@ -285,7 +280,6 @@ export function GoogleAuthProvider({ children }: { children: ReactNode }) {
         persistAuth,
         setPersistAuth,
         sessionExpired,
-        clearSessionExpired,
       }}
     >
       {isConfigured && (

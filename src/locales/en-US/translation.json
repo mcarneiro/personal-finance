@@ -11,9 +11,7 @@
     "copyCheckFailed": "Couldn't check this month before copying. Nothing was copied."
   },
   "session": {
-    "title": "Session expired",
-    "message": "Your session has expired. Please sign in again to continue.",
-    "dismiss": "Dismiss notification"
+    "title": "Session expired"
   },
   "navigation": {
     "plan": "Plan",

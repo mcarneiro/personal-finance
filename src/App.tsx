@@ -32,7 +32,7 @@ function App() {
   const syncing = useAppSelector((state) => state.app.syncing);
   const offline = useAppSelector((state) => state.app.offline);
   const selectedMonth = useAppSelector((state) => state.app.selectedMonth);
-  const { isSignedIn, sessionExpired, clearSessionExpired } = useGoogleAuth();
+  const { isSignedIn } = useGoogleAuth();
 
   // Load data from the connected sheet on start; writes go through the sync middleware.
   useDataSync();
@@ -80,31 +80,6 @@ function App() {
 
   return (
     <>
-      {sessionExpired && (
-        <div className="fixed left-0 right-0 top-0 z-50 bg-yellow-500 px-4 py-3 text-white shadow-lg">
-          <div className="mx-auto flex max-w-md items-center justify-between">
-            <div>
-              <p className="font-semibold">{t('session.title')}</p>
-              <p className="text-sm">{t('session.message')}</p>
-            </div>
-            <button
-              onClick={clearSessionExpired}
-              aria-label={t('session.dismiss')}
-              className="text-white transition-colors hover:text-yellow-100"
-            >
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-            </button>
-          </div>
-        </div>
-      )}
-
       {syncing && !dataLoading && (
         <div
           role="status"

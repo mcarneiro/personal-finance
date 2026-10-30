@@ -85,9 +85,35 @@ export default function Onboarding() {
               <h2 className="mb-4 text-lg font-semibold text-gray-900">
                 {hasExistingSetup ? t('onboarding.signInToContinue') : t('onboarding.step1')}
               </h2>
-              <p className="mb-4 text-sm text-gray-600">
-                {hasExistingSetup ? t('onboarding.sessionExpired') : t('onboarding.needAccess')}
-              </p>
+              {hasExistingSetup ? (
+                <div
+                  role="status"
+                  className="mb-4 flex gap-3 rounded-lg border border-amber-400 border-l-4 border-l-amber-500 bg-yellow-100 p-4 shadow-sm"
+                >
+                  <svg
+                    className="h-5 w-5 shrink-0 text-amber-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 9v4m0 4h.01M10.29 3.86l-8.18 14.14A2 2 0 003.83 21h16.34a2 2 0 001.72-3L13.71 3.86a2 2 0 00-3.42 0z"
+                    />
+                  </svg>
+                  <div>
+                    <p className="mb-1 text-sm font-semibold text-amber-900">
+                      {t('session.title')}
+                    </p>
+                    <p className="text-sm text-amber-900">{t('onboarding.sessionExpired')}</p>
+                  </div>
+                </div>
+              ) : (
+                <p className="mb-4 text-sm text-gray-600">{t('onboarding.needAccess')}</p>
+              )}
 
               {!hasExistingSetup && (
                 <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-4">

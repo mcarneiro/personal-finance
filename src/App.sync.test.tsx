@@ -103,7 +103,6 @@ function renderApp(store: ReturnType<typeof createStore>, path = '/plan/2026-06'
     persistAuth: false,
     setPersistAuth: vi.fn(),
     sessionExpired: false,
-    clearSessionExpired: vi.fn(),
   });
 
   return render(
