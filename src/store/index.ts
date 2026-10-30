@@ -9,7 +9,9 @@ import incomeReducer from './incomeSlice';
 import savingsReducer from './savingsSlice';
 import settingsReducer from './settingsSlice';
 import pendingReducer from './pendingSlice';
+import undoReducer from './undoSlice';
 import { syncListenerMiddleware } from './middleware/syncListener';
+import { undoListenerMiddleware } from './middleware/undoListener';
 
 export const store = configureStore({
   reducer: {
@@ -23,9 +25,13 @@ export const store = configureStore({
     savings: savingsReducer,
     settings: settingsReducer,
     pending: pendingReducer,
+    undo: undoReducer,
   },
   middleware: (getDefaultMiddleware) =>
-    getDefaultMiddleware().prepend(syncListenerMiddleware.middleware),
+    getDefaultMiddleware().prepend(
+      syncListenerMiddleware.middleware,
+      undoListenerMiddleware.middleware
+    ),
 });
 
 export type RootState = ReturnType<typeof store.getState>;

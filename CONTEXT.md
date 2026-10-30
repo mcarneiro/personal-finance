@@ -102,6 +102,10 @@ _Avoid_: Session, local state, offline copy
 A member's edit not yet written to the sheet. It survives a failed write and is retried on the next save or refresh, always winning over the sheet's value.
 _Avoid_: Draft, unsaved edit, dirty row
 
+**Undo Entry**:
+The prior state of the record or records touched by the last change on this device, held only in memory for a few seconds so that change can be reversed. One entry exists at a time — a newer change replaces it, and a bulk action holds a single entry for the whole batch. It is device-local, single-use and never synced; it is not a history.
+_Avoid_: Version, snapshot, rollback, backup, history
+
 **Lost Update**:
 A member's written change silently overwritten by a save made from a stale Working Copy. The save protocol exists to prevent this.
 _Avoid_: Overwrite, conflict, race

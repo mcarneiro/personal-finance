@@ -28,6 +28,16 @@
     "hide": "Hide values",
     "show": "Show values"
   },
+  "undo": {
+    "single": "Changed",
+    "bulk_outflows_one": "1 outflow replicated",
+    "bulk_outflows_other": "{{count}} outflows replicated",
+    "bulk_plan_one": "1 bucket copied",
+    "bulk_plan_other": "{{count}} buckets copied",
+    "bulk_income_one": "1 income entry replicated",
+    "bulk_income_other": "{{count}} income entries replicated",
+    "action": "Undo"
+  },
   "home": {
     "title": "Dashboard",
     "cashFlow": "Income and outflows",

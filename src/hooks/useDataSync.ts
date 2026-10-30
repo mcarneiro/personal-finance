@@ -13,6 +13,7 @@ import { setIncomeEntries } from '../store/incomeSlice';
 import { setSavingsBalances, setSavingsPots } from '../store/savingsSlice';
 import { setDataLoading, setDataLoaded, setSyncing, setOffline } from '../store/appSlice';
 import { clearPendingChanges, dropPendingChanges } from '../store/pendingSlice';
+import { clearUndoEntry } from '../store/undoSlice';
 import { SHEET_KEYS } from '../config/google';
 import type { SheetData } from '../types';
 
@@ -113,9 +114,11 @@ export function useDataSync() {
       schemaVerifiedFor.current = null;
       hasWorkingCopy.current = false;
       // Edits recorded against a previous sheet must not replay over — or be
-      // pushed to — this one. Nothing is cleared on the first session: any
-      // pending state already belongs to the sheet being connected.
-      if (isSheetSwitch) dispatch(clearPendingChanges());
+      // pushed to — this one. An undo slot from that sheet is meaningless too.
+      if (isSheetSwitch) {
+        dispatch(clearPendingChanges());
+        dispatch(clearUndoEntry());
+      }
 
       const cached = loadWorkingCopy(connectedSheetId);
       if (cached) {

@@ -3,6 +3,7 @@ import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-
 import { useTranslation } from 'react-i18next';
 import Layout from './components/Layout';
 import LoadingScreen from './components/LoadingScreen';
+import UndoToast from './components/UndoToast';
 import DashboardScreen from './features/dashboard/DashboardScreen';
 import PlanScreen from './features/plan/PlanScreen';
 import BucketEditor from './features/plan/BucketEditor';
@@ -182,6 +183,9 @@ function App() {
         <Route path="/settings" element={<SettingsScreen />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+
+      {/* The undo slot lives on every route, including the full-screen editors. */}
+      <UndoToast />
     </>
   );
 }

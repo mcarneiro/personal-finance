@@ -28,6 +28,16 @@
     "hide": "Ocultar valores",
     "show": "Mostrar valores"
   },
+  "undo": {
+    "single": "Alterado",
+    "bulk_outflows_one": "1 saída replicada",
+    "bulk_outflows_other": "{{count}} saídas replicadas",
+    "bulk_plan_one": "1 teto copiado",
+    "bulk_plan_other": "{{count}} tetos copiados",
+    "bulk_income_one": "1 renda replicada",
+    "bulk_income_other": "{{count}} rendas replicadas",
+    "action": "Desfazer"
+  },
   "home": {
     "title": "Dashboard",
     "cashFlow": "Renda e saídas",
